@@ -1,0 +1,25 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - rules/alert.rules.yml
+  - rules/recording.rules.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # AlertManager eklendiğinde burası güncellenecek
+          # - alertmanager:9093
+
+scrape_configs:
+  - job_name: 'tumdex-api'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['host.docker.internal:5000'] # API'nizin portu
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        

@@ -1,0 +1,52 @@
+groups:
+  - name: Tumdex Alerts
+    rules:
+      # API Performans Alertleri
+      - alert: HighRequestLatency
+        expr: rate(request_duration_milliseconds_sum[5m]) / rate(request_duration_milliseconds_count[5m]) > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High request latency on {{ $labels.endpoint }}"
+          description: "Request latency is above 1s (current value: {{ $value }}ms)"
+
+      # Authentication Alertleri
+      - alert: HighLoginFailureRate
+        expr: rate(failed_login_attempts_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High login failure rate detected"
+          description: "Login failures are above normal threshold"
+
+      # Sipariş İşlem Alertleri
+      - alert: HighOrderFailureRate
+        expr: rate(failed_payments_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High order failure rate"
+          description: "Order failures are above normal threshold"
+
+      # Rate Limiting Alertleri
+      - alert: HighRateLimitHits
+        expr: rate(rate_limit_hits_total[5m]) > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High rate limit hits"
+          description: "Many requests are being rate limited"
+
+      # DDoS Koruma Alertleri
+      - alert: PossibleDDoSAttack
+        expr: rate(ddos_attempts_total[5m]) > 50
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Possible DDoS attack detected"
+          description: "Unusual traffic pattern detected"

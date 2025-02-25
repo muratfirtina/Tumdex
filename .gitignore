@@ -1,0 +1,123 @@
+# .NET Core
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/.idea/
+**/.user
+**/.suo
+**/*.userprefs
+**/*.lock.json
+**/launchSettings.json
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# NuGet Packages
+*.nupkg
+**/packages/
+**/NuGetPackages/
+
+# Local development files
+**/.env
+**/appsettings.development.json
+**/appsettings.local.json
+
+# Docker
+**/docker-compose.override.yml
+**/docker-compose.local.yml
+
+# IDE specific files
+**/.DS_Store
+**/.project
+**/.settings/
+**/*.swp
+**/*.swo
+
+# Logs and databases
+*.log
+*.sqlite
+
+# Azure
+**/azure-pipelines.yml
+**/azure-pipelines-*.yml
+
+# Visual Studio Code
+.vscode/
+
+# Rider
+.idea/
+
+# User-specific files
+*.user
+*.suo
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# MSTest test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# NUnit
+*.VisualState.xml
+TestResult.xml
+nunit-*.xml
+
+# Build Results of an ATL Project
+[Dd]ebugPS/
+[Rr]eleasePS/
+dlldata.c
+
+# .NET Core
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# ASP.NET Core
+**/wwwroot/
+**/wwwroot/lib/
+**/wwwroot/dist/
+**/wwwroot/.well-known/
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# VS Code
+.vscode/
+
+# Rider
+.idea/
+
+# Local History for Visual Studio
+.history/
+
+.DS_Store
+src/load-env.sh
+# End of https://www.toptal.com/developers/gitignore/api/dotnetcore,visualstudio,visualstudiocode,rider

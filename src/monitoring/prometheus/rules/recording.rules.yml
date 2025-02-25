@@ -1,0 +1,18 @@
+groups:
+  - name: Tumdex Recording Rules
+    rules:
+      # API Performans Metrikleri
+      - record: api:request_duration:avg_5m
+        expr: rate(request_duration_milliseconds_sum[5m]) / rate(request_duration_milliseconds_count[5m])
+
+      # Sipariş Metrikleri
+      - record: orders:completion_rate:5m
+        expr: rate(order_completions_total[5m])
+
+      # Kullanıcı Metrikleri
+      - record: users:login_success_rate:5m
+        expr: rate(user_logins_total[5m])
+
+      # Cart Metrikleri
+      - record: cart:abandonment_rate:1h
+        expr: rate(cart_abandonment_rate[1h])

@@ -75,9 +75,9 @@ services:
     ports:
       - "${REDIS_PORT:-6379}:6379"
     environment:
+      - REDIS_USER=${REDIS_USER}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
-    # command yapılandırmasını tek satırda yazıyoruz
-    command: redis-server --requirepass ${REDIS_PASSWORD} --bind 0.0.0.0 --protected-mode no --appendonly yes --port 6379
+    command: redis-server --requirepass ${REDIS_PASSWORD} --user ${REDIS_USER} on +@all ~* >${REDIS_PASSWORD} --bind 0.0.0.0 --protected-mode no --appendonly yes --port 6379
     volumes:
       - redis-data:/data
     networks:

@@ -9,6 +9,7 @@ using Core.Application.Responses;
 using Core.Persistence.Dynamic;
 using Core.Persistence.Paging;
 using Domain;
+using Domain.Entities;
 using Domain.Enum;
 using Domain.Identity;
 using MediatR;

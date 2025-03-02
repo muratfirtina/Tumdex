@@ -3,6 +3,7 @@ using Application.Abstraction.Services;
 using Application.Enums;
 using Application.Models.Monitoring;
 using Domain;
+using Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

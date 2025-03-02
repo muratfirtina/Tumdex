@@ -9,6 +9,7 @@ using Core.Application.Requests;
 using Core.Application.Responses;
 using Core.Persistence.Paging;
 using Domain;
+using Domain.Entities;
 using MediatR;
 
 namespace Application.Features.ProductLikes.Queries.GetProductsUserLiked;

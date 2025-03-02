@@ -4,6 +4,7 @@ using Application.Services;
 using dotenv.net;
 using HealthChecks.UI.Client;
 using Infrastructure;
+using Infrastructure.BackgroundJobs;
 using Infrastructure.Configuration;
 using Infrastructure.Services.Security;
 using Infrastructure.Services.Seo;
@@ -46,6 +47,20 @@ try
     var initService = app.Services.GetRequiredService<IKeyVaultInitializationService>();
     await initService.InitializeAsync();
     await ConfigureApplication(app);
+    
+    // Newsletter scheduler'ı başlat
+    Log.Information("Initializing newsletter scheduler");
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var newsletterScheduler = scope.ServiceProvider.GetRequiredService<NewsletterScheduler>();
+        await newsletterScheduler.ScheduleNewsletterJobs();
+        Log.Information("Newsletter scheduler initialized successfully");
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "An error occurred while initializing newsletter scheduler");
+    }
     
     await app.RunAsync();
 }

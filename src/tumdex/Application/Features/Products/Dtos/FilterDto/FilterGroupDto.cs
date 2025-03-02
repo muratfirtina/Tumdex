@@ -1,4 +1,5 @@
 using Domain;
+using Domain.Entities;
 using Domain.Enum;
 
 namespace Application.Features.Products.Dtos.FilterDto;

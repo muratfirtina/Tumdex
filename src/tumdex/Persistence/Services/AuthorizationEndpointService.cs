@@ -6,6 +6,7 @@ using Application.Dtos.Configuration;
 using Application.Dtos.Role;
 using Application.Repositories;
 using Domain;
+using Domain.Entities;
 using Domain.Identity;
 
 namespace Persistence.Services;

@@ -7,6 +7,7 @@ using Application.Repositories;
 using Core.Application.Rules;
 using Core.CrossCuttingConcerns.Exceptions;
 using Domain;
+using Domain.Entities;
 
 namespace Application.Features.Products.Rules;
 

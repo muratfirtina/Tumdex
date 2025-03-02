@@ -1,6 +1,7 @@
 using Application.Features.Contatcs.Command;
 using AutoMapper;
 using Domain;
+using Domain.Entities;
 
 namespace Application.Features.Contatcs.Profiles;
 

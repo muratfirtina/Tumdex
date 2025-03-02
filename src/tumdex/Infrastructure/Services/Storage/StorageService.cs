@@ -3,6 +3,7 @@ using Application.Services;
 using Application.Storage;
 using Application.Storage.Local;
 using Domain;
+using Domain.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 

@@ -8,6 +8,7 @@ using Core.Application.Pipelines.Caching;
 using Core.Application.Responses;
 using Core.Persistence.Paging;
 using Domain;
+using Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 

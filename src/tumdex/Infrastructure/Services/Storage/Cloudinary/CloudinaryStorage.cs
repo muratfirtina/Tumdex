@@ -4,6 +4,7 @@ using Azure.Security.KeyVault.Secrets;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using Domain;
+using Domain.Entities;
 using Infrastructure.Adapters.Image.Cloudinary;
 using Infrastructure.Configuration;
 using Microsoft.Extensions.Configuration;

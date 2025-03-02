@@ -9,6 +9,7 @@ using Infrastructure.Middleware.RateLimiting;
 using Infrastructure.Middleware.Security;
 using Infrastructure.Services.Cache;
 using Infrastructure.Services.Mail;
+using Infrastructure.Services.Mail.Models;
 using Infrastructure.Services.Monitoring;
 using Infrastructure.Services.Monitoring.Alerts;
 using Infrastructure.Services.Notifications;
@@ -18,6 +19,7 @@ using Infrastructure.Services.Security.KeyVault;
 using Infrastructure.Services.Security.Models;
 using Infrastructure.Services.Security.Models.Alert;
 using Infrastructure.Services.Seo;
+using Infrastructure.Services.Token;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -52,7 +54,7 @@ public static class SecurityServiceRegistration
         services.Configure<TokenSettings>(securitySection.GetSection("TokenSettings"));
         services.Configure<RateLimitConfig>(securitySection.GetSection("RateLimiting"));
         services.Configure<DDoSConfig>(securitySection.GetSection("DDoSProtection"));
-        services.Configure<EmailSettings>(configuration.GetSection("Email"));
+        services.Configure<EmailConfig>(configuration.GetSection("Email"));
         services.Configure<AlertSettings>(configuration.GetSection("Monitoring:Alerts"));
     }
     
@@ -64,20 +66,20 @@ public static class SecurityServiceRegistration
         services.AddSingleton<ICacheEncryptionService, CacheEncryptionService>();
         services.AddSingleton<IKeyVaultService, KeyVaultService>();
         services.AddScoped<IJwtService, JwtService>();
+        services.AddSingleton<ITokenSettingsService, TokenSettingsService>();
         services.AddScoped<ILogService, LogService>();
     }
 
     private static void ConfigureMonitoringServices(IServiceCollection services)
     {
         services.AddSingleton<IMetricsService, PrometheusMetricsService>();
-        services.AddScoped<IAlertService, AlertService>();
     }
 
     private static void ConfigureCommunicationServices(IServiceCollection services)
     {
-        services.AddScoped<INotificationService, NotificationService>();
-        services.AddScoped<IMailService, UnifiedMailService>();
         services.AddHttpClient();
+        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IAlertService, AlertService>();
     }
 
     public static IApplicationBuilder UseSecurityMiddleware(

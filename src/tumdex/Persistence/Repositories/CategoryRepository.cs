@@ -2,6 +2,7 @@ using Application.Repositories;
 using Core.Persistence.Paging;
 using Core.Persistence.Repositories;
 using Domain;
+using Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Persistence.Context;
 

@@ -5,6 +5,7 @@ using Application.Repositories;
 using AutoMapper;
 using Core.Application.Pipelines.Caching;
 using Domain;
+using Domain.Entities;
 using MediatR;
 
 namespace Application.Features.FeatureValues.Commands.Create;

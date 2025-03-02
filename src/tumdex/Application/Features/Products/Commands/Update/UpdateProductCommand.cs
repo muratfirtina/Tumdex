@@ -8,6 +8,7 @@ using Application.Storage;
 using AutoMapper;
 using Core.Application.Pipelines.Caching;
 using Domain;
+using Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;

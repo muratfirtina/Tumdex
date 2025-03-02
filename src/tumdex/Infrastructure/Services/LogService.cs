@@ -1,5 +1,6 @@
 using Application.Abstraction.Services;
 using Domain;
+using Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Persistence.Context;

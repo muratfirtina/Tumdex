@@ -6,6 +6,7 @@ using AutoMapper;
 using Core.Application.Pipelines.Caching;
 using Core.Application.Pipelines.Transaction;
 using Domain;
+using Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;

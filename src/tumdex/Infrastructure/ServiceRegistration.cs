@@ -2,31 +2,26 @@ using Application.Abstraction.Services;
 using Application.Abstraction.Services.Configurations;
 using Application.Services;
 using Application.Storage;
-using Application.Storage.Cloudinary;
 using Application.Storage.Google;
 using Application.Storage.Local;
 using Application.Tokens;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
-using Infrastructure.BackgroundJobs;
 using Infrastructure.Configuration;
 using Infrastructure.Services;
 using Infrastructure.Services.Cache;
 using Infrastructure.Services.Configurations;
-using Infrastructure.Services.Security.Encryption;
+using Infrastructure.Services.Mail;
 using Infrastructure.Services.Seo;
 using Infrastructure.Services.Storage;
-using Infrastructure.Services.Storage.Cloudinary;
 using Infrastructure.Services.Storage.Google;
 using Infrastructure.Services.Storage.Local;
 using Infrastructure.Services.Token;
-using Infrastructure.Settings.Models.Newsletter;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Persistence.Models;
-using Quartz;
 using RabbitMQ.Client;
 using StackExchange.Redis;
 
@@ -48,6 +43,27 @@ public static class InfrastructureServiceRegistration
         services.Configure<StorageSettings>(configuration.GetSection("Storage"));
 
         // Storage providers
+        RegisterStorageServices(services);
+
+        // Auth ve token servisler
+        services.AddScoped<ITokenHandler, TokenHandler>();
+
+        // Uygulama servisleri
+        RegisterApplicationServices(services);
+
+        // Email servisleri (tümü)
+        services.AddEmailServices(configuration);
+
+        // SEO servisleri
+        services.AddScoped<IImageSeoService, ImageSeoService>();
+        services.AddScoped<ISitemapService, SitemapService>();
+
+        return services;
+    }
+    
+    private static void RegisterStorageServices(IServiceCollection services)
+    {
+        // Storage providers
         services.AddScoped<ILocalStorage, LocalStorage>();
         //services.AddScoped<ICloudinaryStorage, CloudinaryStorage>();
         services.AddScoped<IGoogleStorage, GoogleStorage>();
@@ -56,43 +72,16 @@ public static class InfrastructureServiceRegistration
         // Storage factory ve service
         services.AddScoped<IStorageProviderFactory, StorageProviderFactory>();
         services.AddScoped<IStorageService, StorageService>();
-
-        // Diğer servisler
+        
+        // Dosya adı servisi
         services.AddScoped<IFileNameService, FileNameService>();
+    }
+    
+    private static void RegisterApplicationServices(IServiceCollection services)
+    {
         services.AddScoped<IApplicationService, ApplicationService>();
-        services.AddScoped<ITokenHandler, TokenHandler>();
         services.AddScoped<ILogService, LogService>();
         services.AddScoped<ICompanyAssetService, CompanyAssetService>();
-
-        services.Configure<NewsletterSettings>(configuration.GetSection("Newsletter"));
-        services.AddScoped<INewsletterService, NewsletterService>();
-
-        services.AddScoped<IImageSeoService, ImageSeoService>();
-        services.AddScoped<ISitemapService, SitemapService>();
-        // Quartz yapılandırması
-        services.AddQuartz(q =>
-        {
-            var jobKey = new JobKey("MonthlyNewsletterJob");
-            q.AddJob<MonthlyNewsletterJob>(opts => opts.WithIdentity(jobKey));
-
-            var newsletterConfig = configuration.GetSection("Newsletter:SendTime")
-                .Get<NewsletterSendTimeConfig>();
-
-            if (newsletterConfig == null)
-            {
-                newsletterConfig = new NewsletterSendTimeConfig(); // Varsayılan değerler kullanılır
-            }
-
-            q.AddTrigger(opts => opts
-                .ForJob(jobKey)
-                .WithIdentity("MonthlyNewsletterJob-trigger")
-                .WithCronSchedule(
-                    $"0 {newsletterConfig.Minute} {newsletterConfig.Hour} {newsletterConfig.DayOfMonth} * ?"));
-        });
-
-        services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
-
-        return services;
     }
     
     private static void RegisterKeyVaultServices(IServiceCollection services, IConfiguration configuration)
@@ -229,6 +218,5 @@ public static class InfrastructureServiceRegistration
             .AddCheck<RabbitMQHealthCheck>("RabbitMQ",
                 failureStatus: HealthStatus.Unhealthy,
                 tags: new[] { "rabbitmq", "messagebroker" });
-        // new<>()
     }
 }

@@ -4,6 +4,7 @@ using Application.Abstraction.Services;
 using Application.Events.OrderEvetns;
 using Application.Repositories;
 using Domain;
+using Domain.Entities;
 using MassTransit;
 using Microsoft.Extensions.Logging;
 

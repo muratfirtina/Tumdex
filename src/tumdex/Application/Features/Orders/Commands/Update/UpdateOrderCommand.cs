@@ -8,6 +8,7 @@ using Application.Storage;
 using Core.Application.Pipelines.Caching;
 using Core.Application.Pipelines.Transaction;
 using Domain;
+using Domain.Entities;
 using Domain.Enum;
 using MassTransit;
 using MediatR;

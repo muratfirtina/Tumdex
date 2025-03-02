@@ -12,6 +12,7 @@ using AutoMapper.Internal;
 using Core.Application.Pipelines.Caching;
 using Core.Persistence.Paging;
 using Domain;
+using Domain.Entities;
 using Domain.Identity;
 using MediatR;
 using Microsoft.AspNetCore.Http;

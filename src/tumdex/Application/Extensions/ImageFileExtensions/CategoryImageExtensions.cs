@@ -1,6 +1,7 @@
 using Application.Features.Categories.Dtos;
 using Application.Storage;
 using Domain;
+using Domain.Entities;
 
 namespace Application.Extensions.ImageFileExtensions;
 

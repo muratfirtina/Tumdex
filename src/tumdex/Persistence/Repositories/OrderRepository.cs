@@ -16,6 +16,7 @@ using Core.Persistence.Dynamic;
 using Core.Persistence.Paging;
 using Core.Persistence.Repositories;
 using Domain;
+using Domain.Entities;
 using Domain.Enum;
 using Domain.Identity;
 using Domain.Model;

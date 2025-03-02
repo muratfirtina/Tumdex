@@ -1,6 +1,7 @@
 using Application.Repositories;
 using Core.Persistence.Repositories;
 using Domain;
+using Domain.Entities;
 using Domain.Enum;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -25,6 +26,8 @@ public class OutboxRepository : EfRepositoryBase<OutboxMessage, string, TumdexDb
         return await Context.OutboxMessages
             .Where(m => m.Status == OutboxStatus.Pending)
             .Where(m => m.RetryCount < _settings.MaxRetryCount)
+            // EmailMessage tipindeki mesajları hariç tutuyoruz
+            .Where(m => m.Type != "EmailMessage")
             .OrderBy(m => m.CreatedDate)
             .Take(_settings.BatchSize)
             .ToListAsync(cancellationToken);

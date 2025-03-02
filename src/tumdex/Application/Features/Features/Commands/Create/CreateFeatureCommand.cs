@@ -8,6 +8,7 @@ using Core.Application.Pipelines.Caching;
 using Core.CrossCuttingConcerns.Exceptions;
 using Core.Persistence.Repositories.Operation;
 using Domain;
+using Domain.Entities;
 using MediatR;
 
 namespace Application.Features.Features.Commands.Create;

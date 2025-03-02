@@ -7,6 +7,7 @@ using AutoMapper;
 using Core.Application.Pipelines.Caching;
 using Core.Persistence.Repositories.Operation;
 using Domain;
+using Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
 

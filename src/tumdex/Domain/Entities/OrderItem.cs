@@ -1,7 +1,6 @@
-using System.ComponentModel.DataAnnotations.Schema;
 using Core.Persistence.Repositories;
 
-namespace Domain;
+namespace Domain.Entities;
 
 public class OrderItem : Entity<string>
 {

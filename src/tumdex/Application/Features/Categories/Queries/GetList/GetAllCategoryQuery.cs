@@ -15,6 +15,7 @@ using Application.Consts;
 using Application.Extensions;
 using Application.Storage;
 using Core.Application.Pipelines.Caching;
+using Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Application.Features.Categories.Queries.GetList

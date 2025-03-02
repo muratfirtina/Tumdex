@@ -10,16 +10,16 @@ namespace Infrastructure.Consumers
 {
     public class OrderCreatedEventConsumer : IConsumer<OrderCreatedEvent>
     {
-        private readonly IMailService _mailService;
+        private readonly IOrderEmailService _orderEmailService;
         private readonly IOrderHubService _orderHubService;
         private readonly ILogger<OrderCreatedEventConsumer> _logger;
 
         public OrderCreatedEventConsumer(
-            IMailService mailService,
+            IOrderEmailService orderEmailService,
             IOrderHubService orderHubService,
             ILogger<OrderCreatedEventConsumer> logger)
         {
-            _mailService = mailService;
+            _orderEmailService = orderEmailService;
             _orderHubService = orderHubService;
             _logger = logger;
         }
@@ -41,7 +41,7 @@ namespace Infrastructure.Consumers
                     }
                     else
                     {
-                        await _mailService.SendCreatedOrderEmailAsync(
+                        await _orderEmailService.SendCreatedOrderEmailAsync(
                             order.Email,
                             order.OrderCode,
                             order.Description,

@@ -5,5 +5,5 @@ namespace Application.Features.Users.Commands.RefreshTokenLogin;
 
 public class RefreshTokenLoginResponse : IResponse
 {
-    public Token? Token { get; set; }
+    public Token Token { get; set; }
 }

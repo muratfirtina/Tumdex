@@ -2,7 +2,7 @@ using Core.Persistence.Repositories;
 using Domain.Enum;
 using Domain.Identity;
 
-namespace Domain;
+namespace Domain.Entities;
 
 public class Order:Entity<string>
 {

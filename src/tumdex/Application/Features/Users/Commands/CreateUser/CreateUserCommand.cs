@@ -1,3 +1,4 @@
+using Application.Abstraction.Services;
 using Application.Features.Events.User.UserRegister;
 using Domain.Identity;
 using MediatR;
@@ -16,16 +17,16 @@ public class CreateUserCommand : IRequest<CreatedUserResponse>
     
     public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, CreatedUserResponse>
 {
-    private readonly UserManager<AppUser> _userManager;
+    private readonly IAuthService _authService;
     private readonly IMediator _mediator;
     private readonly ILogger<CreateUserCommandHandler> _logger;
 
     public CreateUserCommandHandler(
-        UserManager<AppUser> userManager,
+        IAuthService authService,
         IMediator mediator,
         ILogger<CreateUserCommandHandler> logger)
     {
-        _userManager = userManager;
+        _authService = authService;
         _mediator = mediator;
         _logger = logger;
     }
@@ -36,46 +37,24 @@ public class CreateUserCommand : IRequest<CreatedUserResponse>
 
         try
         {
-            // Kullanıcı oluşturma
-            var user = new AppUser
-            {
-                Id = Guid.NewGuid().ToString(),
-                NameSurname = request.NameSurname,
-                UserName = request.UserName,
-                Email = request.Email
-            };
-
-            var createResult = await _userManager.CreateAsync(user, request.Password);
-            if (!createResult.Succeeded)
+            // AuthService üzerinden kullanıcı kaydı
+            var result = await _authService.RegisterUserAsync(request);
+        
+            if (!result.Succeeded)
             {
                 response.IsSuccess = false;
-                response.Message = string.Join("\n", createResult.Errors.Select(e => $"{e.Code} - {e.Description}"));
+                response.Message = string.Join("\n", result.Errors.Select(e => $"{e.Code} - {e.Description}"));
                 return response;
             }
 
-            // Rol atama
-            var role = request.UserName.ToLower() == "karafirtina" ? "Admin" : "User";
-            var roleResult = await _userManager.AddToRoleAsync(user, role);
-
-            if (!roleResult.Succeeded)
-            {
-                response.IsSuccess = false;
-                response.Message = $"User created  but {role} role could not be added.";
-                return response;
-            }
-
-            // Newsletter kaydı - hata olsa bile kullanıcı kaydını etkilemeyecek
-            try
-            {
-                await _mediator.Publish(new UserRegisteredEvent(user), cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Newsletter subscription failed for user {Email} but user registration completed successfully", user.Email);
-            }
+            // Kullanıcı bilgilerini al (newsletter için)
+            var user = await _authService.GetUserByEmailAsync(request.Email);
+        
+            // Newsletter kaydını asenkron olarak başlat - ana işlemi bekletmeyecek
+            _ = ProcessNewsletterSubscriptionAsync(user, cancellationToken);
 
             response.IsSuccess = true;
-            response.Message = $"User created and {role} role added.";
+            response.Message = "User created successfully. Please check your email to confirm your account.";
             return response;
         }
         catch (Exception ex)
@@ -83,6 +62,21 @@ public class CreateUserCommand : IRequest<CreatedUserResponse>
             response.IsSuccess = false;
             response.Message = $"An unexpected error occurred: {ex.Message}";
             return response;
+        }
+    }
+
+// Yeni eklenen asenkron newsletter işleme metodu 
+    private async Task ProcessNewsletterSubscriptionAsync(AppUser user, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _mediator.Publish(new UserRegisteredEvent(user), cancellationToken);
+            _logger.LogInformation("Newsletter subscription processed for user {Email}", user.Email);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Newsletter subscription failed for user {Email}", user.Email);
+            // Burada hataları işleyebilir veya bir kuyruk sistemine ekleyerek daha sonra yeniden deneyebilirsiniz
         }
     }
 }

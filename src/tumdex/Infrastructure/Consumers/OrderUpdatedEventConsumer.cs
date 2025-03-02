@@ -9,16 +9,16 @@ namespace Infrastructure.Consumers;
 
 public class OrderUpdatedEventConsumer : IConsumer<OrderUpdatedEvent>
 {
-    private readonly IMailService _mailService;
+    private readonly IOrderEmailService _orderEmailService;
     private readonly IOrderHubService _orderHubService;
     private readonly ILogger<OrderUpdatedEventConsumer> _logger;
 
     public OrderUpdatedEventConsumer(
-        IMailService mailService,
+        IOrderEmailService orderEmailService,
         IOrderHubService orderHubService,
         ILogger<OrderUpdatedEventConsumer> logger)
     {
-        _mailService = mailService;
+        _orderEmailService = orderEmailService;
         _orderHubService = orderHubService;
         _logger = logger;
     }
@@ -33,7 +33,7 @@ public class OrderUpdatedEventConsumer : IConsumer<OrderUpdatedEvent>
             // Mail gönderimi
             try
             {
-                await _mailService.SendOrderUpdateNotificationAsync(
+                await _orderEmailService.SendOrderUpdateNotificationAsync(
                     order.Email,
                     order.OrderCode,
                     order.AdminNote,

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Persistence.Context;
 using System;
 using System.Threading.Tasks;
+using Domain.Entities;
 
 namespace Persistence.Repositories
 {

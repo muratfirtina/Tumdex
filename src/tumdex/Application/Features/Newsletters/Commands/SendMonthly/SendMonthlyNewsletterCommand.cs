@@ -5,9 +5,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Application.Features.Newsletters.Commands.SendMonthly;
 
-public class SendMonthlyNewsletterCommand : IRequest<Unit>,ITransactionalRequest
+public class SendMonthlyNewsletterCommand : IRequest<Unit>, ITransactionalRequest
 {
-    public bool IsTest { get; set; } = false;  // Test modu için parametre
+    public bool IsTest { get; set; } = false;  // Parameter for test mode
 
     public class SendMonthlyNewsletterCommandHandler : IRequestHandler<SendMonthlyNewsletterCommand, Unit>
     {
@@ -26,14 +26,18 @@ public class SendMonthlyNewsletterCommand : IRequest<Unit>,ITransactionalRequest
         {
             try
             {
-                _logger.LogInformation("Starting to send {Mode} newsletter", request.IsTest ? "test" : "monthly");
-                await _newsletterService.SendMonthlyNewsletterAsync();
-                _logger.LogInformation("Newsletter sent successfully");
+                _logger.LogInformation("Starting to send {Mode} newsletter via API request", 
+                    request.IsTest ? "test" : "monthly");
+                
+                // Queue the newsletter to be sent in the background
+                await _newsletterService.QueueSendMonthlyNewsletterAsync(request.IsTest);
+                
+                _logger.LogInformation("Newsletter sending task has been queued successfully");
                 return Unit.Value;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while sending newsletter");
+                _logger.LogError(ex, "Error occurred while queueing newsletter");
                 throw;
             }
         }

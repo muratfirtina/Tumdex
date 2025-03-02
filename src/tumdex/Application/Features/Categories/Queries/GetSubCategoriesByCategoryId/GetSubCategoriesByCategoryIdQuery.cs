@@ -6,6 +6,7 @@ using AutoMapper;
 using Core.Application.Pipelines.Caching;
 using Core.Application.Responses;
 using Domain;
+using Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 

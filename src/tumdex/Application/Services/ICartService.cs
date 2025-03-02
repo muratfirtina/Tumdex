@@ -1,5 +1,6 @@
 using Application.Features.Carts.Dtos;
 using Domain;
+using Domain.Entities;
 
 namespace Application.Services;
 

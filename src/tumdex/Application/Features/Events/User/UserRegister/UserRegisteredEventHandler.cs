@@ -1,19 +1,20 @@
 using Application.Services;
 using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Application.Features.Events.User.UserRegister;
 
 public class UserRegisteredEventHandler : INotificationHandler<UserRegisteredEvent>
 {
-    private readonly INewsletterService _newsletterService;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<UserRegisteredEventHandler> _logger;
 
     public UserRegisteredEventHandler(
-        INewsletterService newsletterService,
+        IServiceScopeFactory serviceScopeFactory,
         ILogger<UserRegisteredEventHandler> logger)
     {
-        _newsletterService = newsletterService;
+        _serviceScopeFactory = serviceScopeFactory;
         _logger = logger;
     }
 
@@ -21,7 +22,14 @@ public class UserRegisteredEventHandler : INotificationHandler<UserRegisteredEve
     {
         try
         {
-            await _newsletterService.HandleUserRegistrationAsync(notification.User);
+            // Yeni bir scope oluşturuyoruz
+            using var scope = _serviceScopeFactory.CreateScope();
+            var newsletterService = scope.ServiceProvider.GetRequiredService<INewsletterService>();
+            
+            // Newsletter kaydını yeni scope'ta gerçekleştiriyoruz
+            await newsletterService.HandleUserRegistrationAsync(notification.User);
+            
+            _logger.LogInformation("Newsletter subscription processed for user {Email}", notification.User.Email);
         }
         catch (Exception ex)
         {

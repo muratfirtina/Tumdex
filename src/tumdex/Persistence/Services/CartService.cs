@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Application.Repositories;
 using Application.Services;
 using Domain;
+using Domain.Entities;
 using Domain.Enum;
 using Domain.Identity;
 

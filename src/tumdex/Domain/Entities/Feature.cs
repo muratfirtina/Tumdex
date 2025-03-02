@@ -1,7 +1,6 @@
-using System.Collections;
 using Core.Persistence.Repositories;
 
-namespace Domain;
+namespace Domain.Entities;
 
 public class Feature : Entity<string>
 {

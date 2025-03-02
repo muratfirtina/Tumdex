@@ -1,6 +1,7 @@
 using Application.Abstraction.Services;
 using Application.Enums;
 using Domain;
+using Domain.Entities;
 using Infrastructure.Services.Cache;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;

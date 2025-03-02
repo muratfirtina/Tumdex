@@ -1,6 +1,7 @@
 
 using Core.Persistence.Repositories;
 using Domain;
+using Domain.Entities;
 using Domain.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -47,6 +48,7 @@ public class TumdexDbContext : IdentityDbContext<AppUser,AppRole,string>
     public DbSet<Contact> Contacts { get; set; }
     public DbSet<StockReservation> StockReservations { get; set; }
     public DbSet<OutboxMessage> OutboxMessages { get; set; }
+    public DbSet<RefreshToken> RefreshTokens { get; set; }
     
     
     protected override void OnModelCreating(ModelBuilder builder)
@@ -78,6 +80,8 @@ public class TumdexDbContext : IdentityDbContext<AppUser,AppRole,string>
         builder.Entity<NewsletterLog>().HasQueryFilter(nl => !nl.DeletedDate.HasValue);
         builder.Entity<Contact>().HasQueryFilter(c => !c.DeletedDate.HasValue);
         builder.Entity<StockReservation>().HasQueryFilter(sr => !sr.DeletedDate.HasValue);
+        builder.Entity<OutboxMessage>().HasQueryFilter(om => !om.DeletedDate.HasValue);
+        builder.Entity<RefreshToken>().HasQueryFilter(rt => !rt.DeletedDate.HasValue);
         
         builder.Entity<ProductLike>()
             .HasOne(pl => pl.Product)
@@ -186,6 +190,37 @@ public class TumdexDbContext : IdentityDbContext<AppUser,AppRole,string>
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.ProcessedAt);
             entity.HasIndex(e => e.CreatedDate);
+        });
+        
+        builder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasKey(rt => rt.Id);
+                
+            entity.Property(rt => rt.TokenHash)
+                .IsRequired()
+                .HasMaxLength(64);
+                
+            // Token alanı veritabanında saklanmaz
+            entity.Ignore(rt => rt.Token);
+                
+            entity.Property(rt => rt.JwtId)
+                .IsRequired()
+                .HasMaxLength(36);
+                
+            entity.Property(rt => rt.CreatedByIp)
+                .HasMaxLength(45);
+                
+            entity.Property(rt => rt.UserAgent)
+                .HasMaxLength(512);
+                
+            entity.HasIndex(rt => rt.TokenHash);
+            entity.HasIndex(rt => rt.UserId);
+            entity.HasIndex(rt => rt.FamilyId);
+                
+            entity.HasOne(rt => rt.User)
+                .WithMany()
+                .HasForeignKey(rt => rt.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
         
         

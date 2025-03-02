@@ -5,6 +5,7 @@ using Application.Repositories;
 using Core.Persistence.Paging;
 using Core.Persistence.Repositories;
 using Domain;
+using Domain.Entities;
 using Domain.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Application.Abstraction.Services;
 using Application.Enums;
 using Domain;
+using Domain.Entities;
 using Infrastructure.Services.Cache;
 using Infrastructure.Services.Security.Models;
 using Microsoft.AspNetCore.Http;

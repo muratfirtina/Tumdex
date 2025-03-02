@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using Application.Abstraction.Services;
+using Infrastructure.Services.Mail.Models;
 using Infrastructure.Services.Security.Models;
 using MailKit.Security;
 using Microsoft.Extensions.Configuration;
@@ -26,7 +27,7 @@ public class NotificationService : INotificationService
 
     public async Task SendEmailAsync(string subject, string message)
     {
-        var emailSettings = _configuration.GetSection("Email").Get<EmailSettings>();
+        var emailSettings = _configuration.GetSection("Email:MonitoringEmail").Get<EmailConfig>();
         
         var email = new MimeMessage();
         email.From.Add(new MailboxAddress("Tumdex Monitoring", emailSettings.FromAddress));
@@ -35,7 +36,7 @@ public class NotificationService : INotificationService
         email.Body = new TextPart("plain") { Text = message };
 
         using var client = new MailKit.Net.Smtp.SmtpClient();
-        await client.ConnectAsync(emailSettings.SmtpServer, emailSettings.Port, SecureSocketOptions.StartTls);
+        await client.ConnectAsync(emailSettings.Server, emailSettings.Port, SecureSocketOptions.StartTls);
         await client.AuthenticateAsync(emailSettings.Username, emailSettings.Password);
         await client.SendAsync(email);
         await client.DisconnectAsync(true);
@@ -65,6 +66,7 @@ public class NotificationService : INotificationService
 
     public Task SendTeamsMessageAsync(string message)
     {
-        throw new NotImplementedException();
+        _logger.LogWarning("Teams messaging not implemented yet: {Message}", message);
+        return Task.CompletedTask;
     }
 }

@@ -1,6 +1,7 @@
 using Application.Features.ProductImageFiles.Dtos;
 using AutoMapper;
 using Domain;
+using Domain.Entities;
 
 namespace Application.Features.ProductImageFiles.Profiles;
 

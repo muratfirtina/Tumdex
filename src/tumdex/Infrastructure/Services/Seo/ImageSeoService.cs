@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Http;
 using SkiaSharp;
 using System.IO;
+using Domain.Entities;
 using Newtonsoft.Json;
 
 namespace Infrastructure.Services.Seo;

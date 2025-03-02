@@ -143,6 +143,7 @@ public interface IMetricsService
     /// Password reset işlemlerini kaydetmek için kullanılır
     /// </summary>
     void RecordPasswordReset(string initiationType, bool success);
+    void IncrementCounter(string counterName, string status);
 
     #endregion
 }

@@ -3,6 +3,7 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using Application.Storage.Yandex;
 using Domain;
+using Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 

@@ -1,6 +1,7 @@
 using Application.Features.Carousels.Dtos;
 using Application.Storage;
 using Domain;
+using Domain.Entities;
 
 namespace Application.Extensions.ImageFileExtensions;
 

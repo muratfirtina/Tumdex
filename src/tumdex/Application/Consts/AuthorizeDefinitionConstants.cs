@@ -27,5 +27,7 @@ public static class AuthorizeDefinitionConstants
     public const string BrandsSitemap = "Brands Sitemap";
     public const string StaticPagesSitemap = "Static Pages Sitemap";
     public const string OrdersSitemap = "Orders Sitemap";
+    public const string Security = "Security";
+    public const string UserManagement = "UserManagement";
     
 }

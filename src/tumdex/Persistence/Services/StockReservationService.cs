@@ -1,6 +1,7 @@
 using Application.Repositories;
 using Application.Services;
 using Domain;
+using Domain.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace Persistence.Services;

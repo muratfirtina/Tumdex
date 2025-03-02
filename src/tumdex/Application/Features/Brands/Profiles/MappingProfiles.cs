@@ -10,6 +10,7 @@ using AutoMapper;
 using Core.Application.Responses;
 using Core.Persistence.Paging;
 using Domain;
+using Domain.Entities;
 
 namespace Application.Features.Brands.Profiles;
 

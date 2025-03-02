@@ -6,6 +6,7 @@ using Application.Features.UserAddresses.Queries.GetList;
 using AutoMapper;
 using Core.Application.Responses;
 using Domain;
+using Domain.Entities;
 
 namespace Application.Features.UserAddresses.Profiles;
 

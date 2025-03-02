@@ -1,6 +1,7 @@
 using Application.Abstraction.Services;
 using Application.Services;
 using Domain;
+using Domain.Entities;
 using Persistence.Context;
 
 namespace Persistence.Services;
@@ -8,12 +9,12 @@ namespace Persistence.Services;
 public class ContactService : IContactService
 {
     private readonly TumdexDbContext _context;
-    private readonly IMailService _mailService; // İsteğe bağlı: Email gönderimi için
+    private readonly IOrderEmailService _orderEmailService; // İsteğe bağlı: Email gönderimi için
 
-    public ContactService(TumdexDbContext context, IMailService mailService)
+    public ContactService(TumdexDbContext context, IOrderEmailService orderEmailService)
     {
         _context = context;
-        _mailService = mailService;
+        _orderEmailService = orderEmailService;
     }
 
     public async Task CreateAsync(Contact contact)
@@ -26,7 +27,7 @@ public class ContactService : IContactService
         await _context.SaveChangesAsync();
 
         // İsteğe bağlı: Yöneticiye bildirim emaili gönder
-        await _mailService.SendEmailAsync(
+        await _orderEmailService.SendEmailAsync(
             "muratfirtina@hotmail.com",
             "New Contact Form Submission",
             $"Name: {contact.Name}\nEmail: {contact.Email}\nSubject: {contact.Subject}\nMessage: {contact.Message}"

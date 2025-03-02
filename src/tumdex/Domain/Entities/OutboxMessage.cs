@@ -1,7 +1,7 @@
 using Core.Persistence.Repositories;
 using Domain.Enum;
 
-namespace Domain;
+namespace Domain.Entities;
 
 public class OutboxMessage : Entity<string>
 {

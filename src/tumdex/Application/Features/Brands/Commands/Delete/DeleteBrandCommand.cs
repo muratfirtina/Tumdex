@@ -5,6 +5,7 @@ using AutoMapper;
 using Core.Application.Pipelines.Caching;
 using Core.Application.Pipelines.Transaction;
 using Domain;
+using Domain.Entities;
 using MediatR;
 
 namespace Application.Features.Brands.Commands.Delete;

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Application.Events.OrderEvetns;
 using Application.Repositories;
 using Domain;
+using Domain.Entities;
 using MassTransit;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -55,6 +56,12 @@ public class OutboxProcessor : BackgroundService
        var messages = await outboxRepository.GetUnprocessedMessagesAsync();
        foreach (var message in messages)
        {
+           // EmailMessage tipindeki mesajları atla
+           if (message.Type == "EmailMessage")
+           {
+               continue; // EmailQueueWorker tarafından işlenecek
+           }
+
            try
            {
                switch (message.Type)

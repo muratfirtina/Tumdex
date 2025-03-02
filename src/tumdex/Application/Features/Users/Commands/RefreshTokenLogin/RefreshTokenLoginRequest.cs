@@ -1,5 +1,5 @@
-using Application.Abstraction.Services;
 using Application.Dtos.Token;
+using Application.Tokens;
 using MediatR;
 
 namespace Application.Features.Users.Commands.RefreshTokenLogin;
@@ -7,19 +7,34 @@ namespace Application.Features.Users.Commands.RefreshTokenLogin;
 public class RefreshTokenLoginRequest: IRequest<RefreshTokenLoginResponse>
 {
     public string RefreshToken { get; set; }
+    public string IpAddress { get; set; }
+    public string UserAgent { get; set; }
     
     public class RefreshTokenLoginHandler : IRequestHandler<RefreshTokenLoginRequest, RefreshTokenLoginResponse>
     {
-        readonly IAuthService _authService;
+        private readonly ITokenHandler _tokenHandler;
 
-        public RefreshTokenLoginHandler(IAuthService authService)
+        public RefreshTokenLoginHandler(ITokenHandler tokenHandler)
         {
-            _authService = authService;
+            _tokenHandler = tokenHandler;
         }
 
         public async Task<RefreshTokenLoginResponse> Handle(RefreshTokenLoginRequest request, CancellationToken cancellationToken)
         {
-            Token token = await _authService.RefreshTokenLoginAsync(request.RefreshToken);
+            var tokenDto = await _tokenHandler.RefreshAccessTokenAsync(
+                request.RefreshToken,
+                request.IpAddress,
+                request.UserAgent);
+                
+            // TokenDto'yu Token'a dönüştür
+            var token = new Token
+            {
+                AccessToken = tokenDto.AccessToken,
+                RefreshToken = tokenDto.RefreshToken,
+                Expiration = tokenDto.AccessTokenExpiration,
+                UserId = tokenDto.UserId // TokenDto'dan UserId alınıyor
+            };
+                
             return new RefreshTokenLoginResponse
             {
                 Token = token

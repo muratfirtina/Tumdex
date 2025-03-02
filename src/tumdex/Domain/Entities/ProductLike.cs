@@ -1,7 +1,7 @@
 using Core.Persistence.Repositories;
 using Domain.Identity;
 
-namespace Domain;
+namespace Domain.Entities;
 
 public class ProductLike : Entity<string>
 {

@@ -2,6 +2,7 @@ using Application.Repositories;
 using Application.Storage.Local;
 using Core.CrossCuttingConcerns.Exceptions;
 using Domain;
+using Domain.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 

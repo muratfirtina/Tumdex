@@ -2,6 +2,7 @@ using Application.Storage.Google;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 using Domain;
+using Domain.Entities;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.Storage.V1;
 using Infrastructure.Configuration;

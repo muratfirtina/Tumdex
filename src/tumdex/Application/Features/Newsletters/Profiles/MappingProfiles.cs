@@ -3,6 +3,7 @@ using Application.Features.Newsletters.Commands.Unsubscribe;
 using Application.Features.Newsletters.Dtos;
 using AutoMapper;
 using Domain;
+using Domain.Entities;
 
 namespace Application.Features.Newsletters.Profiles;
 

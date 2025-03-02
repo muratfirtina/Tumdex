@@ -4,6 +4,7 @@ using AutoMapper;
 using Core.Application.Requests;
 using Core.Application.Responses;
 using Core.Persistence.Paging;
+using Domain.Entities;
 using MediatR;
 
 namespace Application.Features.Newsletters.Queries.GetList;
@@ -25,7 +26,7 @@ public class GetListNewsletterQuery : IRequest<GetListResponse<NewsletterListDto
 
         public async Task<GetListResponse<NewsletterListDto>> Handle(GetListNewsletterQuery request, CancellationToken cancellationToken)
         {
-            IPaginate<Domain.Newsletter> newsletters = await _newsletterRepository.GetListAsync(
+            IPaginate<Newsletter> newsletters = await _newsletterRepository.GetListAsync(
                 index: request.PageRequest.PageIndex,
                 size: request.PageRequest.PageSize,
                 cancellationToken: cancellationToken

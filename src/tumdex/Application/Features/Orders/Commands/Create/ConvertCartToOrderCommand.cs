@@ -11,6 +11,7 @@ using AutoMapper;
 using Core.Application.Pipelines.Caching;
 using Core.Application.Pipelines.Transaction;
 using Domain;
+using Domain.Entities;
 using MassTransit;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -32,18 +33,18 @@ public class ConvertCartToOrderCommand : IRequest<ConvertCartToOrderCommandRespo
         private readonly IOrderRepository _orderRepository;
         private readonly IOutboxRepository _outboxRepository;
         private readonly ILogger<ConvertCartToOrderCommandHandler> _logger;
-        private readonly IMailService _mailService;
+        private readonly IOrderEmailService _orderEmailService;
 
         public ConvertCartToOrderCommandHandler(
             IOrderRepository orderRepository, 
             IOutboxRepository outboxRepository, 
             ILogger<ConvertCartToOrderCommandHandler> logger,
-            IMailService mailService)
+            IOrderEmailService orderEmailService)
         {
             _orderRepository = orderRepository;
             _outboxRepository = outboxRepository;
             _logger = logger;
-            _mailService = mailService;
+            _orderEmailService = orderEmailService;
         }
 
         public async Task<ConvertCartToOrderCommandResponse> Handle(ConvertCartToOrderCommand request, CancellationToken cancellationToken)
@@ -66,7 +67,7 @@ public class ConvertCartToOrderCommand : IRequest<ConvertCartToOrderCommandRespo
                 bool emailSent = false;
                 try
                 {
-                    await _mailService.SendCreatedOrderEmailAsync(
+                    await _orderEmailService.SendCreatedOrderEmailAsync(
                         orderDto.Email,
                         orderDto.OrderCode,
                         request.Description ?? string.Empty,

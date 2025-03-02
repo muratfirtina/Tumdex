@@ -3,6 +3,7 @@ using Application.Features.PhoneNumbers.Dtos;
 using Application.Repositories;
 using Core.Persistence.Repositories;
 using Domain;
+using Domain.Entities;
 using Domain.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;

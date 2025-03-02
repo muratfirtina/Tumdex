@@ -20,6 +20,7 @@ using AutoMapper;
 using Core.Application.Responses;
 using Core.Persistence.Paging;
 using Domain;
+using Domain.Entities;
 
 namespace Application.Features.Products.Profiles;
 
@@ -197,7 +198,7 @@ public class MappingProfiles : Profile
             .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src));
 
         // Domain.Product -> GetMostViewedProductQueryResponse eşlemesi
-        CreateMap<Domain.Product, GetMostViewedProductQueryResponse>()
+        CreateMap<Product, GetMostViewedProductQueryResponse>()
             .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name))
             .ForMember(dest => dest.BrandName, opt => opt.MapFrom(src => src.Brand.Name))
             .ForMember(dest => dest.ShowcaseImage, opt => opt.MapFrom(src =>
@@ -205,7 +206,7 @@ public class MappingProfiles : Profile
             
 
         // Listeyi GetListResponse türüne eşle
-        CreateMap<List<Domain.Product>, GetListResponse<GetMostViewedProductQueryResponse>>()
+        CreateMap<List<Product>, GetListResponse<GetMostViewedProductQueryResponse>>()
             .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src));
         
         CreateMap<Product, GetRandomProductsQueryResponse>()

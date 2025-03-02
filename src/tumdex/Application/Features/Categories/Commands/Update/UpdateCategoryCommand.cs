@@ -8,6 +8,7 @@ using Core.Application.Pipelines.Caching;
 using Core.Application.Pipelines.Transaction;
 using Core.CrossCuttingConcerns.Exceptions;
 using Domain;
+using Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;

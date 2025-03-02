@@ -342,6 +342,21 @@ public class PrometheusMetricsService : IMetricsService
         RecordSecurityEvent("password_reset", severity);
     }
 
+    private readonly Counter _generalCounter;
+    
+    public void IncrementCounter(string counterName, string status)
+    {
+        try
+        {
+            _generalCounter.WithLabels(counterName, status).Inc();
+        }
+        catch (Exception ex)
+        {
+            // Log the error but don't throw
+            Console.WriteLine($"Error incrementing counter {counterName}: {ex.Message}");
+        }
+    }
+
     public void RecordAuthOperationDuration(string operationType, double duration)
     {
         _authDuration.WithLabels(operationType).Observe(duration);

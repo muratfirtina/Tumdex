@@ -6,6 +6,7 @@ using Core.Application.Requests;
 using Core.Persistence.Paging;
 using Core.Persistence.Repositories;
 using Domain;
+using Domain.Entities;
 using Domain.Enum;
 using Microsoft.EntityFrameworkCore;
 using Persistence.Context;

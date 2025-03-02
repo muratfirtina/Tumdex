@@ -48,7 +48,7 @@ public class AuthService : IAuthService
         _accountEmailService = accountEmailService;
     }
 
-    public async Task<Token> LoginAsync(string userNameOrEmail, string password, int accessTokenLifetime, string ipAddress = null, string userAgent = null)
+    public async Task<Token> LoginAsync(string userNameOrEmail, string password, int accessTokenLifetime, string? ipAddress, string? userAgent)
 {
     var user = await _userManager.FindByNameAsync(userNameOrEmail);
     if (user == null)
@@ -117,9 +117,9 @@ public class AuthService : IAuthService
     throw new AuthenticationErrorException();
 }
 
-    public Task<Token> LoginAsync(string email, string password, int accessTokenLifetime)
+    public async Task<Token> LoginAsync(string email, string password, int accessTokenLifetime)
     {
-        throw new NotImplementedException();
+        return await LoginAsync(email, password, accessTokenLifetime, null, null);
     }
 
     public async Task<AppUser?> LogoutAsync()
@@ -144,12 +144,12 @@ public class AuthService : IAuthService
         return null;
     }
 
-    public Task<Token> RefreshTokenLoginAsync(string refreshToken)
+    public async Task<Token> RefreshTokenLoginAsync(string refreshToken)
     {
-        throw new NotImplementedException();
+        return await RefreshTokenLoginAsync(refreshToken, null, null);
     }
 
-    public async Task<Token> RefreshTokenLoginAsync(string refreshToken, string ipAddress = null, string userAgent = null)
+    public async Task<Token> RefreshTokenLoginAsync(string refreshToken, string? ipAddress, string? userAgent)
     {
         // IP adresi ve UserAgent bilgisini al
         if (string.IsNullOrEmpty(ipAddress) && _httpContextAccessor.HttpContext != null)

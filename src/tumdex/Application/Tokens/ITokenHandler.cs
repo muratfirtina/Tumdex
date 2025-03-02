@@ -11,9 +11,9 @@ public interface ITokenHandler : IDisposable
     Task<TokenDto> CreateAccessTokenAsync(AppUser user, HttpContext httpContext);
         
     // Refresh token işlemleri
-    Task<TokenDto> RefreshAccessTokenAsync(string refreshToken, string ipAddress, string userAgent);
-    Task RevokeRefreshTokenAsync(string refreshToken, string ipAddress, string reasonRevoked);
-    Task RevokeAllUserRefreshTokensAsync(string userId, string ipAddress, string reasonRevoked);
+    Task<TokenDto> RefreshAccessTokenAsync(string refreshToken, string? ipAddress, string? userAgent);
+    Task RevokeRefreshTokenAsync(string refreshToken, string? ipAddress, string reasonRevoked);
+    Task RevokeAllUserRefreshTokensAsync(string userId, string? ipAddress, string reasonRevoked);
         
     // Tokenları doğrulama
     Task<(bool isValid, string userId, string error)> ValidateAccessTokenAsync(string token);

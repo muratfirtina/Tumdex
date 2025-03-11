@@ -4,6 +4,7 @@ using Infrastructure.BackgroundJobs;
 using Infrastructure.Settings.Models.Newsletter;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Quartz;
 
 namespace Infrastructure.Services.Mail;
@@ -58,14 +59,21 @@ public static class EmailServiceRegistration
         services.AddHostedService<EmailQueueWorker>();
         
         // Arka plan görev kuyruğu
-        services.AddSingleton<IBackgroundTaskQueue>(sp => new BackgroundTaskQueue(100));
+        services.AddSingleton<IBackgroundTaskQueue>(sp => 
+        {
+            var logger = sp.GetRequiredService<ILogger<BackgroundTaskQueue>>();
+            var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+            return new BackgroundTaskQueue(100, logger, scopeFactory);
+        });
+
+        // QueuedHostedService kaydı
         services.AddHostedService<QueuedHostedService>();
         
         // Quartz zamanlanmış görevler
         ConfigureNewsletterJobs(services);
         
         // Newsletter scheduler
-        services.AddTransient<NewsletterScheduler>();
+        services.AddTransient<MonthlyNewsletterScheduler>();
     }
     
     /// <summary>

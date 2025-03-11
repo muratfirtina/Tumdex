@@ -4,16 +4,16 @@ using Quartz;
 
 namespace Infrastructure.BackgroundJobs;
 
-public class NewsletterScheduler
+public class MonthlyNewsletterScheduler
 {
     private readonly ISchedulerFactory _schedulerFactory;
     private readonly IConfiguration _configuration;
-    private readonly ILogger<NewsletterScheduler> _logger;
+    private readonly ILogger<MonthlyNewsletterScheduler> _logger;
 
-    public NewsletterScheduler(
+    public MonthlyNewsletterScheduler(
         ISchedulerFactory schedulerFactory,
         IConfiguration configuration,
-        ILogger<NewsletterScheduler> logger)
+        ILogger<MonthlyNewsletterScheduler> logger)
     {
         _schedulerFactory = schedulerFactory;
         _configuration = configuration;

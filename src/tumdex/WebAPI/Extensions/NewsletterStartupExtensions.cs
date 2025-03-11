@@ -12,7 +12,7 @@ public static class NewsletterStartupExtensions
         try
         {
             logger.LogInformation("Initializing newsletter scheduler");
-            var scheduler = scope.ServiceProvider.GetRequiredService<NewsletterScheduler>();
+            var scheduler = scope.ServiceProvider.GetRequiredService<MonthlyNewsletterScheduler>();
             await scheduler.ScheduleNewsletterJobs();
             logger.LogInformation("Newsletter scheduler initialized successfully");
         }

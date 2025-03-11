@@ -7,7 +7,7 @@ public class RevokeUserTokensCommand : IRequest<bool>
 {
     public string UserId { get; set; }
     public string AdminId { get; set; }
-    public string IpAddress { get; set; }
+    public string? IpAddress { get; set; }
     
     public class RevokeUserTokensCommandHandler : IRequestHandler<RevokeUserTokensCommand, bool>
     {

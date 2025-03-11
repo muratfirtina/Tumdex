@@ -5,4 +5,5 @@ public interface IKeyVaultInitializationService
     Task InitializeAsync();
     string GetEncryptionKey();
     string GetEncryptionIV();
+    string GetEncryptionSalt();
 }

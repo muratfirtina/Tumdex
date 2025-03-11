@@ -60,7 +60,7 @@ public static class MessageBrokerConfiguration
         IRabbitMqBusFactoryConfigurator cfg,
         IConfiguration configuration)
     {
-        // Development ortamı için bağlantı bilgilerini .env dosyasından okuma
+        // Development ortamı için bağlantı bilgileri
         var host = configuration["RABBITMQ_HOST"] ?? "localhost";
         var port = int.Parse(configuration["RABBITMQ_PORT"] ?? "5672");
         var username = configuration["RABBITMQ_USERNAME"] ?? "admin";

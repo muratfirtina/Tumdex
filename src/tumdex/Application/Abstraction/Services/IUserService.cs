@@ -20,6 +20,8 @@ public interface IUserService
     Task AssignRoleToUserAsync(string userId, List<RoleDto> roles);
     public Task<List<RoleDto>> GetRolesToUserAsync(string userIdOrName);
     Task<bool>HasRolePermissionToEndpointAsync(string name, string code);
+    Task<AppUser> GetUserByEmailAsync(string email);
+
     Task<List<AppUser>> GetAllByDynamicAsync(DynamicQuery dynamic,
         Expression<Func<AppUser, bool>>? predicate = null,
         Func<IQueryable<AppUser>, IIncludableQueryable<AppUser, object>>? include = null,

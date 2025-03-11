@@ -64,10 +64,12 @@ public static class SecurityServiceRegistration
         services.AddSingleton<JwtConfiguration>();
         services.AddSingleton<IKeyVaultInitializationService, KeyVaultInitializationService>();
         services.AddSingleton<ICacheEncryptionService, CacheEncryptionService>();
+        services.AddSingleton<IEncryptionService, EncryptionService>();
         services.AddSingleton<IKeyVaultService, KeyVaultService>();
         services.AddScoped<IJwtService, JwtService>();
         services.AddSingleton<ITokenSettingsService, TokenSettingsService>();
         services.AddScoped<ILogService, LogService>();
+        services.AddScoped<IRateLimitService, RateLimitService>();
     }
 
     private static void ConfigureMonitoringServices(IServiceCollection services)

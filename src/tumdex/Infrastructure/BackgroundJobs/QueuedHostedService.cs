@@ -1,3 +1,6 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Application.Abstraction.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -23,26 +26,38 @@ public class QueuedHostedService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Queued Hosted Service is starting.");
+        _logger.LogInformation("Queued Hosted Service başlatılıyor.");
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            var workItem = await _taskQueue.DequeueAsync(stoppingToken);
-
             try
             {
-                using (var scope = _serviceScopeFactory.CreateScope())
+                var workItem = await _taskQueue.DequeueAsync(stoppingToken);
+
+                // Her görev için yeni bir scope oluştur
+                using var scope = _serviceScopeFactory.CreateScope();
+                var serviceProvider = scope.ServiceProvider;
+
+                try
                 {
-                    // Her işlem için yeni bir scope oluştur
-                    await workItem(stoppingToken);
+                    await workItem(serviceProvider, stoppingToken);
                 }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Arka plan görevi çalıştırılırken hata oluştu");
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Beklenen iptal durumu
+                break;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred executing task work item.");
+                _logger.LogError(ex, "Kuyruk işleme hatası");
             }
         }
 
-        _logger.LogInformation("Queued Hosted Service is stopping.");
+        _logger.LogInformation("Queued Hosted Service durduruluyor.");
     }
 }

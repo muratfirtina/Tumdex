@@ -42,30 +42,77 @@ public static class AuthenticationConfiguration
 
     private static void ConfigureIdentity(IServiceCollection services)
     {
-        services.AddIdentityCore<AppUser>(options =>
+        // AddIdentityCore yerine AddIdentity kullanın
+        services.AddIdentity<AppUser, AppRole>(options =>
+            {
+                // Şifre politikası
+                options.Password.RequiredLength = 8;
+                options.Password.RequireNonAlphanumeric = true;
+                options.Password.RequireDigit = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireLowercase = true;
+
+                // Kullanıcı politikası
+                options.User.RequireUniqueEmail = true;
+
+                // Hesap kilitleme politikası
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.AllowedForNewUsers = true;
+
+                // SignIn ayarları
+                options.SignIn.RequireConfirmedEmail = false;
+                options.SignIn.RequireConfirmedAccount = true;
+            })
+            .AddEntityFrameworkStores<TumdexDbContext>()
+            .AddDefaultTokenProviders()
+            .AddTokenProvider<DataProtectorTokenProvider<AppUser>>(TokenOptions.DefaultProvider)
+            .AddTokenProvider<EmailTokenProvider<AppUser>>("Email")
+            .AddTokenProvider<PhoneNumberTokenProvider<AppUser>>("Phone")
+            .AddSignInManager<SignInManager<AppUser>>();
+            // Cookie kimlik doğrulama eklenmesi
+
+            
+        // SignInManager için gerekli cookie authentication
+        services.ConfigureApplicationCookie(options => 
         {
-            options.Password.RequiredLength = 3;
-            options.Password.RequireNonAlphanumeric = false;
-            options.Password.RequireDigit = false;
-            options.Password.RequireUppercase = false;
-            options.Password.RequireLowercase = false;
-            options.User.RequireUniqueEmail = true;
-            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
-            options.Lockout.MaxFailedAccessAttempts = 5;
-        })
-        .AddRoles<AppRole>()
-        .AddEntityFrameworkStores<TumdexDbContext>()
-        .AddDefaultTokenProviders()
-        .AddSignInManager<SignInManager<AppUser>>();
+            options.Cookie.Name = "Tumdex.Identity";
+            options.Cookie.HttpOnly = true;
+            options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
+            options.SlidingExpiration = true;
+            options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Strict;
+            options.Cookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
+            
+            // API odaklı uygulama olduğu için login/logout path'leri ayarlanmamış
+            options.LoginPath = "/api/auth/login"; // Bu yolu kendinizdeki uygun bir route ile değiştirin
+            options.LogoutPath = "/api/auth/logout"; // Bu yolu kendinizdeki uygun bir route ile değiştirin
+            
+            // API için bu önemli - 401 yerine 302 redirect yapma
+            options.Events.OnRedirectToLogin = context =>
+            {
+                context.Response.StatusCode = 401;
+                return Task.CompletedTask;
+            };
+            
+            options.Events.OnRedirectToAccessDenied = context =>
+            {
+                context.Response.StatusCode = 403;
+                return Task.CompletedTask;
+            };
+        });
     }
 
     private static void ConfigureJwtAuthentication(IServiceCollection services)
     {
         services.AddAuthentication(options =>
         {
-            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            // Önce Identity cookie, sonra JWT ile doğrulama yapacak şekilde ayarla
+            options.DefaultScheme = IdentityConstants.ApplicationScheme; // Önemli değişiklik
+            options.DefaultSignInScheme = IdentityConstants.ApplicationScheme;
+            
+            // Authentication şemasını ÖNCE cookie sonra JWT kontrol edecek şekilde ayarla
+            options.DefaultAuthenticateScheme = IdentityConstants.ApplicationScheme;
             options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
         })
         .AddJwtBearer("Admin", options =>
         {

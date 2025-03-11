@@ -1,20 +1,27 @@
+using System;
+using System.Security.Claims;
 using System.Text;
-using Azure.Identity;
-using Azure.Security.KeyVault.Secrets;
-using Microsoft.Extensions.Configuration;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using System.Security.Claims;
-using System.Text.Json;
+using Azure.Security.KeyVault.Secrets;
+using Infrastructure.Services.Security.Models;
 
 namespace Infrastructure.Services.Security.JWT;
 
+/// <summary>
+/// JWT yapılandırma ayarlarını yönetir ve Azure Key Vault'tan güvenlik anahtarlarını alır.
+/// </summary>
 public class JwtService : IJwtService
 {
     private readonly ILogger<JwtService> _logger;
     private readonly IDistributedCache _cache;
-    private readonly IConfiguration _configuration;
+    private readonly SecretClient _secretClient;
+    private readonly JwtSettings _jwtSettings;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private JwtConfiguration _memoryCache;
     private DateTime _memoryCacheExpiration = DateTime.MinValue;
@@ -22,16 +29,24 @@ public class JwtService : IJwtService
     private const int MemoryCacheMinutes = 5;
     private const int RedisCacheMinutes = 30;
 
+    /// <summary>
+    /// JwtService sınıfını başlatır
+    /// </summary>
     public JwtService(
         ILogger<JwtService> logger,
         IDistributedCache cache,
-        IConfiguration configuration)
+        SecretClient secretClient,
+        IOptions<JwtSettings> jwtOptions)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
-        _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+        _secretClient = secretClient ?? throw new ArgumentNullException(nameof(secretClient));
+        _jwtSettings = jwtOptions.Value ?? throw new ArgumentNullException(nameof(jwtOptions));
     }
 
+    /// <summary>
+    /// JWT yapılandırma ayarlarını alır, önbellekten kontrol eder veya Azure Key Vault'tan yükler
+    /// </summary>
     public async Task<JwtConfiguration> GetJwtConfigurationAsync()
     {
         try
@@ -60,9 +75,12 @@ public class JwtService : IJwtService
                     return config;
                 }
 
-                // Key Vault'tan Alma
-                config = await GetFromKeyVault();
+                // Azure Key Vault'tan ayarları al ve JwtConfiguration'a dönüştür
+                config = await CreateConfigurationFromKeyVault();
                 
+                // Yapılandırmayı doğrula
+                ValidateConfiguration(config);
+
                 // Her iki cache'e de kaydetme
                 await UpdateRedisCacheAsync(config);
                 UpdateMemoryCache(config);
@@ -81,6 +99,9 @@ public class JwtService : IJwtService
         }
     }
 
+    /// <summary>
+    /// Redis önbelleğinden JWT yapılandırmasını alır
+    /// </summary>
     private async Task<JwtConfiguration> GetFromRedisCache()
     {
         try
@@ -102,109 +123,72 @@ public class JwtService : IJwtService
         }
     }
 
-    private async Task<JwtConfiguration> GetFromKeyVault()
+    /// <summary>
+    /// Azure Key Vault'tan JWT yapılandırmasını oluşturur
+    /// </summary>
+    private async Task<JwtConfiguration> CreateConfigurationFromKeyVault()
     {
-        var keyVaultUri = GetKeyVaultUri();
-        var credential = CreateAzureCredential();
-        var client = new SecretClient(new Uri(keyVaultUri), credential);
-
-        var config = await GetConfigurationFromKeyVault(client);
-        ValidateConfiguration(config);
-
-        return config;
-    }
-
-    private string GetKeyVaultUri()
-    {
-        var keyVaultUri = Environment.GetEnvironmentVariable("AZURE_KEYVAULT_URI") ??
-                         _configuration["AZURE_KEYVAULT_URI"] ??
-                         _configuration["AzureKeyVault:VaultUri"];
-
-        if (string.IsNullOrEmpty(keyVaultUri))
-        {
-            throw new InvalidOperationException("Key Vault URI bulunamadı");
-        }
-
-        return keyVaultUri;
-    }
-
-    private static DefaultAzureCredential CreateAzureCredential()
-    {
-        return new DefaultAzureCredential(new DefaultAzureCredentialOptions
-        {
-            ExcludeVisualStudioCredential = true,
-            ExcludeVisualStudioCodeCredential = true,
-            Retry = 
-            {
-                MaxRetries = 3,
-                NetworkTimeout = TimeSpan.FromSeconds(5)
-            }
-        });
-    }
-
-    private async Task<JwtConfiguration> GetConfigurationFromKeyVault(SecretClient client)
-    {
-        var tasks = new[]
-        {
-            client.GetSecretAsync("JwtSecurityKey"),
-            client.GetSecretAsync("JwtIssuer"),
-            client.GetSecretAsync("JwtAudience")
-        };
-
-        await Task.WhenAll(tasks);
-
-        var securityKeyResponse = tasks[0].Result;
-        var issuerResponse = tasks[1].Result;
-        var audienceResponse = tasks[2].Result;
+        // Doğrudan Key Vault'tan güvenlik ayarlarını al
+        var securityKeyResponse = await _secretClient.GetSecretAsync("JwtSecurityKey");
+        var issuerResponse = await _secretClient.GetSecretAsync("JwtIssuer");
+        var audienceResponse = await _secretClient.GetSecretAsync("JwtAudience");
 
         if (securityKeyResponse?.Value == null || 
             issuerResponse?.Value == null || 
             audienceResponse?.Value == null)
         {
-            throw new InvalidOperationException("Key Vault'ta gerekli JWT secret'ları eksik");
+            throw new InvalidOperationException("Key Vault'ta JWT yapılandırma anahtarları eksik. JwtSecurityKey, JwtIssuer ve JwtAudience değerlerinin varlığını kontrol edin.");
         }
 
         var securityKey = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(securityKeyResponse.Value.Value));
 
+        var issuerKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(issuerResponse.Value.Value));
+        
+        var audienceKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(audienceResponse.Value.Value));
+
         var tokenValidationParameters = CreateTokenValidationParameters(
             securityKey,
-            new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(issuerResponse.Value.Value)),
-            new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(audienceResponse.Value.Value)));
+            issuerResponse.Value.Value,
+            audienceResponse.Value.Value);
 
         return new JwtConfiguration
         {
             SecurityKey = securityKey,
-            Issuer = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(issuerResponse.Value.Value)),
-            Audience = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(audienceResponse.Value.Value)),
+            Issuer = issuerKey,
+            Audience = audienceKey,
             TokenValidationParameters = tokenValidationParameters
         };
     }
 
-    private static TokenValidationParameters CreateTokenValidationParameters(
+    /// <summary>
+    /// Token doğrulama parametrelerini oluşturur
+    /// </summary>
+    private TokenValidationParameters CreateTokenValidationParameters(
         SecurityKey securityKey,
-        SymmetricSecurityKey issuer,
-        SymmetricSecurityKey audience)
+        string issuer,
+        string audience)
     {
         return new TokenValidationParameters
         {
-            ValidateIssuerSigningKey = true,
+            ValidateIssuerSigningKey = _jwtSettings.ValidateIssuerSigningKey,
             IssuerSigningKey = securityKey,
-            ValidateIssuer = true,
-            ValidIssuer = issuer.ToString(),
-            ValidateAudience = true,
-            ValidAudience = audience.ToString(),
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero,
+            ValidateIssuer = _jwtSettings.ValidateIssuer,
+            ValidIssuer = issuer,
+            ValidateAudience = _jwtSettings.ValidateAudience,
+            ValidAudience = audience,
+            ValidateLifetime = _jwtSettings.ValidateLifetime,
+            ClockSkew = TimeSpan.FromMinutes(_jwtSettings.ClockSkewMinutes),
             NameClaimType = ClaimTypes.Name,
             RoleClaimType = ClaimTypes.Role
         };
     }
 
+    /// <summary>
+    /// JWT yapılandırmasının geçerliliğini doğrular
+    /// </summary>
     private void ValidateConfiguration(JwtConfiguration config)
     {
         if (config.SecurityKey.KeySize < 256)
@@ -214,12 +198,18 @@ public class JwtService : IJwtService
         }
     }
 
+    /// <summary>
+    /// JWT yapılandırmasını bellek önbelleğine kaydeder
+    /// </summary>
     private void UpdateMemoryCache(JwtConfiguration config)
     {
         _memoryCache = config;
         _memoryCacheExpiration = DateTime.UtcNow.AddMinutes(MemoryCacheMinutes);
     }
 
+    /// <summary>
+    /// JWT yapılandırmasını Redis önbelleğine kaydeder
+    /// </summary>
     private async Task UpdateRedisCacheAsync(JwtConfiguration config)
     {
         try
@@ -246,16 +236,28 @@ public class JwtService : IJwtService
         }
     }
 
+    /// <summary>
+    /// Önbellekten yüklenen verilerden JWT yapılandırması oluşturur
+    /// </summary>
     private static JwtConfiguration CreateConfigurationFromCache(JwtConfigurationCache cached)
     {
         var securityKey = new SymmetricSecurityKey(cached.SecurityKeyBytes);
         var issuerKey = new SymmetricSecurityKey(cached.IssuerBytes);
         var audienceKey = new SymmetricSecurityKey(cached.AudienceBytes);
 
-        var tokenValidationParameters = CreateTokenValidationParameters(
-            securityKey,
-            issuerKey,
-            audienceKey);
+        var tokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = securityKey,
+            ValidateIssuer = true,
+            ValidIssuer = Encoding.UTF8.GetString(cached.IssuerBytes),
+            ValidateAudience = true,
+            ValidAudience = Encoding.UTF8.GetString(cached.AudienceBytes),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero,
+            NameClaimType = ClaimTypes.Name,
+            RoleClaimType = ClaimTypes.Role
+        };
 
         return new JwtConfiguration
         {
@@ -266,5 +268,3 @@ public class JwtService : IJwtService
         };
     }
 }
-
-// Cache için yardımcı sınıf

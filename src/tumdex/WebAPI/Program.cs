@@ -53,7 +53,7 @@ try
     try
     {
         using var scope = app.Services.CreateScope();
-        var newsletterScheduler = scope.ServiceProvider.GetRequiredService<NewsletterScheduler>();
+        var newsletterScheduler = scope.ServiceProvider.GetRequiredService<MonthlyNewsletterScheduler>();
         await newsletterScheduler.ScheduleNewsletterJobs();
         Log.Information("Newsletter scheduler initialized successfully");
     }
@@ -104,6 +104,7 @@ void ConfigureServiceLayers(WebApplicationBuilder builder)
 
     // 6. SignalR Services
     builder.Services.AddSignalRServices();
+    builder.Services.AddDistributedMemoryCache(); 
 }
 
 // Security and Authentication Configuration

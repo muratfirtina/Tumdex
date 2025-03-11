@@ -73,6 +73,7 @@ public static class KeyVaultConfiguration
     // Key Vault bağlantısını doğrula
     private static void ValidateKeyVaultConnection(IConfiguration configuration)
     {
+        // Key Vault'ta var olan bir anahtarı kontrol et
         var testSecret = configuration["JwtSecurityKey"];
         if (string.IsNullOrEmpty(testSecret))
         {

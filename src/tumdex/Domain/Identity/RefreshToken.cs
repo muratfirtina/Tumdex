@@ -1,4 +1,7 @@
+using System;
+using System.ComponentModel.DataAnnotations.Schema;
 using Core.Persistence.Repositories;
+using Domain.Identity;
 
 namespace Domain.Identity;
 
@@ -8,7 +11,8 @@ public class RefreshToken : Entity<string>
     public string TokenHash { get; set; }
         
     // Orijinal token client'a gönderilir ve sadece oluşturma sırasında kullanılır
-    // Bu alan veritabanında saklanmaz
+    // Bu alan veritabanında saklanmaz - NotMapped attributü eklendi
+    [NotMapped]
     public string Token { get; private set; }
         
     public DateTime ExpiryDate { get; set; }
@@ -28,7 +32,7 @@ public class RefreshToken : Entity<string>
     // Ailelendirme için (isteğe bağlı)
     public string? FamilyId { get; set; }
     
-    // İptal bilgileri - Eksik olan özellikler
+    // İptal bilgileri
     public string? RevokedByIp { get; set; }
     public string? ReasonRevoked { get; set; }
     public DateTime? RevokedDate { get; set; }
@@ -36,7 +40,7 @@ public class RefreshToken : Entity<string>
     // Token aktif mi kontrolü
     public bool IsActive => !IsRevoked && !IsUsed && DateTime.UtcNow <= ExpiryDate;
         
-    // Fabrika metodu
+    // Fabrika metodu - null-conditional operatör eklendi
     public static RefreshToken CreateToken(
         string token,
         string tokenHash,
@@ -45,11 +49,11 @@ public class RefreshToken : Entity<string>
         string createdByIp,
         string userAgent,
         DateTime expiryDate,
-        string familyId = null)
+        string? familyId = null)
     {
-        return new RefreshToken
+        var refreshToken = new RefreshToken
         {
-            Token = token, // Bu alan client'a gönderilir, veritabanında saklanmaz
+            Id = Guid.NewGuid().ToString(), // Entity sınıfı Id'yi otomatik oluşturmazsa
             TokenHash = tokenHash,
             UserId = userId,
             JwtId = jwtId,
@@ -64,9 +68,21 @@ public class RefreshToken : Entity<string>
             RevokedDate = null,
             RevokedByIp = null
         };
+        
+        // Token'ı private alana ayarlamak için SetToken metodunu çağır
+        refreshToken.SetToken(token);
+        
+        return refreshToken;
     }
+    
+    // Token değerini ayarlamak için yardımcı metot eklendi
+    public void SetToken(string token)
+    {
+        Token = token;
+    }
+    
+    // Base constructor çağrısı
     public RefreshToken() : base("RefreshToken")
     {
-        
     }
 }

@@ -7,5 +7,6 @@ public enum EmailType
     EmailConfirmation,
     Newsletter,
     OrderConfirmation,
-    OrderUpdate
+    OrderUpdate,
+    EmailActivation
 }

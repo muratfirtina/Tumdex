@@ -7,8 +7,8 @@ namespace Application.Features.Users.Commands.RefreshTokenLogin;
 public class RefreshTokenLoginRequest: IRequest<RefreshTokenLoginResponse>
 {
     public string RefreshToken { get; set; }
-    public string IpAddress { get; set; }
-    public string UserAgent { get; set; }
+    public string? IpAddress { get; set; }
+    public string? UserAgent { get; set; }
     
     public class RefreshTokenLoginHandler : IRequestHandler<RefreshTokenLoginRequest, RefreshTokenLoginResponse>
     {

@@ -12,5 +12,6 @@ public enum AlertType
     ServiceDown,       // Servis kesintisi
     CriticalError,     // Kritik hata
     Warning,           // Uyarı
-    Info              // Bilgilendirme
+    Info,              // Bilgilendirme
+    Security
 }

@@ -2,6 +2,7 @@ using Application.Abstraction.Services;
 using Application.Storage;
 using Azure.Security.KeyVault.Secrets;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Services.Mail;
@@ -11,9 +12,11 @@ namespace Infrastructure.Services.Mail;
 /// </summary>
 public class AccountEmailService : BaseEmailService, IAccountEmailService
 {
+    private readonly IServiceProvider _serviceProvider;
     protected override string ServiceType => "ACCOUNT_EMAIL";
     protected override string ConfigPrefix => "Email:AccountEmail";
     protected override string PasswordSecretName => "AccountEmailPassword";
+    
 
     public AccountEmailService(
         ILogger<AccountEmailService> logger,
@@ -21,9 +24,10 @@ public class AccountEmailService : BaseEmailService, IAccountEmailService
         IMetricsService metricsService,
         IStorageService storageService,
         SecretClient secretClient,
-        IConfiguration configuration)
+        IConfiguration configuration, IServiceProvider serviceProvider)
         : base(logger, cacheService, metricsService, storageService, secretClient, configuration)
     {
+        _serviceProvider = serviceProvider;
     }
 
     protected override async Task CheckRateLimit(string[] recipients)
@@ -95,7 +99,7 @@ public class AccountEmailService : BaseEmailService, IAccountEmailService
         try
         {
             var clientUrl = _configuration["AngularClientUrl"]?.TrimEnd('/') ?? "http://localhost:4200";
-            var resetLink = $"{clientUrl}/update-password/{userId}/{resetToken}";
+            var resetLink = $"{clientUrl}/#/update-password/{userId}/{resetToken}";
 
             var content = $@"
                 <div style='text-align: center;'>
@@ -247,6 +251,50 @@ public class AccountEmailService : BaseEmailService, IAccountEmailService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send security alert email to {Email}", to);
+            throw;
+        }
+    }
+    
+    public async Task SendEmailActivationCodeAsync(string to, string userId, string activationCode)
+    {
+        try
+        {
+            // Aktivasyon URL'sini oluştur
+            using var scope = _serviceProvider.CreateScope();
+            var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
+        
+            // Güvenli aktivasyon URL'si oluştur
+            string activationUrl = await authService.GenerateActivationUrlAsync(userId, to);
+        
+            // Hem kod hem de buton içeren e-posta içeriği
+            var content = $@"
+        <div style='text-align: center;'>
+            <p style='font-size: 16px; color: #333;'>Sayın Kullanıcı,</p>
+            <p style='font-size: 16px; color: #333;'>Kayıt olduğunuz için teşekkürler. Aktivasyon kodunuz:</p>
+            <div style='margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 10px;'>
+                <p style='font-size: 28px; font-weight: bold; letter-spacing: 5px; color: #e53935;'>{activationCode}</p>
+            </div>
+            <p style='color: #666; font-size: 14px;'>
+                Ayrıca aşağıdaki butona tıklayarak da aktivasyon sayfasına gidebilirsiniz:
+            </p>
+            <a href='{activationUrl}' 
+               style='display: inline-block; padding: 12px 24px; background-color: #e53935; color: white; 
+                      text-decoration: none; border-radius: 4px; margin: 20px 0;'>
+                Aktivasyon Sayfasına Git
+            </a>
+            <p style='color: #666; font-size: 14px;'>
+                Bu aktivasyon kodu 24 saat geçerlidir.
+            </p>
+        </div>";
+
+            var emailBody = await BuildEmailTemplate(content, "E-posta Doğrulama Kodu");
+            await SendEmailAsync(to, "Aktivasyon Kodunuz", emailBody);
+        
+            _logger.LogInformation("Aktivasyon e-postası gönderildi: {Email}", to);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Aktivasyon kodu e-postası gönderilirken hata oluştu: {Email}", to);
             throw;
         }
     }

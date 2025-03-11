@@ -13,6 +13,7 @@ public class KeyVaultInitializationService : IKeyVaultInitializationService
     private readonly ILogger<KeyVaultInitializationService> _logger;
     private string? _encryptionKey;
     private string? _encryptionIV;
+    private string? _encryptionSalt;
     private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
 
     public KeyVaultInitializationService(
@@ -33,8 +34,8 @@ public class KeyVaultInitializationService : IKeyVaultInitializationService
             if (_encryptionKey != null && _encryptionIV != null) return;
 
             var keyVaultUrl = Environment.GetEnvironmentVariable("AZURE_KEYVAULT_URI") ?? 
-                                                _configuration["AZURE_KEYVAULT_URI"] ??
-                                                _configuration["AzureKeyVault:VaultUri"];
+                              _configuration["AZURE_KEYVAULT_URI"] ??
+                              _configuration["AzureKeyVault:VaultUri"];
             if (string.IsNullOrEmpty(keyVaultUrl))
             {
                 throw new InvalidOperationException("KeyVault URI is not configured");
@@ -46,9 +47,12 @@ public class KeyVaultInitializationService : IKeyVaultInitializationService
 
             var keyResponse = await secretClient.GetSecretAsync("EncryptionKey");
             var ivResponse = await secretClient.GetSecretAsync("EncryptionIV");
+            var saltResponse = await secretClient.GetSecretAsync("EncryptionSalt");
 
-            _encryptionKey = Convert.ToBase64String(Encoding.UTF8.GetBytes(keyResponse.Value.Value));
-            _encryptionIV = Convert.ToBase64String(Encoding.UTF8.GetBytes(ivResponse.Value.Value));
+            // Değerleri doğrudan kullan, çift dönüştürme yapma
+            _encryptionKey = keyResponse.Value.Value;
+            _encryptionIV = ivResponse.Value.Value;
+            _encryptionSalt = saltResponse.Value.Value;
 
             _logger.LogInformation("Encryption keys successfully initialized from Key Vault");
         }
@@ -56,6 +60,13 @@ public class KeyVaultInitializationService : IKeyVaultInitializationService
         {
             _semaphore.Release();
         }
+    }
+    
+    public string GetEncryptionSalt()
+    {
+        if (_encryptionSalt == null)
+            throw new InvalidOperationException("Encryption salt not initialized. Call InitializeAsync first.");
+        return _encryptionSalt;
     }
 
     public string GetEncryptionKey()

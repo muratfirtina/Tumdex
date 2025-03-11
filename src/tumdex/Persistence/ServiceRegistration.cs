@@ -26,9 +26,6 @@ public static class ServiceRegistration
         services.AddDbContext<TumdexDbContext>(options =>
             DatabaseSettings.ConfigureDatabase(options, connectionString, isDevelopment));
 
-        // 2. Identity Sistemi
-        ConfigureIdentity(services);
-
         // 3. Background Servisler
         ConfigureBackgroundServices(services);
 
@@ -36,42 +33,6 @@ public static class ServiceRegistration
         RegisterRepositories(services);
 
         return services;
-    }
-
-    private static void ConfigureIdentity(IServiceCollection services)
-    {
-        services.AddIdentityCore<AppUser>(options =>
-        {
-            // Şifre politikası
-            options.Password.RequiredLength = 3;
-            options.Password.RequireNonAlphanumeric = false;
-            options.Password.RequireDigit = false;
-            options.Password.RequireUppercase = false;
-            options.Password.RequireLowercase = false;
-            
-            // Kullanıcı politikası
-            options.User.RequireUniqueEmail = true;
-            
-            // Hesap kilitleme politikası
-            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
-            options.Lockout.MaxFailedAccessAttempts = 5;
-        })
-        .AddRoles<AppRole>()
-        .AddEntityFrameworkStores<TumdexDbContext>()
-        .AddDefaultTokenProviders()
-        .AddTokenProvider<DataProtectorTokenProvider<AppUser>>(TokenOptions.DefaultProvider)
-        .AddTokenProvider<EmailTokenProvider<AppUser>>("Email")
-        .AddTokenProvider<PhoneNumberTokenProvider<AppUser>>("Phone")
-        .AddSignInManager<SignInManager<AppUser>>();
-
-        // Authentication şeması yapılandırması
-        services.AddAuthentication(options =>
-        {
-            options.DefaultAuthenticateScheme = IdentityConstants.ApplicationScheme;
-            options.DefaultChallengeScheme = IdentityConstants.ApplicationScheme;
-            options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
-        })
-        .AddIdentityCookies();
     }
 
     private static void ConfigureBackgroundServices(IServiceCollection services)

@@ -6,9 +6,9 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Application.Abstraction.Services.Tokens;
 using Application.Dtos.Token;
 using Application.Exceptions;
-using Application.Tokens;
 using Azure.Security.KeyVault.Secrets;
 using Domain.Identity;
 using Infrastructure.Services.Security.JWT;
@@ -33,7 +33,7 @@ public class TokenHandler : ITokenHandler
     private readonly IDistributedCache _cache;
     private readonly ILogger<TokenHandler> _logger;
     private readonly SecretClient _secretClient;
-    
+
     // Token ayarları için lazy initialization
     private readonly SemaphoreSlim _tokenSettingsLock = new SemaphoreSlim(1, 1);
     private SigningCredentials? _signingCredentials;
@@ -41,7 +41,7 @@ public class TokenHandler : ITokenHandler
     private string? _issuer;
     private string? _audience;
     private string? _securityKeyValue;
-    
+
     private bool _disposed = false;
 
     /// <summary>
@@ -72,7 +72,8 @@ public class TokenHandler : ITokenHandler
     /// <summary>
     /// HTTP bağlamı ile birlikte erişim tokeni oluşturur
     /// </summary>
-    public async Task<TokenDto> CreateAccessTokenAsync(AppUser user, HttpContext? httpContext = null, int accessTokenLifetime = 15)
+    public async Task<TokenDto> CreateAccessTokenAsync(AppUser user, HttpContext? httpContext = null,
+        int accessTokenLifetime = 15)
     {
         // Güvenlik ayarlarının hazır olduğundan emin ol
         await EnsureTokenSettingsInitializedAsync();
@@ -85,7 +86,7 @@ public class TokenHandler : ITokenHandler
 
         // Token sürelerini hesapla
         DateTime accessTokenExpiration = DateTime.UtcNow.AddMinutes(accessTokenLifetime);
-        
+
         // Refresh token süresini hesapla (varsayılan 14 gün)
         int refreshTokenLifetimeDays = 14;
         DateTime refreshTokenExpiration = DateTime.UtcNow.AddDays(refreshTokenLifetimeDays);
@@ -98,7 +99,7 @@ public class TokenHandler : ITokenHandler
         // HTTP bağlamı varsa IP adresi ve kullanıcı aracısı taleplerini ekle
         string ipAddress = "0.0.0.0";
         string userAgent = "Unknown";
-        
+
         if (httpContext != null)
         {
             ipAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "0.0.0.0";
@@ -153,41 +154,42 @@ public class TokenHandler : ITokenHandler
     /// <summary>
     /// Yenileme tokeni kullanarak yeni erişim tokeni oluşturur
     /// </summary>
-    public async Task<TokenDto> RefreshAccessTokenAsync(string refreshToken, string? ipAddress = null, string? userAgent = null)
+    public async Task<TokenDto> RefreshAccessTokenAsync(string refreshToken, string? ipAddress = null,
+        string? userAgent = null)
     {
         // Güvenlik ayarlarının hazır olduğundan emin ol
         await EnsureTokenSettingsInitializedAsync();
-        
+
         ipAddress ??= "0.0.0.0";
         userAgent ??= "Unknown";
-        
+
         // Veritabanı araması için token hash'ini oluştur
         string tokenHash = HashToken(refreshToken);
-        
+
         // Veritabanında token'ı bul
         var token = await _context.Set<RefreshToken>()
             .Include(rt => rt.User)
             .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash);
-        
+
         if (token == null)
         {
             throw new InvalidOperationException("Geçersiz yenileme tokeni");
         }
-        
+
         if (token.IsRevoked)
         {
             // Güvenlik için ilgili tokenları iptal et
             await RevokeRelatedTokens(token, ipAddress, "İptal edilmiş tokenin kullanım girişimi");
             throw new InvalidOperationException("Yenileme tokeni iptal edilmiş");
         }
-        
+
         if (token.IsUsed)
         {
             // Güvenlik için ilgili tokenları iptal et
             await RevokeRelatedTokens(token, ipAddress, "Kullanılmış tokenin yeniden kullanım girişimi");
             throw new InvalidOperationException("Yenileme tokeni zaten kullanılmış");
         }
-        
+
         if (token.ExpiryDate < DateTime.UtcNow)
         {
             // Tokenı kullanılmış olarak işaretle
@@ -195,26 +197,26 @@ public class TokenHandler : ITokenHandler
             await _context.SaveChangesAsync();
             throw new InvalidOperationException("Yenileme tokeni süresi dolmuş");
         }
-        
+
         // Token'da IP adresi varsa IP adresini doğrula (isteğe bağlı)
         bool validateIp = true; // Yapılandırmadan çekilebilir
         if (validateIp && !string.IsNullOrEmpty(token.CreatedByIp) && token.CreatedByIp != ipAddress)
         {
             _logger.LogWarning("Yenileme tokeni farklı IP'den kullanıldı. Orijinal: {OriginalIp}, Şimdiki: {CurrentIp}",
                 token.CreatedByIp, ipAddress);
-            
+
             // Şüpheli aktiviteyi kaydet ama tokenin kullanılmasına hala izin ver
             // Güvenlik politikasına göre burada token iptal edilebilir
         }
-        
+
         // Mevcut tokeni kullanılmış olarak işaretle
         token.IsUsed = true;
         await _context.SaveChangesAsync();
-        
+
         // Yeni bir erişim tokeni oluştur
         var accessTokenLifetime = 30; // Dakika
         var newTokenDto = await CreateAccessTokenAsync(token.User, null, accessTokenLifetime);
-        
+
         // Token aileleri kullanılıyorsa token aile ilişkisini güncelle
         bool useTokenFamilies = true; // Yapılandırmadan çekilebilir
         if (useTokenFamilies && !string.IsNullOrEmpty(token.FamilyId))
@@ -222,26 +224,27 @@ public class TokenHandler : ITokenHandler
             // Yeni token için aynı aile kimliğini ayarla
             var newRefreshToken = await _context.Set<RefreshToken>()
                 .FirstOrDefaultAsync(rt => rt.TokenHash == HashToken(newTokenDto.RefreshToken));
-            
+
             if (newRefreshToken != null)
             {
                 newRefreshToken.FamilyId = token.FamilyId;
                 await _context.SaveChangesAsync();
             }
         }
-        
+
         return newTokenDto;
     }
 
     /// <summary>
     /// Belirli bir yenileme tokenini iptal eder
     /// </summary>
-    public async Task RevokeRefreshTokenAsync(string refreshToken, string? ipAddress = null, string? reasonRevoked = null)
+    public async Task RevokeRefreshTokenAsync(string refreshToken, string? ipAddress = null,
+        string? reasonRevoked = null)
     {
         try
         {
             string tokenHash = HashToken(refreshToken);
-            
+
             // Veritabanında yenileme tokenini bul
             var token = await _context.Set<RefreshToken>()
                 .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash && !rt.IsRevoked);
@@ -256,12 +259,12 @@ public class TokenHandler : ITokenHandler
 
                 await _context.SaveChangesAsync();
                 _logger.LogInformation("Yenileme tokeni iptal edildi: {TokenId}", token.Id);
-                
+
                 // Token aileleri kullanılıyorsa, çocuk tokenları da iptal et
                 bool useTokenFamilies = true; // Yapılandırmadan çekilebilir
                 if (useTokenFamilies && !string.IsNullOrEmpty(token.FamilyId))
                 {
-                    await RevokeTokenFamily(token.FamilyId, token.Id, ipAddress, 
+                    await RevokeTokenFamily(token.FamilyId, token.Id, ipAddress,
                         $"Üst token {token.Id} iptal edildi: {reasonRevoked}");
                 }
             }
@@ -276,7 +279,9 @@ public class TokenHandler : ITokenHandler
     /// <summary>
     /// Belirli bir kullanıcı için tüm yenileme tokenlarını iptal eder
     /// </summary>
-    public async Task RevokeAllUserRefreshTokensAsync(string userId, string? ipAddress = null, string? reasonRevoked = null)
+    // Backend kodunun TokenHandler.cs dosyasındaki RevokeAllUserRefreshTokensAsync metodu
+    public async Task RevokeAllUserRefreshTokensAsync(string userId, string? ipAddress = null,
+        string? reasonRevoked = null)
     {
         try
         {
@@ -299,15 +304,31 @@ public class TokenHandler : ITokenHandler
 
             // Bu kullanıcı için talep önbelleğini geçersiz kıl
             await InvalidateUserClaimsCache(userId);
-            
-            // Kullanıcı kaydını da güncelle
+
+            // Kullanıcının session ID'sini değiştir
             var user = await _userManager.FindByIdAsync(userId);
             if (user != null)
             {
+                // Refresh token bilgilerini temizle
                 user.RefreshToken = null;
                 user.RefreshTokenExpiryTime = null;
+
+                // Yeni bir session ID ata
+                user.SessionId = Guid.NewGuid().ToString();
+
                 await _userManager.UpdateAsync(user);
+
+                // Redis'e yeni session ID'yi kaydet (opsiyonel, performans için)
+                await _cache.SetStringAsync($"UserSession:{userId}",
+                    user.SessionId,
+                    new DistributedCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(30)
+                    });
             }
+
+            // Eski Redis iptal kaydını temizle (artık buna ihtiyacımız yok)
+            await _cache.RemoveAsync($"UserTokensRevoked:{userId}");
         }
         catch (Exception ex)
         {
@@ -325,9 +346,10 @@ public class TokenHandler : ITokenHandler
         {
             // Güvenlik ayarlarının hazır olduğundan emin ol
             await EnsureTokenSettingsInitializedAsync();
-            
+
             JwtSecurityTokenHandler tokenHandler = new();
-            var principal = tokenHandler.ValidateToken(token, _tokenValidationParameters, out SecurityToken validatedToken);
+            var principal =
+                tokenHandler.ValidateToken(token, _tokenValidationParameters, out SecurityToken validatedToken);
 
             // Taleplerden kullanıcı kimliğini çıkar
             var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier);
@@ -371,7 +393,7 @@ public class TokenHandler : ITokenHandler
         {
             // Veritabanı araması için token hash'ini oluştur
             string tokenHash = HashToken(refreshToken);
-            
+
             // Yenileme tokenini bul
             var token = await _context.Set<RefreshToken>()
                 .Include(rt => rt.User)
@@ -386,7 +408,7 @@ public class TokenHandler : ITokenHandler
             {
                 return (false, null!, null!, "Yenileme tokeni iptal edilmiş");
             }
-            
+
             if (token.IsUsed)
             {
                 return (false, null!, null!, "Yenileme tokeni zaten kullanılmış");
@@ -406,24 +428,25 @@ public class TokenHandler : ITokenHandler
             // IP ve UserAgent doğrulaması (isteğe bağlı)
             bool checkIp = true; // Yapılandırmadan alınabilir
             bool checkUserAgent = true; // Yapılandırmadan alınabilir
-            
+
             if (checkIp && !string.IsNullOrEmpty(token.CreatedByIp) && token.CreatedByIp != ipAddress)
             {
-                _logger.LogWarning("Yenileme tokeni farklı IP'den doğrulanmaya çalışıldı: {OriginalIp}, {CurrentIp}", 
+                _logger.LogWarning("Yenileme tokeni farklı IP'den doğrulanmaya çalışıldı: {OriginalIp}, {CurrentIp}",
                     token.CreatedByIp, ipAddress);
                 // Güvenlik politikanıza göre, burada hata dönmek isteyebilirsiniz
             }
-            
+
             if (checkUserAgent && !string.IsNullOrEmpty(token.UserAgent) && token.UserAgent != userAgent)
             {
-                _logger.LogWarning("Yenileme tokeni farklı tarayıcıdan doğrulanmaya çalışıldı: {OriginalAgent}, {CurrentAgent}",
+                _logger.LogWarning(
+                    "Yenileme tokeni farklı tarayıcıdan doğrulanmaya çalışıldı: {OriginalAgent}, {CurrentAgent}",
                     token.UserAgent, userAgent);
                 // Güvenlik politikanıza göre, burada hata dönmek isteyebilirsiniz
             }
 
             // Yanıt için geçici token ayarla
             token.SetToken(refreshToken);
-            
+
             return (true, token.User, token, string.Empty);
         }
         catch (Exception ex)
@@ -461,7 +484,7 @@ public class TokenHandler : ITokenHandler
             // Önce engelleme durumu için önbelleği kontrol et
             string cacheKey = $"UserBlocked:{userId}";
             string? cachedValue = await _cache.GetStringAsync(cacheKey);
-            
+
             if (cachedValue != null)
             {
                 return bool.Parse(cachedValue);
@@ -476,9 +499,9 @@ public class TokenHandler : ITokenHandler
             {
                 AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
             };
-            
+
             await _cache.SetStringAsync(cacheKey, isBlocked.ToString(), cacheOptions);
-            
+
             return isBlocked;
         }
         catch (Exception ex)
@@ -516,7 +539,8 @@ public class TokenHandler : ITokenHandler
                 var issuerResponse = await _secretClient.GetSecretAsync("JwtIssuer");
                 var audienceResponse = await _secretClient.GetSecretAsync("JwtAudience");
 
-                if (securityKeyResponse?.Value == null || issuerResponse?.Value == null || audienceResponse?.Value == null)
+                if (securityKeyResponse?.Value == null || issuerResponse?.Value == null ||
+                    audienceResponse?.Value == null)
                 {
                     throw new InvalidOperationException("JWT anahtarları Key Vault'ta bulunamadı");
                 }
@@ -564,31 +588,31 @@ public class TokenHandler : ITokenHandler
     private async Task EnforceMaxActiveTokensAsync(string userId)
     {
         int maxActiveTokens = 5; // Yapılandırmadan alınabilir
-        
+
         if (maxActiveTokens <= 0)
             return; // Sınırlama yok
-            
+
         // Kullanıcının aktif tokenlarını say
         var activeTokens = await _context.Set<RefreshToken>()
             .Where(t => t.UserId == userId && !t.IsRevoked && !t.IsUsed && t.ExpiryDate > DateTime.UtcNow)
             .OrderByDescending(t => t.CreatedDate)
             .ToListAsync();
-            
+
         // Eğer limit aşıldıysa, en eski tokenları iptal et
         if (activeTokens.Count >= maxActiveTokens)
         {
             // En son maxActiveTokens sayıda token dışındakileri iptal et
             var tokensToRevoke = activeTokens.Skip(maxActiveTokens - 1).ToList();
-            
+
             foreach (var token in tokensToRevoke)
             {
                 token.IsRevoked = true;
                 token.RevokedDate = DateTime.UtcNow;
                 token.ReasonRevoked = "Token sayısı sınırı aşıldı";
             }
-            
+
             await _context.SaveChangesAsync();
-            _logger.LogInformation("{Count} eski token iptal edildi - kullanıcı: {UserId}", 
+            _logger.LogInformation("{Count} eski token iptal edildi - kullanıcı: {UserId}",
                 tokensToRevoke.Count, userId);
         }
     }
@@ -601,7 +625,7 @@ public class TokenHandler : ITokenHandler
         // Önbellekten kontrol et
         string cacheKey = $"UserClaims:{user.Id}";
         byte[]? cachedClaimsBytes = await _cache.GetAsync(cacheKey);
-        
+
         if (cachedClaimsBytes != null)
         {
             try
@@ -609,7 +633,7 @@ public class TokenHandler : ITokenHandler
                 // Önbellekteki talepleri deserialize et
                 string cachedClaimsJson = Encoding.UTF8.GetString(cachedClaimsBytes);
                 var cachedClaims = System.Text.Json.JsonSerializer.Deserialize<List<UserClaimCache>>(cachedClaimsJson);
-                
+
                 if (cachedClaims != null)
                 {
                     return cachedClaims.Select(c => c.ToClaim()).ToList();
@@ -621,7 +645,7 @@ public class TokenHandler : ITokenHandler
                 // Hata durumunda devam et ve yeni claims oluştur
             }
         }
-        
+
         // Standart talepleri ekle
         var claims = new List<Claim>
         {
@@ -629,7 +653,9 @@ public class TokenHandler : ITokenHandler
             new(ClaimTypes.Name, user.UserName ?? string.Empty),
             new(ClaimTypes.Email, user.Email ?? string.Empty),
             new("name_surname", user.NameSurname ?? string.Empty),
-            new("created_date", DateTime.UtcNow.ToString("o"))
+            new("created_date", DateTime.UtcNow.ToString("o")),
+            // SessionId ekle
+            new("session_id", user.SessionId ?? Guid.NewGuid().ToString())
         };
 
         // Kullanıcının rollerini taleplere ekle
@@ -638,21 +664,21 @@ public class TokenHandler : ITokenHandler
         {
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
-        
+
         // Talepleri önbelleğe al
         try
         {
-            var claimCacheList = claims.Select(c => new UserClaimCache 
-            { 
-                Type = c.Type, 
+            var claimCacheList = claims.Select(c => new UserClaimCache
+            {
+                Type = c.Type,
                 Value = c.Value,
                 ValueType = c.ValueType,
                 Issuer = c.Issuer,
-                OriginalIssuer = c.OriginalIssuer 
+                OriginalIssuer = c.OriginalIssuer
             }).ToList();
-            
+
             string claimsJson = System.Text.Json.JsonSerializer.Serialize(claimCacheList);
-            
+
             await _cache.SetAsync(
                 cacheKey,
                 Encoding.UTF8.GetBytes(claimsJson),
@@ -680,7 +706,7 @@ public class TokenHandler : ITokenHandler
         rng.GetBytes(randomNumber);
         return Convert.ToBase64String(randomNumber);
     }
-    
+
     /// <summary>
     /// Bir tokeni hash'ler
     /// </summary>
@@ -695,18 +721,18 @@ public class TokenHandler : ITokenHandler
     /// Veritabanında bir yenileme tokenini saklar
     /// </summary>
     private async Task<RefreshToken> StoreRefreshToken(
-        string token, 
+        string token,
         string tokenHash,
-        string userId, 
+        string userId,
         string jwtId,
-        string ipAddress, 
+        string ipAddress,
         string userAgent,
         DateTime expiryDate)
     {
         // Refresh tokenleri ailelendirmek isteniyorsa
         string? familyId = null;
         bool useTokenFamilies = true; // Yapılandırmadan alınabilir
-        
+
         if (useTokenFamilies)
         {
             // Kullanıcının mevcut bir token ailesini kontrol et veya yeni oluştur
@@ -714,10 +740,10 @@ public class TokenHandler : ITokenHandler
                 .Where(rt => rt.UserId == userId && !rt.IsRevoked)
                 .OrderByDescending(rt => rt.CreatedDate)
                 .FirstOrDefaultAsync();
-                
+
             familyId = latestToken?.FamilyId ?? Guid.NewGuid().ToString();
         }
-        
+
         // Fabrika metodunu kullanarak yenileme tokeni oluştur
         var refreshToken = RefreshToken.CreateToken(
             token,
@@ -733,7 +759,7 @@ public class TokenHandler : ITokenHandler
         // Veritabanında sakla
         _context.Set<RefreshToken>().Add(refreshToken);
         await _context.SaveChangesAsync();
-        
+
         // Bu yenileme tokeni ile kullanıcı kaydını güncelle
         var user = await _userManager.FindByIdAsync(userId);
         if (user != null)
@@ -744,7 +770,7 @@ public class TokenHandler : ITokenHandler
 
         return refreshToken;
     }
-    
+
     /// <summary>
     /// İlgili tokenları iptal eder (token yeniden kullanım tespiti için)
     /// </summary>
@@ -756,7 +782,7 @@ public class TokenHandler : ITokenHandler
             await RevokeTokenFamily(token.FamilyId, token.Id, ipAddress, reason);
         }
     }
-    
+
     /// <summary>
     /// Bir ailedeki tüm tokenları iptal eder
     /// </summary>
@@ -767,7 +793,7 @@ public class TokenHandler : ITokenHandler
             var tokensInFamily = await _context.Set<RefreshToken>()
                 .Where(t => t.FamilyId == familyId && t.Id != currentTokenId && !t.IsRevoked)
                 .ToListAsync();
-                
+
             foreach (var token in tokensInFamily)
             {
                 token.IsRevoked = true;
@@ -775,7 +801,7 @@ public class TokenHandler : ITokenHandler
                 token.RevokedByIp = ipAddress;
                 token.ReasonRevoked = reason;
             }
-                
+
             await _context.SaveChangesAsync();
         }
         catch (Exception ex)

@@ -35,6 +35,7 @@ public class AppUser : IdentityUser<string>
     public string? LastLoginUserAgent { get; set; }
     public DateTime? LastLoginDate { get; set; }
     public int FailedLoginAttempts { get; set; } = 0;
+    public string? SessionId { get; set; } = Guid.NewGuid().ToString();
     
     // Yeni bir RefreshToken'ı ana RefreshToken olarak ayarlamak için yardımcı metot
     public void SetRefreshToken(RefreshToken refreshToken)

@@ -1,4 +1,6 @@
-namespace Application.Queue.Email;
+using Application.Enums;
+
+namespace Application.Models.Queue.Email;
 
 public class EmailQueueMessage
 {

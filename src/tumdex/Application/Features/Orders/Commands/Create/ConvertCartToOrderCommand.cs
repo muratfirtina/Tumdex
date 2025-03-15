@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Application.Abstraction.Services;
+using Application.Abstraction.Services.Email;
 using Application.Abstraction.Services.HubServices;
 using Application.Events.OrderEvetns;
 using Application.Extensions;
@@ -51,7 +52,7 @@ public class ConvertCartToOrderCommand : IRequest<ConvertCartToOrderCommandRespo
         {
             try
             {
-                // 1. Sipariş oluşturma (Transaction içinde)
+                // 1. Create order (within Transaction)
                 (bool succeeded, OrderDto? orderDto) = await _orderRepository.ConvertCartToOrderAsync(
                     request.AddressId,
                     request.PhoneNumberId,
@@ -60,10 +61,10 @@ public class ConvertCartToOrderCommand : IRequest<ConvertCartToOrderCommandRespo
 
                 if (!succeeded || orderDto == null)
                 {
-                    throw new Exception("Sepet siparişe dönüştürülemedi.");
+                    throw new Exception("Cart could not be converted to order.");
                 }
 
-                // 2. E-posta göndermeyi dene
+                // 2. Try to send email
                 bool emailSent = false;
                 try
                 {
@@ -78,27 +79,27 @@ public class ConvertCartToOrderCommand : IRequest<ConvertCartToOrderCommandRespo
                         orderDto.TotalPrice
                     );
                     
-                    // E-posta başarıyla gönderildi
+                    // Email sent successfully
                     emailSent = true;
-                    _logger.LogInformation("Sipariş onay e-postası başarıyla gönderildi. OrderId: {OrderId}", orderDto.OrderId);
+                    _logger.LogInformation("Order confirmation email was successfully sent. OrderId: {OrderId}", orderDto.OrderId);
                 }
                 catch (Exception mailEx)
                 {
-                    _logger.LogError(mailEx, "Sipariş onay e-postası gönderilemedi. OrderId: {OrderId}. Sipariş iptal ediliyor.", orderDto.OrderId);
+                    _logger.LogError(mailEx, "Order confirmation email could not be sent. OrderId: {OrderId}. Canceling the order.", orderDto.OrderId);
                     
-                    // E-posta gönderimi başarısız olursa, siparişi geri al
+                    // If email sending fails, roll back the order
                     var cancelResult = await _orderRepository.CancelOrderAsync(orderDto.OrderId);
                     
                     if (!cancelResult)
                     {
-                        _logger.LogError("Sipariş iptal edilemedi. OrderId: {OrderId}", orderDto.OrderId);
+                        _logger.LogError("Order could not be canceled. OrderId: {OrderId}", orderDto.OrderId);
                     }
                     
-                    // Kullanıcıya bilgi vermek için özel bir hata fırlat
-                    throw new Exception("Sipariş onay e-postası gönderilemediği için işlem iptal edildi. Lütfen daha sonra tekrar deneyin veya müşteri hizmetleriyle iletişime geçin.", mailEx);
+                    // Throw a custom error to inform the user
+                    throw new Exception("The transaction was canceled because the order confirmation email could not be sent. Please try again later or contact customer service.", mailEx);
                 }
 
-                // 3. Event'i Outbox'a kaydet
+                // 3. Save the Event to Outbox
                 var outboxMessage = new OutboxMessage(
                     nameof(OrderCreatedEvent),
                     JsonSerializer.Serialize(new OrderCreatedEvent
@@ -112,7 +113,7 @@ public class ConvertCartToOrderCommand : IRequest<ConvertCartToOrderCommandRespo
                         OrderItems = orderDto.OrderItems,
                         TotalPrice = orderDto.TotalPrice,
                         Email = orderDto.Email,
-                        EmailSent = emailSent // E-posta durumunu belirt
+                        EmailSent = emailSent // Indicate email status
                     })
                 );
 
@@ -125,10 +126,9 @@ public class ConvertCartToOrderCommand : IRequest<ConvertCartToOrderCommandRespo
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Sepet siparişe dönüştürülürken hata oluştu");
+                _logger.LogError(ex, "An error occurred while converting cart to order");
                 throw;
             }
         }
     }
-    
 }

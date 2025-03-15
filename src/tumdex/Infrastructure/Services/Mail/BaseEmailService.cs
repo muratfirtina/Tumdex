@@ -1,5 +1,7 @@
 using System.Text;
 using Application.Abstraction.Services;
+using Application.Abstraction.Services.Email;
+using Application.Abstraction.Services.Utilities;
 using Application.Storage;
 using Azure.Security.KeyVault.Secrets;
 using Ganss.Xss;
@@ -267,6 +269,7 @@ public abstract class BaseEmailService : IEmailService
             var companyEmail = _configuration["CompanyInfo:Email"];
             var companyLinkedIn = _configuration["CompanyInfo:SocialMedia:LinkedIn"];
             var companyWhatsapp = _configuration["CompanyInfo:SocialMedia:Whatsapp"];
+            var clientUrl = _configuration["AngularClientUrl"]?.TrimEnd('/') ?? "http://localhost:4200";
 
             // Servis tipine göre özel footer mesajı
             var footerMessage = GetFooterMessage();
@@ -277,13 +280,13 @@ public abstract class BaseEmailService : IEmailService
             if (!string.IsNullOrEmpty(companyLinkedIn))
             {
                 sb.AppendLine($@"<a href='{companyLinkedIn}' style='margin: 0 10px; text-decoration: none;'>
-                    <img src='http://localhost:4200/assets/icon/linkedin.png' alt='LinkedIn' style='width: 24px; height: 24px;' />
+                    <img src='{clientUrl}/assets/icons/linkedin.png' alt='LinkedIn' style='width: 24px; height: 24px;' />
                 </a>");
             }
             if (!string.IsNullOrEmpty(companyWhatsapp))
             {
                 sb.AppendLine($@"<a href='{companyWhatsapp}' style='margin: 0 10px; text-decoration: none;'>
-                    <img src='http://localhost:4200/assets/whatsapp.webp' alt='WhatsApp' style='width: 24px; height: 24px;' />
+                    <img src='{clientUrl}/assets/icons/whatsapp.webp' alt='WhatsApp' style='width: 24px; height: 24px;' />
                 </a>");
             }
             sb.AppendLine("</div>");

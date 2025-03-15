@@ -1,5 +1,7 @@
 using System.Text;
 using Application.Abstraction.Services;
+using Application.Abstraction.Services.Email;
+using Application.Abstraction.Services.Utilities;
 using Application.Extensions.ImageFileExtensions;
 using Application.Storage;
 using Azure.Security.KeyVault.Secrets;

@@ -80,7 +80,7 @@ public static class AuthenticationConfiguration
             options.Cookie.HttpOnly = true;
             options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
             options.SlidingExpiration = true;
-            options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Strict;
+            options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None;
             options.Cookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
             
             // API odaklı uygulama olduğu için login/logout path'leri ayarlanmamış
@@ -103,32 +103,30 @@ public static class AuthenticationConfiguration
     }
 
     private static void ConfigureJwtAuthentication(IServiceCollection services)
+{
+    services.AddAuthentication(options =>
     {
-        services.AddAuthentication(options =>
-        {
-            // Önce Identity cookie, sonra JWT ile doğrulama yapacak şekilde ayarla
-            options.DefaultScheme = IdentityConstants.ApplicationScheme; // Önemli değişiklik
-            options.DefaultSignInScheme = IdentityConstants.ApplicationScheme;
-            
-            // Authentication şemasını ÖNCE cookie sonra JWT kontrol edecek şekilde ayarla
-            options.DefaultAuthenticateScheme = IdentityConstants.ApplicationScheme;
-            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-        })
-        .AddJwtBearer("Admin", options =>
-        {
-            // Geçici service provider oluştur
-            using var serviceProvider = services.BuildServiceProvider();
-            var jwtConfig = serviceProvider.GetRequiredService<IJwtConfiguration>();
-            var logger = serviceProvider.GetRequiredService<ILoggerFactory>()
-                .CreateLogger("JwtAuthentication");
+        // Identity cookie ve JWT entegrasyonu
+        options.DefaultScheme = IdentityConstants.ApplicationScheme;
+        options.DefaultSignInScheme = IdentityConstants.ApplicationScheme;
+        options.DefaultAuthenticateScheme = IdentityConstants.ApplicationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer("Admin", options =>
+    {
+        // Geçici service provider oluştur
+        using var serviceProvider = services.BuildServiceProvider();
+        var jwtConfig = serviceProvider.GetRequiredService<IJwtConfiguration>();
+        var logger = serviceProvider.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("JwtAuthentication");
 
-            // Token doğrulama parametrelerini ayarla
-            options.TokenValidationParameters = jwtConfig.TokenValidationParameters;
-
-            options.Events = new JwtBearerEvents
-            {
+        // Token doğrulama parametrelerini ayarla
+        options.TokenValidationParameters = jwtConfig.TokenValidationParameters;
+        
+        options.Events = new JwtBearerEvents
+        {
                 // WebSocket bağlantıları için token yönetimi
-                OnMessageReceived = context =>
+            OnMessageReceived = context =>
                 {
                     var accessToken = context.Request.Query["access_token"];
                     var path = context.HttpContext.Request.Path;
@@ -137,37 +135,63 @@ public static class AuthenticationConfiguration
                         path.StartsWithSegments("/order-hub"))
                     {
                         context.Token = accessToken;
-                    }
-
-                    return Task.CompletedTask;
-                },
-
-                // Token doğrulama hataları için
-                OnAuthenticationFailed = context =>
-                {
-                    if (context.Exception is SecurityTokenExpiredException)
-                    {
-                        context.Response.Headers.Add("Token-Expired", "true");
-                        logger.LogWarning("Token süresi dolmuş");
-                    }
-                    else
-                    {
-                        logger.LogError(context.Exception, "Token doğrulama hatası");
-                    }
-
-                    return Task.CompletedTask;
-                },
-
-                // Başarılı token doğrulaması için
-                OnTokenValidated = context =>
-                {
-                    logger.LogInformation(
-                        "Token başarıyla doğrulandı - Kullanıcı: {UserName}", 
-                        context.Principal?.Identity?.Name ?? "Unknown"
-                    );
-                    return Task.CompletedTask;
                 }
-            };
-        });
-    }
+
+                return Task.CompletedTask;
+            },
+
+            // Token doğrulama hataları için
+            OnAuthenticationFailed = context =>
+            {
+                if (context.Exception is SecurityTokenExpiredException)
+                {
+                    context.Response.Headers.Add("Token-Expired", "true");
+                    logger.LogWarning("Token süresi dolmuş");
+                }
+                else
+                {
+                    logger.LogError(context.Exception, "Token doğrulama hatası");
+                }
+
+                return Task.CompletedTask;
+            },
+
+            // Başarılı token doğrulaması için
+            OnTokenValidated = context =>
+            {
+                // İsteğe bağlı: Token içindeki IP ve UserAgent ile mevcut istek karşılaştırması
+                var userIdClaim = context.Principal?.FindFirst(ClaimTypes.NameIdentifier);
+                var ipClaim = context.Principal?.FindFirst("ip_address");
+                var userAgentClaim = context.Principal?.FindFirst("user_agent");
+                
+                if (userIdClaim != null && (ipClaim != null || userAgentClaim != null))
+                {
+                    var requestIp = context.HttpContext.Connection.RemoteIpAddress?.ToString();
+                    var requestAgent = context.HttpContext.Request.Headers["User-Agent"].ToString();
+                    
+                    // IP ve User-Agent karşılaştırması (güvenlik politikanıza göre)
+                    if (ipClaim != null && ipClaim.Value != requestIp)
+                    {
+                        logger.LogWarning("Token farklı IP'den kullanıldı: Token={TokenIp}, Request={RequestIp}",
+                            ipClaim.Value, requestIp);
+                        // Güvenlik politikanıza göre doğrulamayı başarısız yapabilirsiniz
+                        // context.Fail("IP address mismatch");
+                    }
+                    
+                    if (userAgentClaim != null && userAgentClaim.Value != requestAgent)
+                    {
+                        logger.LogWarning("Token farklı User-Agent ile kullanıldı");
+                        // context.Fail("User-Agent mismatch");
+                    }
+                }
+                
+                logger.LogInformation(
+                    "Token başarıyla doğrulandı - Kullanıcı: {UserName}", 
+                    context.Principal?.Identity?.Name ?? "Unknown"
+                );
+                return Task.CompletedTask;
+            }
+        };
+    });
+}
 }

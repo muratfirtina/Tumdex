@@ -1,4 +1,6 @@
 using Application.Abstraction.Services;
+using Application.Abstraction.Services.Email;
+using Application.Abstraction.Services.Utilities;
 using Application.Services;
 using Infrastructure.BackgroundJobs;
 using Infrastructure.Settings.Models.Newsletter;
@@ -19,6 +21,9 @@ public static class EmailServiceRegistration
         // BaseEmailService alt sınıflarının kayıtları
         RegisterBaseEmailServices(services);
         
+        // EmailQueueService alt sınıflarının kayıtları
+        RegisterEmailQueueServices(services);
+        
         // Newsletter servisleri
         RegisterNewsletterServices(services, configuration);
         
@@ -36,9 +41,27 @@ public static class EmailServiceRegistration
         // Sipariş e-postaları servisi
         services.AddScoped<IOrderEmailService, OrderEmailService>();
         
+        services.AddScoped<IContactEmailService, ContactEmailService>();
+        
         // Varsayılan e-posta servisi olarak AccountEmailService'i kullan
         services.AddScoped<IEmailService>(sp => sp.GetRequiredService<IAccountEmailService>());
     }
+    
+    private static void RegisterEmailQueueServices(IServiceCollection services)
+    {
+        services.AddScoped<IEmailQueueService, EmailQueueService>();
+        services.AddHostedService<EmailQueueWorker>();
+        services.AddSingleton<IBackgroundTaskQueue>(sp =>
+        {
+            var logger = sp.GetRequiredService<ILogger<BackgroundTaskQueue>>();
+            var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+            return new BackgroundTaskQueue(100, logger, scopeFactory);
+        });
+        
+        // QueuedHostedService kaydı
+        services.AddHostedService<QueuedHostedService>();
+    }
+    
     
     /// <summary>
     /// Bülten servislerini ve ilgili işleri kaydeder
@@ -53,21 +76,6 @@ public static class EmailServiceRegistration
         
         // Bülten yönetim servisi
         services.AddScoped<INewsletterService, NewsletterService>();
-        
-        // E-posta kuyruğu servisi
-        services.AddScoped<IEmailQueueService, EmailQueueService>();
-        services.AddHostedService<EmailQueueWorker>();
-        
-        // Arka plan görev kuyruğu
-        services.AddSingleton<IBackgroundTaskQueue>(sp => 
-        {
-            var logger = sp.GetRequiredService<ILogger<BackgroundTaskQueue>>();
-            var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
-            return new BackgroundTaskQueue(100, logger, scopeFactory);
-        });
-
-        // QueuedHostedService kaydı
-        services.AddHostedService<QueuedHostedService>();
         
         // Quartz zamanlanmış görevler
         ConfigureNewsletterJobs(services);

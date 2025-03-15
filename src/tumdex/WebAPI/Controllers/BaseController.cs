@@ -15,11 +15,13 @@ namespace WebAPI.Controllers
 
         protected string getIpAddress()
         {
-            string ipAddress = Request.Headers.ContainsKey("X-Forwarded-For")
-                ? Request.Headers["X-Forwarded-For"].ToString()
-                : HttpContext.Connection.RemoteIpAddress?.MapToIPv4().ToString()
-                  ?? throw new InvalidOperationException("IP address cannot be retrieved from request.");
-            return ipAddress;
+            if (Request.Headers.ContainsKey("X-Forwarded-For"))
+            {
+                return Request.Headers["X-Forwarded-For"].ToString().Split(',')[0].Trim();
+            }
+
+            return HttpContext.Connection.RemoteIpAddress?.MapToIPv4().ToString()
+                   ?? throw new InvalidOperationException("IP address cannot be retrieved from request.");
         }
 
         /*protected Guid getUserIdFromRequest() //todo authentication behavior?

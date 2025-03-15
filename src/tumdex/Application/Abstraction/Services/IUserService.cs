@@ -1,6 +1,5 @@
 using System.Linq.Expressions;
 using Application.Dtos.Role;
-using Application.Dtos.User;
 using Core.Application.Requests;
 using Core.Persistence.Dynamic;
 using Core.Persistence.Paging;
@@ -12,6 +11,7 @@ namespace Application.Abstraction.Services;
 public interface IUserService
 {
     Task<AppUser?> GetCurrentUserAsync();
+    Task<AppUser> GetUserByIdAsync(string userId);
     Task<AppUser> GetUserByUsernameAsync(string userName);
     Task UpdateRefreshTokenAsync(string refreshToken, AppUser user, DateTime accessTokenDateTime, int refreshTokenLifetime);
     Task UpdateForgotPasswordAsync(string userId, string resetToken, string newPassword);
@@ -41,4 +41,6 @@ public interface IUserService
         bool enableTracking = true,
         CancellationToken cancellationToken = default
     );
+    
+    
 }

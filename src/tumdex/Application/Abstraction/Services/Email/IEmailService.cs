@@ -1,4 +1,4 @@
-namespace Application.Abstraction.Services;
+namespace Application.Abstraction.Services.Email;
 
 /// <summary>
 /// Tüm e-posta servislerinin uygulayacağı temel interface.

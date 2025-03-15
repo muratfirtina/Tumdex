@@ -1,7 +1,4 @@
-using System;
-using System.Threading.Tasks;
-
-namespace Application.Abstraction.Services;
+namespace Application.Abstraction.Services.Utilities;
 
 /// <summary>
 /// Veri şifreleme, çözme ve güvenli token yönetimi işlemleri için arayüz

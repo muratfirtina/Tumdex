@@ -12,6 +12,7 @@ public class LoginUserResponse : IResponse
 public class LoginUserSuccessResponse : LoginUserResponse
 {
     public Token Token { get; set; }
+    public string UserName { get; set; }
 }
 public class LoginUserErrorResponse : LoginUserResponse
 {

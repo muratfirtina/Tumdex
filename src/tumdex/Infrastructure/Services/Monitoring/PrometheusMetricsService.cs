@@ -1,4 +1,5 @@
 using Application.Abstraction.Services;
+using Application.Abstraction.Services.Utilities;
 using Prometheus;
 
 namespace Infrastructure.Services.Monitoring;

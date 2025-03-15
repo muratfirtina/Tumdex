@@ -1,4 +1,4 @@
-using Application.Tokens;
+using Application.Abstraction.Services.Tokens;
 using MediatR;
 
 namespace Application.Features.Users.Commands.RevokeUserTokens;

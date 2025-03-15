@@ -1,5 +1,8 @@
 using Application.Abstraction.Services;
 using Application.Abstraction.Services.Configurations;
+using Application.Abstraction.Services.Email;
+using Application.Abstraction.Services.Security;
+using Application.Abstraction.Services.Utilities;
 using Application.Services;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
@@ -21,6 +24,8 @@ using Infrastructure.Services.Security.Models.Alert;
 using Infrastructure.Services.Seo;
 using Infrastructure.Services.Token;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -39,6 +44,7 @@ public static class SecurityServiceRegistration
         
         // Service Registrations
         ConfigureSecurityServices(services);
+        ConfigureAntiforgeryServices(services);
         ConfigureMonitoringServices(services);
         ConfigureCommunicationServices(services);
 
@@ -70,6 +76,14 @@ public static class SecurityServiceRegistration
         services.AddSingleton<ITokenSettingsService, TokenSettingsService>();
         services.AddScoped<ILogService, LogService>();
         services.AddScoped<IRateLimitService, RateLimitService>();
+    }
+
+    private static void ConfigureAntiforgeryServices(IServiceCollection services)
+    {
+        services.AddAntiforgery();
+        
+        services.AddScoped<IAntiForgeryService, AntiForgeryService>();
+        services.AddScoped<IBrowserFingerprintService, BrowserFingerprintService>();
     }
 
     private static void ConfigureMonitoringServices(IServiceCollection services)

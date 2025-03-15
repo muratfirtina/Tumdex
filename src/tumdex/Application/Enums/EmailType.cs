@@ -1,4 +1,4 @@
-namespace Application.Queue.Email;
+namespace Application.Enums;
 
 public enum EmailType
 {
@@ -8,5 +8,6 @@ public enum EmailType
     Newsletter,
     OrderConfirmation,
     OrderUpdate,
-    EmailActivation
+    EmailActivation,
+    ContactForm,
 }

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 using System.Collections.Concurrent;
 using Application.Abstraction.Services;
+using Application.Abstraction.Services.Utilities;
 
 namespace Infrastructure.Services.Cache;
 

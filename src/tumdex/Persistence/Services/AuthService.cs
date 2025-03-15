@@ -8,11 +8,13 @@ using System.Threading.Tasks;
 using Application.Abstraction.Helpers;
 using Application.Abstraction.Services;
 using Application.Abstraction.Services.Authentication;
+using Application.Abstraction.Services.Email;
+using Application.Abstraction.Services.Tokens;
+using Application.Abstraction.Services.Utilities;
 using Application.Dtos.Token;
 using Application.Exceptions;
 using Application.Features.Users.Commands.ActivationCode.ActivationUrlToken;
 using Application.Features.Users.Commands.CreateUser;
-using Application.Tokens;
 using Domain.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -219,44 +221,44 @@ public class AuthService : IAuthService, IInternalAuthentication
         return tokenDto.ToToken();
     }
 
-    private async Task CheckForSuspiciousActivityAsync(AppUser user, string? ipAddress, string? userAgent)
-    {
-        if (string.IsNullOrEmpty(ipAddress)) return;
-
-        try
+        private async Task CheckForSuspiciousActivityAsync(AppUser user, string? ipAddress, string? userAgent)
         {
-            // Get the known IPs for this user from cache
-            var key = $"known_ips_{user.Id}";
-            var result = await _cacheService.TryGetValueAsync<HashSet<string>>(key);
+            if (string.IsNullOrEmpty(ipAddress)) return;
 
-            if (result.success)
+            try
             {
-                var knownIps = result.value;
+                // Get the known IPs for this user from cache
+                var key = $"known_ips_{user.Id}";
+                var result = await _cacheService.TryGetValueAsync<HashSet<string>>(key);
 
-                // If this is a new IP for this user, log it
-                if (!knownIps.Contains(ipAddress))
+                if (result.success)
                 {
-                    _logger.LogInformation("New login location for user: {Username} from IP: {IpAddress}",
-                        user.UserName, ipAddress);
+                    var knownIps = result.value;
 
-                    // Add the new IP to the known IPs set
-                    knownIps.Add(ipAddress);
+                    // If this is a new IP for this user, log it
+                    if (!knownIps.Contains(ipAddress))
+                    {
+                        _logger.LogInformation("New login location for user: {Username} from IP: {IpAddress}",
+                            user.UserName, ipAddress);
+
+                        // Add the new IP to the known IPs set
+                        knownIps.Add(ipAddress);
+                        await _cacheService.SetAsync(key, knownIps, TimeSpan.FromDays(30));
+                    }
+                }
+                else
+                {
+                    // First login we're tracking, initialize the known IPs set
+                    var knownIps = new HashSet<string> { ipAddress };
                     await _cacheService.SetAsync(key, knownIps, TimeSpan.FromDays(30));
                 }
             }
-            else
+            catch (Exception ex)
             {
-                // First login we're tracking, initialize the known IPs set
-                var knownIps = new HashSet<string> { ipAddress };
-                await _cacheService.SetAsync(key, knownIps, TimeSpan.FromDays(30));
+                // Non-critical error, so just log it
+                _logger.LogError(ex, "Error checking for suspicious activity for user: {Username}", user.UserName);
             }
         }
-        catch (Exception ex)
-        {
-            // Non-critical error, so just log it
-            _logger.LogError(ex, "Error checking for suspicious activity for user: {Username}", user.UserName);
-        }
-    }
 
     private async Task HandleFailedLoginAttemptAsync(AppUser user, string? ipAddress, string? userAgent)
     {
@@ -405,148 +407,6 @@ public class AuthService : IAuthService, IInternalAuthentication
 
     #endregion
 
-    #region User Registration and Management
-
-    // Password reset methods
-    public async Task PasswordResetAsync(string email)
-    {
-        AppUser? user = await _userManager.FindByEmailAsync(email);
-        if (user != null)
-        {
-            // Generate token for password reset
-            string resetToken = await GenerateSecureTokenAsync(user.Id, user.Email, "PasswordReset");
-
-            // Queue password reset email in background
-            _backgroundTaskQueue.QueueBackgroundWorkItem(async cancellationToken =>
-            {
-                try
-                {
-                    await _accountEmailService.SendPasswordResetEmailAsync(user.Email, user.Id, resetToken);
-                    _logger.LogInformation("Password reset email sent to {Email}", user.Email);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to send password reset email to {Email}", user.Email);
-                }
-            });
-        }
-        else
-        {
-            // Add delay to prevent user enumeration
-            await Task.Delay(TimeSpan.FromMilliseconds(new Random().Next(200, 500)));
-            _logger.LogInformation("Password reset requested for non-existent email: {Email}", email);
-        }
-    }
-
-    public async Task<bool> VerifyResetPasswordTokenAsync(string userId, string resetToken)
-    {
-        return await VerifySecureTokenAsync(userId, resetToken, "PasswordReset");
-    }
-
-    // User registration
-    public async Task<(IdentityResult result, AppUser user)> RegisterUserAsync(CreateUserCommand model)
-    {
-        var user = new AppUser
-        {
-            Id = Guid.NewGuid().ToString(),
-            UserName = model.UserName,
-            Email = model.Email,
-            NameSurname = model.NameSurname,
-            EmailConfirmed = false, // Email confirmation required
-            IsActive = true, // User is active by default
-            CreatedDate = DateTime.UtcNow
-        };
-
-        var result = await _userManager.CreateAsync(user, model.Password);
-
-        if (result.Succeeded)
-        {
-            // Add user to "User" role
-            await _userManager.AddToRoleAsync(user, "User");
-
-            // Generate activation code
-            var activationCode = await GenerateActivationCodeAsync(user.Id);
-
-            // Queue activation email asynchronously
-            _backgroundTaskQueue.QueueBackgroundWorkItem(async token =>
-            {
-                // Yeni: Her background task için yeni bir scope oluştur
-                using var scope = _serviceScopeFactory.CreateScope();
-
-                try
-                {
-                    var emailService = scope.ServiceProvider.GetRequiredService<IAccountEmailService>();
-                    await emailService.SendEmailActivationCodeAsync(user.Email, user.Id, activationCode);
-                    _logger.LogInformation("Activation email sent to {Email}", user.Email);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to send activation email to {Email}", user.Email);
-                }
-            });
-        }
-
-        return (result, user);
-    }
-
-    // Email confirmation endpoint
-    public async Task<IdentityResult> ConfirmEmailAsync(string userId, string token)
-    {
-        var user = await _userManager.FindByIdAsync(userId);
-        if (user == null)
-            throw new NotFoundUserExceptions();
-
-        // Decode token and verify
-        try
-        {
-            token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(token));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to decode email confirmation token for user {UserId}", userId);
-            return IdentityResult.Failed(new IdentityError
-            {
-                Code = "InvalidToken",
-                Description = "The confirmation token is invalid."
-            });
-        }
-
-        return await _userManager.ConfirmEmailAsync(user, token);
-    }
-
-    // Resend for confirmation-link email
-    public async Task ResendConfirmationEmailAsync(string email)
-    {
-        var user = await _userManager.FindByEmailAsync(email);
-        if (user != null && !user.EmailConfirmed)
-        {
-            _backgroundTaskQueue.QueueBackgroundWorkItem(async token =>
-            {
-                try
-                {
-                    string confirmationToken = await GenerateSecureTokenAsync(user.Id, user.Email, "EmailConfirmation");
-                    await _accountEmailService.SendEmailConfirmationAsync(user.Email, user.Id, confirmationToken);
-                    _logger.LogInformation("Confirmation email resent to {Email}", user.Email);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to resend confirmation email to {Email}", user.Email);
-                }
-            });
-        }
-    }
-
-    public async Task<AppUser> GetUserByEmailAsync(string email)
-    {
-        var user = await _userManager.FindByEmailAsync(email);
-        if (user == null)
-            throw new NotFoundUserExceptions();
-
-        return user;
-    }
-
-    #endregion
-
     #region Helper Methods
 
     // Helper method to get IP address
@@ -562,252 +422,7 @@ public class AuthService : IAuthService, IInternalAuthentication
 
     #endregion
 
-    #region Token Generation and Verification Methods
-
-    /// <summary>
-    /// Generates a secure token for user authentication or verification purposes
-    /// </summary>
-    public async Task<string> GenerateSecureTokenAsync(string userId, string email, string purpose,
-        int expireHours = 24)
-    {
-        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(email))
-        {
-            throw new ArgumentException("User ID and email are required for token generation");
-        }
-
-        AppUser user = await _userManager.FindByIdAsync(userId);
-        if (user == null)
-        {
-            throw new ArgumentException($"User with ID {userId} not found");
-        }
-
-        // Generate token based on purpose
-        string token;
-        switch (purpose.ToLower())
-        {
-            case "emailconfirmation":
-                token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                break;
-            case "passwordreset":
-                token = await _userManager.GeneratePasswordResetTokenAsync(user);
-                break;
-            case "activation":
-                token = await _encryptionService.GenerateActivationTokenAsync(userId, email);
-                break;
-            default:
-                // For custom tokens, create a secure payload with expiration
-                var tokenData = new
-                {
-                    UserId = userId,
-                    Email = email,
-                    Purpose = purpose,
-                    ExpiryTime = DateTime.UtcNow.AddHours(expireHours),
-                    Nonce = Guid.NewGuid().ToString()
-                };
-
-                // Serialize and encrypt the token data
-                token = await _encryptionService.EncryptAsync(JsonSerializer.Serialize(tokenData));
-                break;
-        }
-
-        // Encode for URL safety
-        return WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-    }
-
-    /// <summary>
-    /// Verifies a secure token for the specified purpose
-    /// </summary>
-    public async Task<bool> VerifySecureTokenAsync(string userId, string token, string purpose)
-    {
-        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
-        {
-            return false;
-        }
-
-        AppUser user = await _userManager.FindByIdAsync(userId);
-        if (user == null)
-        {
-            return false;
-        }
-
-        // Decode the URL-safe token
-        try
-        {
-            token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(token));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to decode token for user {UserId}", userId);
-            return false;
-        }
-
-        // Verify token based on purpose
-        switch (purpose.ToLower())
-        {
-            case "emailconfirmation":
-                return await _userManager.VerifyUserTokenAsync(
-                    user,
-                    _userManager.Options.Tokens.EmailConfirmationTokenProvider,
-                    UserManager<AppUser>.ConfirmEmailTokenPurpose,
-                    token);
-
-            case "passwordreset":
-                return await _userManager.VerifyUserTokenAsync(
-                    user,
-                    _userManager.Options.Tokens.PasswordResetTokenProvider,
-                    UserManager<AppUser>.ResetPasswordTokenPurpose,
-                    token);
-
-            case "activation":
-                return await _encryptionService.VerifyActivationTokenAsync(userId, user.Email, token);
-
-            default:
-                // For custom tokens, decrypt and verify
-                try
-                {
-                    string decrypted = await _encryptionService.DecryptAsync(token);
-                    JsonDocument tokenData = JsonDocument.Parse(decrypted);
-
-                    // Extract and verify token data
-                    string tokenUserId = tokenData.RootElement.GetProperty("UserId").GetString();
-                    string tokenEmail = tokenData.RootElement.GetProperty("Email").GetString();
-                    string tokenPurpose = tokenData.RootElement.GetProperty("Purpose").GetString();
-                    DateTime expiryTime = tokenData.RootElement.GetProperty("ExpiryTime").GetDateTime();
-
-                    return tokenUserId == userId &&
-                           tokenEmail == user.Email &&
-                           tokenPurpose == purpose &&
-                           expiryTime > DateTime.UtcNow;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to verify token for user {UserId}", userId);
-                    return false;
-                }
-        }
-    }
-
-    public async Task<TokenValidationResult> VerifyActivationTokenAsync(string token, string purpose,
-        string expectedUserId = null)
-    {
-        var result = new TokenValidationResult();
-
-        if (string.IsNullOrEmpty(token))
-        {
-            result.IsValid = false;
-            result.Message = "Token is required";
-            return result;
-        }
-
-        try
-        {
-            // Decode the URL-safe token
-            string decodedToken = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(token));
-
-            // For activation tokens, use the encryption service
-            if (purpose.ToLower() == "activation")
-            {
-                try
-                {
-                    string decrypted = await _encryptionService.DecryptAsync(decodedToken);
-                    JsonDocument tokenData = JsonDocument.Parse(decrypted);
-
-                    // Extract token data
-                    string userId = tokenData.RootElement.GetProperty("UserId").GetString();
-                    string email = tokenData.RootElement.GetProperty("Email").GetString();
-                    DateTime expiryTime = tokenData.RootElement.GetProperty("ExpiryTime").GetDateTime();
-
-                    // Validate expiration
-                    if (expiryTime <= DateTime.UtcNow)
-                    {
-                        result.IsValid = false;
-                        result.Message = "Token has expired";
-                        return result;
-                    }
-
-                    // Validate user ID if expected value is provided
-                    if (!string.IsNullOrEmpty(expectedUserId) && userId != expectedUserId)
-                    {
-                        result.IsValid = false;
-                        result.Message = "Invalid token";
-                        return result;
-                    }
-
-                    // Verify the user exists
-                    var user = await _userManager.FindByIdAsync(userId);
-                    if (user == null)
-                    {
-                        result.IsValid = false;
-                        result.Message = "User not found";
-                        return result;
-                    }
-
-                    // All validation passed
-                    result.IsValid = true;
-                    result.UserId = userId;
-                    result.Email = email;
-                    return result;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to decrypt activation token");
-                    result.IsValid = false;
-                    result.Message = "Invalid token format";
-                    return result;
-                }
-            }
-            else
-            {
-                // For other token types, implement appropriate logic
-                result.IsValid = false;
-                result.Message = $"Unsupported token purpose: {purpose}";
-                return result;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Token validation failed");
-            result.IsValid = false;
-            result.Message = "Token validation failed";
-            return result;
-        }
-    }
-
-    /// <summary>
-    /// Generates a secure activation token for a user
-    /// </summary>
-    public async Task<string> GenerateSecureActivationTokenAsync(string userId, string email)
-    {
-        return await GenerateSecureTokenAsync(userId, email, "activation", 24);
-    }
-
-    /// <summary>
-    /// Generates a secure activation URL for email verification
-    /// </summary>
-    /*public async Task<string> GenerateActivationUrlAsync(string userId, string email)
-    {
-        // Client URL'ini yapılandırmadan al
-        var clientUrl = "http://localhost:4200";
-
-        // Token artık URL'de taşınmayacak, sunucuda doğrulanacak
-        // Bunun yerine userId ve email parametrelerini güvenli bir şekilde ileteceğiz
-
-        // Kullanıcı ve e-posta bilgisini URL'de taşı
-        return $"{clientUrl}/activation-code?userId={Uri.EscapeDataString(userId)}&email={Uri.EscapeDataString(email)}";
-    }*/
-    public async Task<string> GenerateActivationUrlAsync(string userId, string email)
-    {
-        // Client URL'ini yapılandırmadan al
-        var clientUrl ="http://localhost:4200";
-
-        // Hem token hem de userId/email parametrelerini ekle
-        var token = await GenerateSecureActivationTokenAsync(userId, email);
     
-        // Aktivasyon URL'sini oluştur (hem token hem de yedek parametrelerle)
-        return $"{clientUrl}/activation-code?token={token}&userId={Uri.EscapeDataString(userId)}&email={Uri.EscapeDataString(email)}";
-    }
-
-    #endregion
 
     #region Email Activation Methods
 
@@ -908,7 +523,7 @@ public class AuthService : IAuthService, IInternalAuthentication
     /// <summary>
     /// Resends activation email to a user
     /// </summary>
-    public async Task ResendActivationEmailAsync(string email, string activationCode)
+    public async Task ResendEmailActivationCodeAsync(string email, string activationCode)
     {
         var user = await _userManager.FindByEmailAsync(email);
         if (user != null)

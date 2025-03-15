@@ -1,5 +1,7 @@
 using System.Text;
 using Application.Abstraction.Services;
+using Application.Abstraction.Services.Email;
+using Application.Abstraction.Services.Utilities;
 using Application.Repositories;
 using Application.Services;
 using Domain;

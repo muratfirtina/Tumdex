@@ -2,7 +2,7 @@ using Application.Dtos.Token;
 using Domain.Identity;
 using Microsoft.AspNetCore.Http;
 
-namespace Application.Tokens;
+namespace Application.Abstraction.Services.Tokens;
 
 public interface ITokenHandler : IDisposable
 {

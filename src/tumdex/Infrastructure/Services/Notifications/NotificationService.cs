@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using Application.Abstraction.Services;
+using Application.Abstraction.Services.Email;
 using Infrastructure.Services.Mail.Models;
 using Infrastructure.Services.Security.Models;
 using MailKit.Security;

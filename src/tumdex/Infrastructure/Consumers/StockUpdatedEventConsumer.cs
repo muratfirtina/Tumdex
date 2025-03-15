@@ -1,6 +1,8 @@
 using System.Data.Common;
 using System.Diagnostics;
 using Application.Abstraction.Services;
+using Application.Abstraction.Services.Email;
+using Application.Abstraction.Services.Utilities;
 using Application.Events.OrderEvetns;
 using Application.Repositories;
 using Domain;

@@ -1,8 +1,4 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace Application.Abstraction.Services;
+namespace Application.Abstraction.Services.Utilities;
 
 public interface IBackgroundTaskQueue
 {

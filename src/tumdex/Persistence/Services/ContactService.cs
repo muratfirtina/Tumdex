@@ -1,4 +1,5 @@
 using Application.Abstraction.Services;
+using Application.Abstraction.Services.Email;
 using Application.Services;
 using Domain;
 using Domain.Entities;

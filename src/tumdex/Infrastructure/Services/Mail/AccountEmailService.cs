@@ -1,6 +1,12 @@
 using Application.Abstraction.Services;
+using Application.Abstraction.Services.Authentication;
+using Application.Abstraction.Services.Email;
+using Application.Abstraction.Services.Tokens;
+using Application.Abstraction.Services.Utilities;
 using Application.Storage;
 using Azure.Security.KeyVault.Secrets;
+using Domain.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -12,7 +18,9 @@ namespace Infrastructure.Services.Mail;
 /// </summary>
 public class AccountEmailService : BaseEmailService, IAccountEmailService
 {
-    private readonly IServiceProvider _serviceProvider;
+    private readonly UserManager<AppUser> _userManager;
+    private readonly IBackgroundTaskQueue _backgroundTaskQueue;
+    private readonly ITokenService _tokenService;
     protected override string ServiceType => "ACCOUNT_EMAIL";
     protected override string ConfigPrefix => "Email:AccountEmail";
     protected override string PasswordSecretName => "AccountEmailPassword";
@@ -24,10 +32,12 @@ public class AccountEmailService : BaseEmailService, IAccountEmailService
         IMetricsService metricsService,
         IStorageService storageService,
         SecretClient secretClient,
-        IConfiguration configuration, IServiceProvider serviceProvider)
+        IConfiguration configuration,UserManager<AppUser> userManager, IBackgroundTaskQueue backgroundTaskQueue, ITokenService tokenService)
         : base(logger, cacheService, metricsService, storageService, secretClient, configuration)
     {
-        _serviceProvider = serviceProvider;
+        _userManager = userManager;
+        _backgroundTaskQueue = backgroundTaskQueue;
+        _tokenService = tokenService;
     }
 
     protected override async Task CheckRateLimit(string[] recipients)
@@ -260,11 +270,9 @@ public class AccountEmailService : BaseEmailService, IAccountEmailService
         try
         {
             // Aktivasyon URL'sini oluştur
-            using var scope = _serviceProvider.CreateScope();
-            var authService = scope.ServiceProvider.GetRequiredService<IAuthService>();
         
             // Güvenli aktivasyon URL'si oluştur
-            string activationUrl = await authService.GenerateActivationUrlAsync(userId, to);
+            string activationUrl = await _tokenService.GenerateActivationUrlAsync(userId, to);
         
             // Hem kod hem de buton içeren e-posta içeriği
             var content = $@"
@@ -296,6 +304,33 @@ public class AccountEmailService : BaseEmailService, IAccountEmailService
         {
             _logger.LogError(ex, "Aktivasyon kodu e-postası gönderilirken hata oluştu: {Email}", to);
             throw;
+        }
+    }
+    
+    public async Task ResendEmailActivationCodeAsync(string email, string activationCode)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user != null)
+        {
+            _logger.LogInformation("Resending activation email to {Email}", email);
+
+            // Queue the email in the background
+            _backgroundTaskQueue.QueueBackgroundWorkItem(async token =>
+            {
+                try
+                {
+                    await SendEmailActivationCodeAsync(email, user.Id, activationCode);
+                    _logger.LogInformation("Activation email successfully queued for {Email}", email);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send activation email to {Email}", email);
+                }
+            });
+        }
+        else
+        {
+            _logger.LogWarning("Attempted to resend activation email to non-existent user: {Email}", email);
         }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Application.Abstraction.Services;
+using Application.Abstraction.Services.Email;
 using Application.Abstraction.Services.HubServices;
 using Application.Events.OrderEvetns;
 using MassTransit;

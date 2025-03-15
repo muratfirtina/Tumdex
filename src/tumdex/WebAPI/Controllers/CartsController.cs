@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Application.Abstraction.Services;
+using Application.Abstraction.Services.Utilities;
 using Application.Consts;
 using Application.CustomAttributes;
 using Application.Enums;
@@ -9,7 +9,6 @@ using Application.Features.Carts.Commands.UpdateCartItem;
 using Application.Features.Carts.Commands.UpdateQuantity;
 using Application.Features.Carts.Queries.GetList;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace WebAPI.Controllers

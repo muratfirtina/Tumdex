@@ -1,5 +1,6 @@
 // Infrastructure/Services/Security/RateLimitService.cs
 using Application.Abstraction.Services;
+using Application.Abstraction.Services.Utilities;
 using Infrastructure.Services.Cache;
 using Microsoft.Extensions.Logging;
 

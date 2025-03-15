@@ -1,7 +1,7 @@
 using Application.Enums;
 using Application.Models.Monitoring;
 
-namespace Application.Abstraction.Services;
+namespace Application.Abstraction.Services.Utilities;
 
 public interface IAlertService
 {

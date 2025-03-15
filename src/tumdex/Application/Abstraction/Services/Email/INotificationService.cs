@@ -1,4 +1,4 @@
-namespace Application.Abstraction.Services;
+namespace Application.Abstraction.Services.Email;
 
 public interface INotificationService
 {

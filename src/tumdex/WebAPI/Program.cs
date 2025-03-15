@@ -6,6 +6,7 @@ using HealthChecks.UI.Client;
 using Infrastructure;
 using Infrastructure.BackgroundJobs;
 using Infrastructure.Configuration;
+using Infrastructure.Middleware.Security;
 using Infrastructure.Services.Security;
 using Infrastructure.Services.Seo;
 using Microsoft.AspNetCore.Diagnostics;
@@ -19,6 +20,7 @@ using Persistence.Services;
 using Prometheus;
 using Serilog;
 using SignalR;
+using WebAPI.Extensions;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -198,6 +200,7 @@ async Task ConfigureApplication(WebApplication app)
     app.UseCors();
     //app.UseHttpsRedirection();
     app.UseMiddleware<ImageOptimizationMiddleware>();
+    app.UseMiddleware<TokenValidationMiddleware>();
     app.UseStaticFiles(new StaticFileOptions
     {
         ContentTypeProvider = new FileExtensionContentTypeProvider

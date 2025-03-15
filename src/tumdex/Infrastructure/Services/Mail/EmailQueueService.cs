@@ -1,6 +1,8 @@
 using System.Text.Json;
 using Application.Abstraction.Services;
-using Application.Queue.Email;
+using Application.Abstraction.Services.Email;
+using Application.Enums;
+using Application.Models.Queue.Email;
 using Domain;
 using Domain.Entities;
 using Domain.Enum;
@@ -15,6 +17,7 @@ public class EmailQueueService : IEmailQueueService
     private readonly IEmailService _defaultMailService; // Varsayılan e-posta servisi
     private readonly IAccountEmailService _accountEmailService; // Hesap işlemleri için
     private readonly IOrderEmailService _orderEmailService; // Sipariş işlemleri için
+    private readonly IContactEmailService _contactEmailService; // İletişim formu için
     private readonly ILogger<EmailQueueService> _logger;
     private readonly TumdexDbContext _dbContext;
     private readonly JsonSerializerOptions _jsonOptions;
@@ -27,14 +30,15 @@ public class EmailQueueService : IEmailQueueService
         IAccountEmailService accountEmailService,
         IOrderEmailService orderEmailService,
         ILogger<EmailQueueService> logger,
-        TumdexDbContext dbContext)
+        TumdexDbContext dbContext, IContactEmailService contactEmailService)
     {
         _defaultMailService = defaultMailService;
         _accountEmailService = accountEmailService;
         _orderEmailService = orderEmailService;
         _logger = logger;
         _dbContext = dbContext;
-        
+        _contactEmailService = contactEmailService;
+
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -102,6 +106,21 @@ public class EmailQueueService : IEmailQueueService
         await QueueEmailAsync(email, "Password Reset", "", EmailType.PasswordReset, metadata);
     }
 
+    public Task QueueContactFormEmailAsync(string name, string email, string subject, string message)
+    {
+        // İletişim formu için gerekli metadata
+        var metadata = new Dictionary<string, string>
+        {
+            { "name", name },
+            { "email", email },
+            { "subject", subject },
+            { "message", message }
+        };
+
+        // Bu noktada subject ve body boş bırakıyoruz, bunları işlem sırasında oluşturacağız
+        return QueueEmailAsync(email, "Contact Form", "", EmailType.ContactForm, metadata);
+    }
+
     public async Task ProcessQueuedEmailsAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -132,6 +151,9 @@ public class EmailQueueService : IEmailQueueService
                         case EmailType.OrderConfirmation:
                         case EmailType.OrderUpdate:
                             await ProcessOrderEmailAsync(message);
+                            break;
+                        case EmailType.ContactForm: // YENİ: İletişim formu e-postaları için yeni işleme
+                            await ProcessContactFormEmailAsync(message);
                             break;
                         default:
                             // Diğer tipler için varsayılan e-posta servisi
@@ -205,5 +227,16 @@ public class EmailQueueService : IEmailQueueService
         {
             throw new InvalidOperationException($"Unsupported order email type: {message.Type}");
         }
+    }
+    private async Task ProcessContactFormEmailAsync(EmailQueueMessage message)
+    {
+        if (!message.Metadata.TryGetValue("name", out var name) ||
+            !message.Metadata.TryGetValue("email", out var email) ||
+            !message.Metadata.TryGetValue("message", out var messageBody))
+        {
+            throw new InvalidOperationException("Missing contact form metadata");
+        }
+
+        await _contactEmailService.SendContactFormEmailAsync(name, email, message.Subject, messageBody);
     }
 }

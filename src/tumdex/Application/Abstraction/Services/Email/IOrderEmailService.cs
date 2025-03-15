@@ -1,9 +1,8 @@
 using Application.Features.Orders.Dtos;
 using Application.Features.UserAddresses.Dtos;
-using Domain;
 using Domain.Enum;
 
-namespace Application.Abstraction.Services;
+namespace Application.Abstraction.Services.Email;
 
 /// <summary>
 /// Sipariş işlemleri için e-posta gönderim servisi.

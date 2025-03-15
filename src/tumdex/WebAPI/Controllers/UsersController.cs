@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Application.Abstraction.Services;
+using Application.Abstraction.Services.Utilities;
 using Application.Consts;
 using Application.CustomAttributes;
 using Application.Enums;
@@ -27,10 +28,12 @@ namespace WebAPI.Controllers
     public class UsersController : BaseController
     {
         private readonly IMetricsService _metricsService;
+        private readonly ILogger<UsersController> _logger;
 
-        public UsersController(IMetricsService metricsService)
+        public UsersController(IMetricsService metricsService, ILogger<UsersController> logger)
         {
             _metricsService = metricsService;
+            _logger = logger;
         }
 
         [HttpGet]

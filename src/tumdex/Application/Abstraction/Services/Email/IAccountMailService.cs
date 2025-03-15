@@ -1,4 +1,4 @@
-namespace Application.Abstraction.Services;
+namespace Application.Abstraction.Services.Email;
 
 /// <summary>
 /// Kullanıcı hesap işlemleri için e-posta gönderim servisi.
@@ -16,4 +16,5 @@ public interface IAccountEmailService : IEmailService
     Task SendEmailConfirmationAsync(string to, string userId, string confirmationToken);
     
     Task SendEmailActivationCodeAsync(string to, string userId, string activationCode);
+    Task ResendEmailActivationCodeAsync(string email, string activationCode);
 }

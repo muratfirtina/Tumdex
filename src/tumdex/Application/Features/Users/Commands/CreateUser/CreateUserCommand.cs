@@ -1,4 +1,8 @@
 using Application.Abstraction.Services;
+using Application.Abstraction.Services.Authentication;
+using Application.Abstraction.Services.Email;
+using Application.Abstraction.Services.Tokens;
+using Application.Abstraction.Services.Utilities;
 using Application.Features.Events.User.UserRegister;
 using Domain.Identity;
 using MediatR;
@@ -18,6 +22,9 @@ public class CreateUserCommand : IRequest<CreatedUserResponse>
     public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, CreatedUserResponse>
 {
     private readonly IAuthService _authService;
+    private readonly ITokenService _tokenService;
+    private readonly IAccountEmailService _accountEmailService;
+    private readonly IRegistrationAndPasswordService _registrationAndPasswordService;
     private readonly IMediator _mediator;
     private readonly ILogger<CreateUserCommandHandler> _logger;
     private readonly UserManager<AppUser> _userManager;
@@ -28,13 +35,16 @@ public class CreateUserCommand : IRequest<CreatedUserResponse>
         IMediator mediator,
         ILogger<CreateUserCommandHandler> logger,
         UserManager<AppUser> userManager,
-        IBackgroundTaskQueue backgroundTaskQueue)
+        IBackgroundTaskQueue backgroundTaskQueue, IRegistrationAndPasswordService registrationAndPasswordService, ITokenService tokenService, IAccountEmailService accountEmailService)
     {
         _authService = authService;
         _mediator = mediator;
         _logger = logger;
         _userManager = userManager;
         _backgroundTaskQueue = backgroundTaskQueue;
+        _registrationAndPasswordService = registrationAndPasswordService;
+        _tokenService = tokenService;
+        _accountEmailService = accountEmailService;
     }
 
     public async Task<CreatedUserResponse> Handle(CreateUserCommand request, CancellationToken cancellationToken)
@@ -58,8 +68,8 @@ public class CreateUserCommand : IRequest<CreatedUserResponse>
                     // Queue activation code resend in background
                     _backgroundTaskQueue.QueueBackgroundWorkItem(async token =>
                     {
-                        var activationCode = await _authService.GenerateActivationCodeAsync(existingUser.Id);
-                        await _authService.ResendActivationEmailAsync(existingUser.Email, activationCode);
+                        var activationCode = await _tokenService.GenerateActivationCodeAsync(existingUser.Id);
+                        await _accountEmailService.ResendEmailActivationCodeAsync(existingUser.Email, activationCode);
                     });
                     
                     return response;
@@ -72,7 +82,7 @@ public class CreateUserCommand : IRequest<CreatedUserResponse>
             }
 
             // No existing user found, proceed with registration
-            var (result, user) = await _authService.RegisterUserAsync(request);
+            var (result, user) = await _registrationAndPasswordService.RegisterUserAsync(request);
 
             if (!result.Succeeded)
             {
@@ -87,7 +97,7 @@ public class CreateUserCommand : IRequest<CreatedUserResponse>
             response.UserId = user.Id;
             
             // Get activation token asynchronously and include in response
-            var activationToken = await _authService.GenerateSecureActivationTokenAsync(user.Id, user.Email);
+            var activationToken = await _tokenService.GenerateSecureActivationTokenAsync(user.Id, user.Email);
             response.ActivationToken = activationToken;
     
             // Queue newsletter subscription processing asynchronously

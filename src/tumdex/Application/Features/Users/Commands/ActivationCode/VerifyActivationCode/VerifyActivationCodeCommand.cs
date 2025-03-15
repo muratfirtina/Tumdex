@@ -1,4 +1,5 @@
-using Application.Abstraction.Services;
+using Application.Abstraction.Services.Authentication;
+using Application.Abstraction.Services.Tokens;
 using MediatR;
 
 namespace Application.Features.Users.Commands.ActivationCode.VerifyActivationCode;
@@ -10,16 +11,16 @@ public class VerifyActivationCodeCommand : IRequest<VerifyActivationCodeResponse
     
     public class VerifyActivationCodeCommandHandler : IRequestHandler<VerifyActivationCodeCommand, VerifyActivationCodeResponse>
     {
-        private readonly IAuthService _authService;
+        private readonly ITokenService _tokenService;
 
-        public VerifyActivationCodeCommandHandler(IAuthService authService)
+        public VerifyActivationCodeCommandHandler(IAuthService authService, ITokenService tokenService)
         {
-            _authService = authService;
+            _tokenService = tokenService;
         }
 
         public async Task<VerifyActivationCodeResponse> Handle(VerifyActivationCodeCommand request, CancellationToken cancellationToken)
         {
-            var result = await _authService.VerifyActivationCodeAsync(request.UserId, request.Code);
+            var result = await _tokenService.VerifyActivationCodeAsync(request.UserId, request.Code);
             
             return new VerifyActivationCodeResponse
             {

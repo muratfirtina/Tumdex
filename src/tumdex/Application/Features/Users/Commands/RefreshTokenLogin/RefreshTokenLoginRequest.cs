@@ -1,5 +1,5 @@
+using Application.Abstraction.Services.Tokens;
 using Application.Dtos.Token;
-using Application.Tokens;
 using MediatR;
 
 namespace Application.Features.Users.Commands.RefreshTokenLogin;

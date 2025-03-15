@@ -1,4 +1,3 @@
-using Application.Dtos.Role;
 using Core.Application.Requests;
 using Domain.Identity;
 

@@ -1,4 +1,5 @@
 using Application.Abstraction.Services;
+using Application.Abstraction.Services.Email;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;

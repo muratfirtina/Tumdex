@@ -25,15 +25,17 @@
         private readonly IEndpointRepository _endpointRepository;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IDistributedCache _cache;
+        private readonly ILogger<UserService> _logger;
 
         public UserService(UserManager<AppUser> userManager, RoleManager<AppRole> roleManager,
-            IEndpointRepository endpointRepository, IHttpContextAccessor httpContextAccessor, IDistributedCache cache)
+            IEndpointRepository endpointRepository, IHttpContextAccessor httpContextAccessor, IDistributedCache cache, ILogger<UserService> logger)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _endpointRepository = endpointRepository;
             _httpContextAccessor = httpContextAccessor;
             _cache = cache;
+            _logger = logger;
         }
 
         public async Task<AppUser> GetUserByUsernameAsync(string userName)
@@ -41,6 +43,17 @@
             var user = await _userManager.FindByNameAsync(userName);
             if (user == null)
             {
+                throw new NotFoundUserExceptions();
+            }
+
+            return user;
+        }
+        public async Task<AppUser> GetUserByIdAsync(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                _logger.LogWarning("Kullanıcı bulunamadı: ID={UserId}", userId);
                 throw new NotFoundUserExceptions();
             }
 

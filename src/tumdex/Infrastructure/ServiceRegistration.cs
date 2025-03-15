@@ -1,10 +1,11 @@
 using Application.Abstraction.Services;
 using Application.Abstraction.Services.Configurations;
+using Application.Abstraction.Services.Tokens;
+using Application.Abstraction.Services.Utilities;
 using Application.Services;
 using Application.Storage;
 using Application.Storage.Google;
 using Application.Storage.Local;
-using Application.Tokens;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 using Infrastructure.Configuration;
@@ -22,6 +23,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Persistence.Models;
+using Persistence.Services;
 using RabbitMQ.Client;
 using StackExchange.Redis;
 
@@ -45,8 +47,10 @@ public static class InfrastructureServiceRegistration
         // Storage providers
         RegisterStorageServices(services);
 
-        // Auth ve token servisler
+        // Auth, Token , Register servisler
         services.AddScoped<ITokenHandler, TokenHandler>();
+        services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<IRegistrationAndPasswordService, RegistrationAndPasswordService>();
 
         // Uygulama servisleri
         RegisterApplicationServices(services);

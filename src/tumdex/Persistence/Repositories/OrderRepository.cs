@@ -158,16 +158,21 @@ public class OrderRepository : EfRepositoryBase<Order, string, TumdexDbContext>,
             if (!hasActiveReservation)
             {
                 // Rezervasyon yoksa normal stok kontrolü yap
-                if (product.Stock < cartItem.Quantity)
+                if (product.Stock != Product.UnlimitedStock && product.Stock < cartItem.Quantity)
                 {
                     _logger.LogError("{ProductName} ürününden stokta yeterli miktarda bulunmamaktadır. İstenen: {Requested}, Mevcut: {Available}", 
                         product.Name, cartItem.Quantity, product.Stock);
                     return (false, null);
                 }
+
+                // Eğer sınırsız stok değilse stoğu düş
+                if (product.Stock != Product.UnlimitedStock)
+                {
+                    product.Stock -= cartItem.Quantity;
+                    await _productRepository.UpdateAsync(product);
+                    _logger.LogInformation("Ürün stoğu düşüldü. ProductId: {ProductId}, Yeni stok: {Stock}", product.Id, product.Stock);
+                }
                 
-                product.Stock -= cartItem.Quantity;
-                await _productRepository.UpdateAsync(product);
-                _logger.LogInformation("Ürün stoğu düşüldü. ProductId: {ProductId}, Yeni stok: {Stock}", product.Id, product.Stock);
             }
             else
             {
@@ -577,7 +582,7 @@ public class OrderRepository : EfRepositoryBase<Order, string, TumdexDbContext>,
             {
                 // Ürünü veritabanından getir
                 var product = await _productRepository.GetAsync(p => p.Id == orderItem.ProductId);
-                if (product != null)
+                if (product != null && product.Stock != Product.UnlimitedStock)
                 {
                     // Stok miktarını artır
                     product.Stock += orderItem?.Quantity ?? 0;

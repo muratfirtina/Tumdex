@@ -32,7 +32,7 @@ namespace Persistence.Repositories
 
                 // Ürünün stoğunu geri yükle
                 var product = orderItem.Product;
-                if (product != null)
+                if (product != null && product.Stock != Product.UnlimitedStock)
                 {
                     product.Stock += orderItem.Quantity;
                     await _productRepository.UpdateAsync(product);
@@ -65,9 +65,16 @@ namespace Persistence.Repositories
 
                 // Stok kontrolü: Yeni quantity mevcut stoktan fazla ise hata ver
                 int? stockDifference = newQuantity - orderItem.Quantity;
-                if (stockDifference > product.Stock)
+                if (product.Stock != Product.UnlimitedStock && stockDifference > product.Stock)
                 {
                     throw new Exception($"Not enough stock for product {product.Name}. Available stock: {product.Stock}");
+                }
+
+                // Stok güncellemesi: Sadece sınırsız stok değilse güncelle
+                if (product.Stock != Product.UnlimitedStock)
+                {
+                    product.Stock -= stockDifference;
+                    await _productRepository.UpdateAsync(product);
                 }
 
                 // Stok güncelleme: Artış varsa stoğu düşür, azalma varsa stoğu arttır

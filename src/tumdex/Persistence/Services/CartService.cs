@@ -84,57 +84,58 @@ public class CartService : ICartService
     }
 
     public async Task AddItemToCartAsync(CreateCartItemDto cartItem)
+{
+    var userId = await _currentUserService.GetCurrentUserIdAsync();
+    _logger.LogInformation("Adding item to cart for user: {UserId}, Product: {ProductId}", userId,
+        cartItem.ProductId);
+
+    Cart? cart = await GetOrCreateCartAsync();
+    
+    var product = await _productRepository.GetAsync(predicate: p => p.Id == cartItem.ProductId);
+    if (product == null)
     {
-        var userId = await _currentUserService.GetCurrentUserIdAsync();
-        _logger.LogInformation("Adding item to cart for user: {UserId}, Product: {ProductId}", userId,
-            cartItem.ProductId);
-
-        Cart? cart = await GetOrCreateCartAsync();
-
-        var product = await _productRepository.GetAsync(predicate: p => p.Id == cartItem.ProductId);
-        if (product == null)
-        {
-            _logger.LogWarning("Product not found: {ProductId}", cartItem.ProductId);
-            throw new Exception("Product not found.");
-        }
-
-        var existingCartItem = await _cartItemRepository.GetAsync(
-            predicate: ci => ci.CartId == cart.Id && ci.ProductId == cartItem.ProductId);
-
-        int totalRequestedQuantity = cartItem.Quantity;
-        if (existingCartItem != null)
-            totalRequestedQuantity += existingCartItem.Quantity;
-
-        if (totalRequestedQuantity > product.Stock)
-        {
-            _logger.LogWarning(
-                "Insufficient stock for product: {ProductId}, Requested: {Requested}, Available: {Available}",
-                cartItem.ProductId, totalRequestedQuantity, product.Stock);
-            throw new Exception("Product stock is not enough.");
-        }
-
-        if (existingCartItem != null)
-        {
-            _logger.LogDebug("Updating existing cart item for user: {UserId}, Product: {ProductId}", userId,
-                cartItem.ProductId);
-            existingCartItem.Quantity = totalRequestedQuantity;
-            if (!cartItem.IsChecked)
-                existingCartItem.IsChecked = false;
-            await _cartItemRepository.UpdateAsync(existingCartItem);
-        }
-        else
-        {
-            _logger.LogDebug("Creating new cart item for user: {UserId}, Product: {ProductId}", userId,
-                cartItem.ProductId);
-            await _cartItemRepository.AddAsync(new CartItem
-            {
-                CartId = cart.Id,
-                ProductId = cartItem.ProductId,
-                Quantity = cartItem.Quantity,
-                IsChecked = cartItem.IsChecked
-            });
-        }
+        _logger.LogWarning("Product not found: {ProductId}", cartItem.ProductId);
+        throw new Exception("Product not found.");
     }
+
+    var existingCartItem = await _cartItemRepository.GetAsync(
+        predicate: ci => ci.CartId == cart.Id && ci.ProductId == cartItem.ProductId);
+
+    int totalRequestedQuantity = cartItem.Quantity;
+    if (existingCartItem != null)
+        totalRequestedQuantity += existingCartItem.Quantity;
+
+    // Sınırsız stok kontrolü - sadece bu kontrol yeterli
+    if (product.Stock != Product.UnlimitedStock && totalRequestedQuantity > product.Stock)
+    {
+        _logger.LogWarning(
+            "Insufficient stock for product: {ProductId}, Requested: {Requested}, Available: {Available}",
+            cartItem.ProductId, totalRequestedQuantity, product.Stock);
+        throw new Exception("Product stock is not enough.");
+    }
+
+    if (existingCartItem != null)
+    {
+        _logger.LogDebug("Updating existing cart item for user: {UserId}, Product: {ProductId}", userId,
+            cartItem.ProductId);
+        existingCartItem.Quantity = totalRequestedQuantity;
+        if (!cartItem.IsChecked)
+            existingCartItem.IsChecked = false;
+        await _cartItemRepository.UpdateAsync(existingCartItem);
+    }
+    else
+    {
+        _logger.LogDebug("Creating new cart item for user: {UserId}, Product: {ProductId}", userId,
+            cartItem.ProductId);
+        await _cartItemRepository.AddAsync(new CartItem
+        {
+            CartId = cart.Id,
+            ProductId = cartItem.ProductId,
+            Quantity = cartItem.Quantity,
+            IsChecked = cartItem.IsChecked
+        });
+    }
+}
 
     public async Task UpdateQuantityAsync(UpdateCartItemDto cartItem)
     {
@@ -152,12 +153,22 @@ public class CartService : ICartService
             throw new Exception("Cart item not found.");
         }
 
-        if (cartItem.Quantity > _cartItem.Product.Stock || cartItem.Quantity < 0)
+        // Sadece negatif değer kontrolü yap
+        if (cartItem.Quantity < 0)
         {
             _logger.LogWarning(
-                "Invalid quantity for cart item: {CartItemId}, Requested: {Requested}, Available: {Available}",
-                cartItem.CartItemId, cartItem.Quantity, _cartItem.Product.Stock);
+                "Invalid quantity for cart item: {CartItemId}, Requested: {Requested}",
+                cartItem.CartItemId, cartItem.Quantity);
             throw new Exception("Invalid quantity.");
+        }
+
+        // Sınırsız stok kontrolü
+        if (_cartItem.Product.Stock != Product.UnlimitedStock && cartItem.Quantity > _cartItem.Product.Stock)
+        {
+            _logger.LogWarning(
+                "Insufficient stock for cart item: {CartItemId}, Requested: {Requested}, Available: {Available}",
+                cartItem.CartItemId, cartItem.Quantity, _cartItem.Product.Stock);
+            throw new Exception("Insufficient stock.");
         }
 
         if (cartItem.Quantity == 0)

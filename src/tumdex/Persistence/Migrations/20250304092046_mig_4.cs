@@ -124,9 +124,9 @@ namespace Persistence.Migrations
                 table: "AspNetUsers");
 
             migrationBuilder.RenameColumn(
-                name: "RefreshTokenExpiryTime",
+                name: "RefreshTokenEndDateTime",
                 table: "AspNetUsers",
-                newName: "RefreshTokenEndDateTime");
+                newName: "RefreshTokenExpiryTime");
 
             migrationBuilder.AlterColumn<string>(
                 name: "RevokedByIp",

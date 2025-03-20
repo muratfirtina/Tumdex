@@ -1,3 +1,4 @@
+using Application.Consts;
 using Application.Features.UserAddresses.Dtos;
 using Application.Repositories;
 using AutoMapper;
@@ -12,15 +13,15 @@ public class UpdateUserAddressCommand:IRequest<UpdatedUserAddressCommandResponse
     public string Name { get; set; }
     public string AddressLine1 { get; set; }
     public string? AddressLine2 { get; set; }
-    public string City { get; set; }
-    public string? State { get; set; }
-    public string PostalCode { get; set; }
-    public string Country { get; set; }
+    public int? CityId { get; set; }
+    public int? DistrictId { get; set; }
+    public string? PostalCode { get; set; }
+    public int? CountryId { get; set; }
     public bool IsDefault { get; set; }
 
     public string CacheKey => "";
     public bool BypassCache => false;
-    public string? CacheGroupKey => "UserAddresses";
+    public string? CacheGroupKey => CacheGroups.UserAddress;
     
     public class UpdateUserAddressCommandHandler : IRequestHandler<UpdateUserAddressCommand, UpdatedUserAddressCommandResponse>
     {

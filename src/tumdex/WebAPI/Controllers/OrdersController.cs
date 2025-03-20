@@ -129,6 +129,16 @@ namespace WebAPI.Controllers
 
             return Ok(new { Message = "Order item updated successfully." });
         }
+        [HttpPut("update-items")]
+        [AuthorizeDefinition(ActionType = ActionType.Updating, Definition = "Update Order Items", Menu = AuthorizeDefinitionConstants.Orders)]
+        public async Task<IActionResult> UpdateOrderItems([FromBody] UpdateOrderItemsCommand updateOrderItemsCommand)
+        {
+            var result = await Mediator.Send(updateOrderItemsCommand);
+            if (!result)
+                return BadRequest("Failed to update the order items.");
+
+            return Ok(new { Message = "Order items updated successfully." });
+        }
         
         [HttpGet("user-orders")]
         [AuthorizeDefinition(ActionType = ActionType.Reading, Definition = "Get Orders By User", Menu = AuthorizeDefinitionConstants.Orders)]

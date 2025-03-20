@@ -74,177 +74,232 @@ public class OrderRepository : EfRepositoryBase<Order, string, TumdexDbContext>,
         throw new Exception("Unexpected error occurred.");
     }
 
-    public async Task<(bool, OrderDto)> ConvertCartToOrderAsync(string addressId, string phoneNumberId,
-        string description)
+    public async Task<(bool, OrderDto?)> ConvertCartToOrderAsync(string addressId, string phoneNumberId, string description)
+{
+    try
     {
-        try
+        _logger.LogInformation("Sipariş oluşturma başladı. AddressId: {AddressId}, PhoneNumberId: {PhoneNumberId}", 
+            addressId, phoneNumberId);
+            
+        // 1. Kullanıcının aktif sepetini al
+        Cart? activeCart = await _cartService.GetUserActiveCart();
+        if (activeCart == null || !activeCart.CartItems.Any())
         {
-            // 1. Kullanıcının aktif sepetini al
-            Cart? activeCart = await _cartService.GetUserActiveCart();
-            if (activeCart == null || !activeCart.CartItems.Any())
-                throw new Exception("Aktif sepet bulunamadı veya boş.");
-
-            // 2. Seçili ürünleri ve seçili olmayan ürünleri ayır
-            var selectedItems = activeCart.CartItems.Where(item => item.IsChecked).ToList();
-            var unselectedItems = activeCart.CartItems.Where(item => !item.IsChecked).ToList();
-
-            if (!selectedItems.Any())
-                throw new Exception("Sepette seçili ürün yok.");
-
-            // 3. Kullanıcı, adres ve telefon bilgilerini al
-            var user = await _userManager.Users
-                .Include(u => u.UserAddresses)
-                .Include(u => u.PhoneNumbers)
-                .FirstOrDefaultAsync(u => u.Id == activeCart.UserId);
-            if (user == null)
-                throw new Exception("Kullanıcı bulunamadı.");
-
-            var selectedAddress = user.UserAddresses.FirstOrDefault(a => a.Id == addressId);
-            if (selectedAddress == null)
-                throw new Exception("Seçilen adres bulunamadı.");
-
-            var selectedPhone = user.PhoneNumbers.FirstOrDefault(p => p.Id == phoneNumberId);
-            if (selectedPhone == null)
-                throw new Exception("Seçilen telefon numarası bulunamadı.");
-
-            // 4. Her bir ürün için stok kontrolü ve rezervasyon işlemi
-            foreach (var cartItem in selectedItems)
-            {
-                var product = await _productRepository.GetAsync(p => p.Id == cartItem.ProductId);
-                if (product == null)
-                    throw new Exception("Ürün bulunamadı.");
-
-                // Rezervasyon kontrolü
-                var hasActiveReservation = await _stockReservationService.HasActiveReservationAsync(cartItem.Id);
-
-                if (!hasActiveReservation)
-                {
-                    // Rezervasyon yoksa normal stok kontrolü yap
-                    if (product.Stock < cartItem.Quantity)
-                        throw new Exception($"{product.Name} ürününden stokta yeterli miktarda bulunmamaktadır.");
-                    product.Stock -= cartItem.Quantity;
-                    await _productRepository.UpdateAsync(product);
-                }
-                else
-                {
-                    // Rezervasyon varsa ve aktifse, rezervasyonu kaldır
-                    await _stockReservationService.ReleaseReservationAsync(cartItem.Id);
-                }
-            }
-
-
-            // 5. Siparişi oluştur
-            var order = new Order
-            {
-                UserId = activeCart.UserId,
-                User = activeCart.User,
-                OrderDate = DateTime.UtcNow,
-                Status = OrderStatus.Pending,
-                OrderCode = GenerateOrderCode(),
-                UserAddressId = selectedAddress.Id,
-                PhoneNumberId = selectedPhone.Id,
-                Description = description,
-                OrderItems = selectedItems.Select(item => new OrderItem
-                {
-                    ProductId = item.ProductId,
-                    ProductName = item.Product.Name,
-                    ProductTitle = item.Product.Title,
-                    Price = item.Product.Price,
-                    BrandName = item.Product.Brand?.Name,
-                    Quantity = item.Quantity,
-                    ProductFeatureValues = item.Product.ProductFeatureValues.Select(fv => new ProductFeatureValue
-                    {
-                        FeatureValue = fv.FeatureValue,
-                        FeatureValueId = fv.FeatureValueId
-                    }).ToList(),
-                    IsChecked = true
-                }).ToList(),
-                TotalPrice = selectedItems.Sum(item => item.Product.Price * item.Quantity)
-            };
-
-            await AddAsync(order);
-
-            // 6. Yeni cart oluştur ve seçili olmayan ürünleri aktar
-            var newCart = new Cart
-            {
-                UserId = activeCart.UserId,
-                User = activeCart.User
-            };
-
-            // Yeni cart'ı veritabanına ekle
-            await Context.Carts.AddAsync(newCart);
-            await Context.SaveChangesAsync();
-
-            // Seçili olmayan ürünleri yeni cart'a ekle
-            foreach (var unselectedItem in unselectedItems)
-            {
-                var newCartItem = new CartItem
-                {
-                    CartId = newCart.Id,
-                    ProductId = unselectedItem.ProductId,
-                    Quantity = unselectedItem.Quantity,
-                    IsChecked = false
-                };
-                await Context.CartItems.AddAsync(newCartItem);
-            }
-
-            // 7. Eski sepeti sil
-            await _cartService.RemoveCartAsync(activeCart.Id);
-
-            // 8. OrderDto oluştur
-            var orderDto = new OrderDto
-            {
-                OrderId = order.Id,
-                OrderCode = order.OrderCode,
-                UserName = order.User.UserName,
-                Email = user.Email,
-                OrderDate = order.OrderDate,
-                TotalPrice = order.TotalPrice,
-                UserAddress = new UserAddressDto
-                {
-                    Id = selectedAddress.Id,
-                    Name = selectedAddress.Name,
-                    AddressLine1 = selectedAddress.AddressLine1,
-                    AddressLine2 = selectedAddress.AddressLine2,
-                    State = selectedAddress.State,
-                    City = selectedAddress.City,
-                    Country = selectedAddress.Country,
-                    PostalCode = selectedAddress.PostalCode,
-                    IsDefault = selectedAddress.IsDefault
-                },
-                PhoneNumber = new PhoneNumberDto
-                {
-                    Name = selectedPhone.Name,
-                    Number = selectedPhone.Number,
-                },
-                Description = order.Description,
-                OrderItems = selectedItems.Select(item => new OrderItemDto
-                {
-                    ProductName = item.Product.Name,
-                    ProductTitle = item.Product.Title,
-                    Quantity = item.Quantity,
-                    Price = item.Product.Price,
-                    BrandName = item.Product.Brand?.Name,
-                    ProductFeatureValues = item.Product.ProductFeatureValues.Select(fv => new ProductFeatureValueDto
-                    {
-                        FeatureName = fv.FeatureValue.Feature.Name,
-                        FeatureValueName = fv.FeatureValue.Name
-                    }).ToList(),
-                    ShowcaseImage = item.Product.ProductImageFiles
-                        .Where(pif => pif.Showcase)
-                        .Select(img => img.ToDto(_storageService))
-                        .FirstOrDefault()
-                }).ToList()
-            };
-
-            return (true, orderDto);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Sipariş oluşturma işlemi sırasında hata oluştu");
+            _logger.LogError("Aktif sepet bulunamadı veya boş.");
             return (false, null);
         }
+
+        // 2. Seçili ürünleri ve seçili olmayan ürünleri ayır
+        var selectedItems = activeCart.CartItems.Where(item => item.IsChecked).ToList();
+        var unselectedItems = activeCart.CartItems.Where(item => !item.IsChecked).ToList();
+        
+        _logger.LogInformation("Sepet durumu: Toplam öğe: {Total}, Seçili öğe: {Selected}, Seçili olmayan öğe: {Unselected}", 
+            activeCart.CartItems.Count, selectedItems.Count, unselectedItems.Count);
+
+        if (!selectedItems.Any())
+        {
+            _logger.LogError("Sepette seçili ürün yok.");
+            return (false, null);
+        }
+
+        // 3. Kullanıcı, adres ve telefon bilgilerini al
+        var user = await _userManager.Users
+            .Include(u => u.UserAddresses)
+            .Include(u => u.PhoneNumbers)
+            .FirstOrDefaultAsync(u => u.Id == activeCart.UserId);
+            
+        if (user == null)
+        {
+            _logger.LogError("Kullanıcı bulunamadı. UserId: {UserId}", activeCart.UserId);
+            return (false, null);
+        }
+
+        // Mevcut adresleri ve telefonları logla
+        _logger.LogInformation("Kullanıcı adresleri: {Addresses}", 
+            string.Join(", ", user.UserAddresses.Select(a => a.Id)));
+        _logger.LogInformation("Kullanıcı telefonları: {Phones}", 
+            string.Join(", ", user.PhoneNumbers.Select(p => p.Id)));
+
+        // 4. Adres ve telefon kontrolü - tam eşleşme ile dene
+        var selectedAddress = user.UserAddresses.FirstOrDefault(a => a.Id == addressId);
+        if (selectedAddress == null)
+        {
+            _logger.LogError("Adres bulunamadı. Aranan ID: {AddressId}, Mevcut adresler: {Addresses}", 
+                addressId, string.Join(", ", user.UserAddresses.Select(a => a.Id)));
+            return (false, null);
+        }
+
+        var selectedPhone = user.PhoneNumbers.FirstOrDefault(p => p.Id == phoneNumberId);
+        if (selectedPhone == null)
+        {
+            _logger.LogError("Telefon numarası bulunamadı. Aranan ID: {PhoneNumberId}, Mevcut telefonlar: {Phones}", 
+                phoneNumberId, string.Join(", ", user.PhoneNumbers.Select(p => p.Id)));
+            return (false, null);
+        }
+
+        _logger.LogInformation("Adres ve telefon bulundu. Adres: {AddressId}, Telefon: {PhoneNumberId}", 
+            selectedAddress.Id, selectedPhone.Id);
+
+        // 5. Her bir ürün için stok kontrolü ve rezervasyon işlemi
+        foreach (var cartItem in selectedItems)
+        {
+            var product = await _productRepository.GetAsync(p => p.Id == cartItem.ProductId);
+            if (product == null)
+            {
+                _logger.LogError("Ürün bulunamadı. ProductId: {ProductId}", cartItem.ProductId);
+                return (false, null);
+            }
+
+            // Rezervasyon kontrolü
+            var hasActiveReservation = await _stockReservationService.HasActiveReservationAsync(cartItem.Id);
+            _logger.LogInformation("Ürün rezervasyon kontrolü. ProductId: {ProductId}, CartItemId: {CartItemId}, HasReservation: {HasReservation}", 
+                product.Id, cartItem.Id, hasActiveReservation);
+
+            if (!hasActiveReservation)
+            {
+                // Rezervasyon yoksa normal stok kontrolü yap
+                if (product.Stock < cartItem.Quantity)
+                {
+                    _logger.LogError("{ProductName} ürününden stokta yeterli miktarda bulunmamaktadır. İstenen: {Requested}, Mevcut: {Available}", 
+                        product.Name, cartItem.Quantity, product.Stock);
+                    return (false, null);
+                }
+                
+                product.Stock -= cartItem.Quantity;
+                await _productRepository.UpdateAsync(product);
+                _logger.LogInformation("Ürün stoğu düşüldü. ProductId: {ProductId}, Yeni stok: {Stock}", product.Id, product.Stock);
+            }
+            else
+            {
+                // Rezervasyon varsa ve aktifse, rezervasyonu kaldır
+                await _stockReservationService.ReleaseReservationAsync(cartItem.Id);
+                _logger.LogInformation("Stok rezervasyonu serbest bırakıldı. CartItem: {CartItemId}", cartItem.Id);
+            }
+        }
+
+        // 6. Siparişi oluştur
+        var order = new Order
+        {
+            UserId = activeCart.UserId,
+            User = activeCart.User,
+            OrderDate = DateTime.UtcNow,
+            Status = OrderStatus.Pending,
+            OrderCode = GenerateOrderCode(),
+            UserAddressId = selectedAddress.Id,
+            PhoneNumberId = selectedPhone.Id,
+            Description = description,
+            OrderItems = selectedItems.Select(item => new OrderItem
+            {
+                ProductId = item.ProductId,
+                ProductName = item.Product.Name,
+                ProductTitle = item.Product.Title,
+                Price = item.Product.Price,
+                BrandName = item.Product.Brand?.Name,
+                Quantity = item.Quantity,
+                ProductFeatureValues = item.Product.ProductFeatureValues.Select(fv => new ProductFeatureValue
+                {
+                    FeatureValue = fv.FeatureValue,
+                    FeatureValueId = fv.FeatureValueId
+                }).ToList(),
+                IsChecked = true
+            }).ToList(),
+            TotalPrice = selectedItems.Sum(item => item.Product.Price * item.Quantity)
+        };
+
+        _logger.LogInformation("Sipariş nesnesi oluşturuldu. UserId: {UserId}, OrderCode: {OrderCode}", order.UserId, order.OrderCode);
+
+        await AddAsync(order);
+        _logger.LogInformation("Sipariş veritabanına eklendi. OrderId: {OrderId}", order.Id);
+
+        // 7. Yeni cart oluştur ve seçili olmayan ürünleri aktar
+        var newCart = new Cart
+        {
+            UserId = activeCart.UserId,
+            User = activeCart.User
+        };
+
+        // Yeni cart'ı veritabanına ekle
+        await Context.Carts.AddAsync(newCart);
+        await Context.SaveChangesAsync();
+        _logger.LogInformation("Yeni sepet oluşturuldu. CartId: {CartId}", newCart.Id);
+
+        // Seçili olmayan ürünleri yeni cart'a ekle
+        foreach (var unselectedItem in unselectedItems)
+        {
+            var newCartItem = new CartItem
+            {
+                CartId = newCart.Id,
+                ProductId = unselectedItem.ProductId,
+                Quantity = unselectedItem.Quantity,
+                IsChecked = false
+            };
+            await Context.CartItems.AddAsync(newCartItem);
+            _logger.LogInformation("Seçili olmayan ürün yeni sepete eklendi. ProductId: {ProductId}, Quantity: {Quantity}", 
+                unselectedItem.ProductId, unselectedItem.Quantity);
+        }
+
+        // 8. Eski sepeti sil
+        await _cartService.RemoveCartAsync(activeCart.Id);
+        _logger.LogInformation("Eski sepet silindi. CartId: {CartId}", activeCart.Id);
+
+        // 9. OrderDto oluştur
+        var orderDto = new OrderDto
+        {
+            OrderId = order.Id,
+            OrderCode = order.OrderCode,
+            UserName = order.User.UserName,
+            Email = user.Email,
+            OrderDate = order.OrderDate,
+            TotalPrice = order.TotalPrice,
+            UserAddress = new UserAddressDto
+            {
+                Id = selectedAddress.Id,
+                Name = selectedAddress.Name,
+                AddressLine1 = selectedAddress.AddressLine1,
+                AddressLine2 = selectedAddress.AddressLine2,
+                DistrictName = selectedAddress.District?.Name,
+                CityName = selectedAddress.City?.Name,
+                CountryName = selectedAddress.Country?.Name,
+                PostalCode = selectedAddress.PostalCode,
+                IsDefault = selectedAddress.IsDefault
+            },
+            PhoneNumber = new PhoneNumberDto
+            {
+                Name = selectedPhone.Name,
+                Number = selectedPhone.Number,
+            },
+            Description = order.Description,
+            OrderItems = selectedItems.Select(item => new OrderItemDto
+            {
+                ProductName = item.Product.Name,
+                ProductTitle = item.Product.Title,
+                Quantity = item.Quantity,
+                Price = item.Product.Price,
+                BrandName = item.Product.Brand?.Name,
+                ProductFeatureValues = item.Product.ProductFeatureValues.Select(fv => new ProductFeatureValueDto
+                {
+                    FeatureName = fv.FeatureValue?.Feature?.Name,
+                    FeatureValueName = fv.FeatureValue?.Name
+                }).ToList(),
+                ShowcaseImage = item.Product.ProductImageFiles
+                    .Where(pif => pif.Showcase)
+                    .Select(img => img.ToDto(_storageService))
+                    .FirstOrDefault()
+            }).ToList()
+        };
+
+        _logger.LogInformation("Sipariş başarıyla oluşturuldu. OrderId: {OrderId}, OrderCode: {OrderCode}", 
+            orderDto.OrderId, orderDto.OrderCode);
+
+        return (true, orderDto);
     }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Sipariş oluşturma işlemi sırasında beklenmeyen hata oluştu. AddressId: {AddressId}, PhoneNumberId: {PhoneNumberId}", 
+            addressId, phoneNumberId);
+        return (false, null);
+    }
+}
 
     public async Task<bool> CompleteOrderAsync(string orderId)
     {

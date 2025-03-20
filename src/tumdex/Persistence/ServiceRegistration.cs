@@ -44,7 +44,7 @@ public static class ServiceRegistration
         });
         // Veritabanı Migration Servisi
         services.AddHostedService<DatabaseMigrationService>();
-        
+
         // İş Yönetimi Servisleri
         services.AddHostedService<StockReservationCleanupService>();
         services.AddHostedService<OutboxProcessor>();
@@ -87,5 +87,8 @@ public static class ServiceRegistration
         services.AddScoped<IStockReservationService, StockReservationService>();
         services.AddScoped<IStockReservationRepository, StockReservationRepository>();
         services.AddScoped<IOutboxRepository, OutboxRepository>();
+        services.AddScoped<ICountryRepository, CountryRepository>();
+        services.AddScoped<ICityRepository, CityRepository>();
+        services.AddScoped<IDistrictRepository, DistrictRepository>();
     }
 }

@@ -1,12 +1,16 @@
+using System.Text.Json;
 using Application.Abstraction.Services;
 using Application.Abstraction.Services.Authentication;
 using Application.Abstraction.Services.Email;
+using Application.Abstraction.Services.Messaging;
 using Application.Abstraction.Services.Tokens;
 using Application.Abstraction.Services.Utilities;
+using Application.Messages.EmailMessages;
 using Application.Storage;
 using Azure.Security.KeyVault.Secrets;
 using Domain.Identity;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -21,6 +25,9 @@ public class AccountEmailService : BaseEmailService, IAccountEmailService
     private readonly UserManager<AppUser> _userManager;
     private readonly IBackgroundTaskQueue _backgroundTaskQueue;
     private readonly ITokenService _tokenService;
+    private readonly IMessageBroker _messageBroker;
+    private readonly IDistributedCache _cache;
+    
     protected override string ServiceType => "ACCOUNT_EMAIL";
     protected override string ConfigPrefix => "Email:AccountEmail";
     protected override string PasswordSecretName => "AccountEmailPassword";
@@ -32,65 +39,75 @@ public class AccountEmailService : BaseEmailService, IAccountEmailService
         IMetricsService metricsService,
         IStorageService storageService,
         SecretClient secretClient,
-        IConfiguration configuration,UserManager<AppUser> userManager, IBackgroundTaskQueue backgroundTaskQueue, ITokenService tokenService)
+        IConfiguration configuration,
+        UserManager<AppUser> userManager, 
+        IBackgroundTaskQueue backgroundTaskQueue, 
+        ITokenService tokenService, 
+        IMessageBroker messageBroker,
+        IDistributedCache cache)
         : base(logger, cacheService, metricsService, storageService, secretClient, configuration)
     {
         _userManager = userManager;
         _backgroundTaskQueue = backgroundTaskQueue;
         _tokenService = tokenService;
+        _messageBroker = messageBroker;
+        _cache = cache;
     }
 
     protected override async Task CheckRateLimit(string[] recipients)
     {
         // Ortam kontrolü yapabiliriz
         var isDevelopment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
-        
+
         // Geliştirme ortamında hız sınırını yükseltebilir veya tamamen kaldırabiliriz
         var hourlyLimit = isDevelopment ? 50 : 10; // Geliştirme ortamında 50, production'da 10
-        
+
         foreach (var recipient in recipients)
         {
             // Günlük ve saatlik limit için farklı anahtarlar kullanalım
             var hourlyRateLimitKey = $"account_email_ratelimit_{recipient}_{DateTime.UtcNow:yyyyMMddHH}";
             var dailyRateLimitKey = $"account_email_daily_limit_{recipient}_{DateTime.UtcNow:yyyyMMdd}";
-            
+
             var hourlyCount = await _cacheService.GetCounterAsync(hourlyRateLimitKey);
             var dailyCount = await _cacheService.GetCounterAsync(dailyRateLimitKey);
-            
+
             // Eğer zaten aynı alıcıya e-posta göndermişsek ve bir önceki gönderimden çok kısa
             // bir süre geçmişse (örn. 10 saniye), hızlı tekrarlanan istekleri engelleyelim
             var recentEmailKey = $"recent_email_{recipient}";
             var recentEmailSent = await _cacheService.TryGetValueAsync<bool>(recentEmailKey);
-            
+
             if (recentEmailSent.success)
             {
                 // Son e-postadan sonra en az 10 saniye bekleyelim (throttling)
-                _logger.LogWarning($"Too many rapid requests for recipient: {recipient}. Please wait a moment before trying again.");
+                _logger.LogWarning(
+                    $"Too many rapid requests for recipient: {recipient}. Please wait a moment before trying again.");
                 throw new Exception($"Please wait a moment before sending another email to: {recipient}");
             }
-            
+
             // Saatlik limit kontrolü
             if (hourlyCount >= hourlyLimit)
             {
                 _logger.LogWarning($"Hourly email rate limit ({hourlyLimit}) exceeded for recipient: {recipient}");
-                
+
                 // Ne zaman tekrar e-posta gönderebileceklerini belirtelim
                 var nextHour = DateTime.UtcNow.AddHours(1).ToString("HH:00");
-                throw new Exception($"Email rate limit exceeded for recipient: {recipient}. Please try again after {nextHour} UTC.");
+                throw new Exception(
+                    $"Email rate limit exceeded for recipient: {recipient}. Please try again after {nextHour} UTC.");
             }
-            
+
             // Günlük limit kontrolü (günde 20 e-posta)
             var dailyLimit = 20;
             if (dailyCount >= dailyLimit)
             {
                 _logger.LogWarning($"Daily email rate limit ({dailyLimit}) exceeded for recipient: {recipient}");
-                throw new Exception($"Daily email limit exceeded for recipient: {recipient}. Please try again tomorrow.");
+                throw new Exception(
+                    $"Daily email limit exceeded for recipient: {recipient}. Please try again tomorrow.");
             }
-            
+
             // Sayaçları artır
             await _cacheService.IncrementAsync(hourlyRateLimitKey, 1, TimeSpan.FromHours(1));
             await _cacheService.IncrementAsync(dailyRateLimitKey, 1, TimeSpan.FromDays(1));
-            
+
             // Kısa süre için "son gönderilen" işaretini ayarla
             await _cacheService.SetAsync(recentEmailKey, true, TimeSpan.FromSeconds(10));
         }
@@ -139,10 +156,7 @@ public class AccountEmailService : BaseEmailService, IAccountEmailService
             throw;
         }
     }
-
-    /// <summary>
-    /// E-posta doğrulama e-postası gönderir
-    /// </summary>
+    
     public async Task SendEmailConfirmationAsync(string to, string userId, string confirmationToken)
     {
         try
@@ -269,68 +283,231 @@ public class AccountEmailService : BaseEmailService, IAccountEmailService
     {
         try
         {
-            // Aktivasyon URL'sini oluştur
-        
-            // Güvenli aktivasyon URL'si oluştur
+            // Redis'te aynı kodu kullandığımızdan emin ol
+            await EnsureCorrectActivationCodeInRedis(userId, activationCode);
+            
+            // Create secure activation URL
             string activationUrl = await _tokenService.GenerateActivationUrlAsync(userId, to);
-        
-            // Hem kod hem de buton içeren e-posta içeriği
+    
+            // Email content with both code and button
             var content = $@"
-        <div style='text-align: center;'>
-            <p style='font-size: 16px; color: #333;'>Sayın Kullanıcı,</p>
-            <p style='font-size: 16px; color: #333;'>Kayıt olduğunuz için teşekkürler. Aktivasyon kodunuz:</p>
-            <div style='margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 10px;'>
-                <p style='font-size: 28px; font-weight: bold; letter-spacing: 5px; color: #e53935;'>{activationCode}</p>
-            </div>
-            <p style='color: #666; font-size: 14px;'>
-                Ayrıca aşağıdaki butona tıklayarak da aktivasyon sayfasına gidebilirsiniz:
-            </p>
-            <a href='{activationUrl}' 
-               style='display: inline-block; padding: 12px 24px; background-color: #e53935; color: white; 
-                      text-decoration: none; border-radius: 4px; margin: 20px 0;'>
-                Aktivasyon Sayfasına Git
-            </a>
-            <p style='color: #666; font-size: 14px;'>
-                Bu aktivasyon kodu 24 saat geçerlidir.
-            </p>
-        </div>";
+    <div style='text-align: center;'>
+        <p style='font-size: 16px; color: #333;'>Dear User,</p>
+        <p style='font-size: 16px; color: #333;'>Thank you for registering. Your activation code:</p>
+        <div style='margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 10px;'>
+            <p style='font-size: 28px; font-weight: bold; letter-spacing: 5px; color: #e53935;'>{activationCode}</p>
+        </div>
+        <p style='color: #666; font-size: 14px;'>
+            You can also go to the activation page by clicking the button below:
+        </p>
+        <a href='{activationUrl}' 
+           style='display: inline-block; padding: 12px 24px; background-color: #e53935; color: white; 
+                  text-decoration: none; border-radius: 4px; margin: 20px 0;'>
+            Go to Activation Page
+        </a>
+        <p style='color: #666; font-size: 14px;'>
+            This activation code is valid for 24 hours.
+        </p>
+    </div>";
 
-            var emailBody = await BuildEmailTemplate(content, "E-posta Doğrulama Kodu");
-            await SendEmailAsync(to, "Aktivasyon Kodunuz", emailBody);
-        
-            _logger.LogInformation("Aktivasyon e-postası gönderildi: {Email}", to);
+            var emailBody = await BuildEmailTemplate(content, "Email Verification Code");
+            await SendEmailAsync(to, "Your Activation Code", emailBody);
+    
+            // E-posta gönderim durumunu Redis'te güncelle
+            await UpdateActivationCodeEmailStatus(userId, activationCode, "sent");
+            
+            _logger.LogInformation("Activation email sent to {Email} with code {Code}", to, activationCode);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Aktivasyon kodu e-postası gönderilirken hata oluştu: {Email}", to);
+            _logger.LogError(ex, "Error occurred while sending activation code email to {Email}", to);
             throw;
         }
     }
     
     public async Task ResendEmailActivationCodeAsync(string email, string activationCode)
     {
-        var user = await _userManager.FindByEmailAsync(email);
-        if (user != null)
+        _logger.LogInformation("Resending activation email to {Email}", email);
+    
+        try
         {
-            _logger.LogInformation("Resending activation email to {Email}", email);
-
-            // Queue the email in the background
-            _backgroundTaskQueue.QueueBackgroundWorkItem(async token =>
+            // Kullanıcıyı bul
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user == null)
+            {
+                _logger.LogWarning("Attempted to resend activation to non-existent user: {Email}", email);
+                throw new Exception($"User not found with email: {email}");
+            }
+            
+            // Redis'teki mevcut aktivasyon kodunu kontrol et
+            var cacheKey = $"email_activation_code_{user.Id}";
+            string codeCacheJson = await _cache.GetStringAsync(cacheKey);
+            
+            string codeToSend = activationCode; // Varsayılan olarak gelen kodu kullan
+            
+            // Önbellekte kod varsa, onu kullan
+            if (!string.IsNullOrEmpty(codeCacheJson))
             {
                 try
                 {
-                    await SendEmailActivationCodeAsync(email, user.Id, activationCode);
-                    _logger.LogInformation("Activation email successfully queued for {Email}", email);
+                    var codeData = JsonSerializer.Deserialize<JsonElement>(codeCacheJson);
+                    codeToSend = codeData.GetProperty("Code").GetString();
+                    
+                    _logger.LogInformation("Using existing activation code from Redis: {Code} for user {UserId}", 
+                        codeToSend, user.Id);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to send activation email to {Email}", email);
+                    _logger.LogError(ex, "Error parsing Redis activation code for {UserId}", user.Id);
+                    // Redis'ten kod alınamadıysa yeni kod oluştur
+                    codeToSend = await _tokenService.GenerateActivationCodeAsync(user.Id);
                 }
-            });
+            }
+            else
+            {
+                // Redis'te kod yoksa yeni oluştur
+                codeToSend = await _tokenService.GenerateActivationCodeAsync(user.Id);
+            }
+            
+            // Doğru kodu kullan
+            var command = new SendActivationEmailMessage
+            {
+                Email = email,
+                UserId = user.Id,
+                ActivationCode = codeToSend
+            };
+        
+            await _messageBroker.SendAsync(command, "email-resend-activation-code-queue");
+            _logger.LogInformation("Activation email resend request queued for {Email} with code {Code}", 
+                email, codeToSend);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to queue activation email resend for {Email}", email);
+            throw;
+        }
+    }
+    /// <summary>
+    /// Redis'teki aktivasyon kodunun doğru olduğundan emin ol
+    /// </summary>
+    private async Task EnsureCorrectActivationCodeInRedis(string userId, string activationCode)
+    {
+        var cacheKey = $"email_activation_code_{userId}";
+        var codeCacheJson = await _cache.GetStringAsync(cacheKey);
+        
+        if (string.IsNullOrEmpty(codeCacheJson))
+        {
+            // Redis'te kod yok, yeni oluştur
+            var codeData = new
+            {
+                Code = activationCode,
+                CreatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                AttemptCount = 0,
+                EmailStatus = "pending"
+            };
+            
+            await _cache.SetStringAsync(cacheKey, 
+                JsonSerializer.Serialize(codeData),
+                new DistributedCacheEntryOptions 
+                { 
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) 
+                });
+            
+            _logger.LogInformation("Created new activation code in Redis: {Code} for user {UserId}", 
+                activationCode, userId);
         }
         else
         {
-            _logger.LogWarning("Attempted to resend activation email to non-existent user: {Email}", email);
+            try
+            {
+                // Redis'teki kodu kontrol et ve gerekirse güncelle
+                var codeData = JsonSerializer.Deserialize<JsonElement>(codeCacheJson);
+                var storedCode = codeData.GetProperty("Code").GetString();
+                
+                if (storedCode != activationCode)
+                {
+                    _logger.LogWarning("Mismatch between stored code ({StoredCode}) and email code ({EmailCode}) for user {UserId}", 
+                        storedCode, activationCode, userId);
+                    
+                    // Redis'teki kodu e-postada gönderilecek kodla güncelle
+                    var updatedCodeData = new
+                    {
+                        Code = activationCode,
+                        CreatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                        AttemptCount = 0,
+                        EmailStatus = "pending"
+                    };
+                    
+                    await _cache.SetStringAsync(cacheKey, 
+                        JsonSerializer.Serialize(updatedCodeData),
+                        new DistributedCacheEntryOptions 
+                        { 
+                            AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) 
+                        });
+                    
+                    _logger.LogInformation("Updated activation code in Redis to match email code: {Code} for user {UserId}", 
+                        activationCode, userId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing stored activation code for {UserId}", userId);
+                // Hata durumunda Redis'teki kodu güncelle
+                var codeData = new
+                {
+                    Code = activationCode,
+                    CreatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                    AttemptCount = 0,
+                    EmailStatus = "pending"
+                };
+                
+                await _cache.SetStringAsync(cacheKey, 
+                    JsonSerializer.Serialize(codeData),
+                    new DistributedCacheEntryOptions 
+                    { 
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) 
+                    });
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Redis'teki aktivasyon kodu e-posta durumunu güncelle
+    /// </summary>
+    private async Task UpdateActivationCodeEmailStatus(string userId, string code, string status)
+    {
+        var cacheKey = $"email_activation_code_{userId}";
+        var codeCacheJson = await _cache.GetStringAsync(cacheKey);
+        
+        if (!string.IsNullOrEmpty(codeCacheJson))
+        {
+            try
+            {
+                var codeData = JsonSerializer.Deserialize<JsonElement>(codeCacheJson);
+                
+                // E-posta durumunu güncelle
+                var updatedCodeData = new
+                {
+                    Code = code,
+                    CreatedAt = codeData.GetProperty("CreatedAt").GetInt64(),
+                    AttemptCount = codeData.GetProperty("AttemptCount").GetInt32(),
+                    EmailStatus = status
+                };
+                
+                await _cache.SetStringAsync(cacheKey, 
+                    JsonSerializer.Serialize(updatedCodeData),
+                    new DistributedCacheEntryOptions 
+                    { 
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) 
+                    });
+                
+                _logger.LogInformation("Updated activation code email status to {Status} for user {UserId}", 
+                    status, userId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating activation code email status for {UserId}", userId);
+            }
         }
     }
 }

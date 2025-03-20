@@ -7,34 +7,34 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
-      <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="9.0.0" />
-      <PackageReference Include="AWSSDK.S3" Version="3.7.412.3" />
-      <PackageReference Include="CloudinaryDotNet" Version="1.27.1" />
-      <PackageReference Include="Google.Cloud.Storage.V1" Version="4.10.0" />
-      <PackageReference Include="HtmlSanitizer" Version="8.1.870" />
-      <PackageReference Include="MailKit" Version="4.9.0" />
-      <PackageReference Include="MassTransit" Version="8.3.4" />
-      <PackageReference Include="MassTransit.RabbitMQ" Version="8.3.4" />
-      <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.12" />
-      <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.12" />
-      <PackageReference Include="MimeKit" Version="4.9.0" />
-      <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-      <PackageReference Include="prometheus-net" Version="8.2.1" />
-      <PackageReference Include="Quartz" Version="3.13.1" />
-      <PackageReference Include="Quartz.Extensions.Hosting" Version="3.13.1" />
-      <PackageReference Include="Serilog" Version="4.2.0" />
-      <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
-      <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
-      <PackageReference Include="Serilog.Extensions.Hosting" Version="8.0.0" />
-      <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
-      <PackageReference Include="Serilog.Sinks.Seq" Version="9.0.0" />
-      <PackageReference Include="SkiaSharp" Version="3.116.1" />
+        <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0"/>
+        <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="9.0.0"/>
+        <PackageReference Include="AWSSDK.S3" Version="3.7.412.3"/>
+        <PackageReference Include="CloudinaryDotNet" Version="1.27.1"/>
+        <PackageReference Include="Google.Cloud.Storage.V1" Version="4.10.0"/>
+        <PackageReference Include="HtmlSanitizer" Version="8.1.870"/>
+        <PackageReference Include="MailKit" Version="4.9.0"/>
+        <PackageReference Include="MassTransit" Version="8.3.4"/>
+        <PackageReference Include="MassTransit.RabbitMQ" Version="8.3.4"/>
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.12"/>
+        <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.12"/>
+        <PackageReference Include="MimeKit" Version="4.9.0"/>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3"/>
+        <PackageReference Include="prometheus-net" Version="8.2.1"/>
+        <PackageReference Include="Quartz" Version="3.13.1"/>
+        <PackageReference Include="Quartz.Extensions.Hosting" Version="3.13.1"/>
+        <PackageReference Include="Serilog" Version="4.2.0"/>
+        <PackageReference Include="Serilog.AspNetCore" Version="8.0.3"/>
+        <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1"/>
+        <PackageReference Include="Serilog.Extensions.Hosting" Version="8.0.0"/>
+        <PackageReference Include="Serilog.Sinks.File" Version="6.0.0"/>
+        <PackageReference Include="Serilog.Sinks.Seq" Version="9.0.0"/>
+        <PackageReference Include="SkiaSharp" Version="3.116.1"/>
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\corePackages\Core.CrossCuttingConcerns\Core.CrossCuttingConcerns.csproj" />
-      <ProjectReference Include="..\Persistence\Persistence.csproj" />
+        <ProjectReference Include="..\..\corePackages\Core.CrossCuttingConcerns\Core.CrossCuttingConcerns.csproj"/>
+        <ProjectReference Include="..\Persistence\Persistence.csproj"/>
     </ItemGroup>
 
 </Project>

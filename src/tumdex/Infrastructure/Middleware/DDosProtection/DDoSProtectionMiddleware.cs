@@ -67,7 +67,7 @@ public class DDoSProtectionMiddleware
                     using var scope = _serviceScopeFactory.CreateScope();
                     var alertService = scope.ServiceProvider.GetRequiredService<IAlertService>();
                     var logService = scope.ServiceProvider.GetRequiredService<ILogService>();
-                    
+
                     await HandleDDoSAttempt(context, clientIp, path, currentCount, alertService, logService);
                     return;
                 }
@@ -140,13 +140,13 @@ public class DDoSProtectionMiddleware
         // Response
         context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         context.Response.ContentType = "application/json";
-        
-        var response = new 
-        { 
+
+        var response = new
+        {
             error = "Too many requests detected.",
             retryAfter = 60
         };
-        
+
         await context.Response.WriteAsJsonAsync(response);
     }
 
@@ -154,15 +154,15 @@ public class DDoSProtectionMiddleware
     {
         context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         context.Response.ContentType = "application/json";
-        
-        var response = new 
-        { 
+
+        var response = new
+        {
             error = "Server is busy. Please try again later.",
             retryAfter = 5
         };
-        
+
         await context.Response.WriteAsJsonAsync(response);
-        
+
         _metrics.IncrementDdosAttempt(clientIp, path.ToString());
     }
 

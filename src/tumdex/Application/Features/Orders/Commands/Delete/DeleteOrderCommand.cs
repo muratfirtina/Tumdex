@@ -1,3 +1,4 @@
+using Application.Consts;
 using Application.Repositories;
 using AutoMapper;
 using Core.Application.Pipelines.Caching;
@@ -6,13 +7,12 @@ using MediatR;
 
 namespace Application.Features.Orders.Commands.Delete;
 
-public class DeleteOrderCommand : IRequest<DeletedOrderCommandResponse>, ITransactionalRequest,ICacheRemoverRequest
+public class DeleteOrderCommand : IRequest<DeletedOrderCommandResponse>
 {
     public string Id { get; set; }
     public string CacheKey => "";
     public bool BypassCache => false;
-    public string CacheGroupKey => "Orders";
-
+    public string CacheGroupKey => CacheGroups.Orders;
     public class DeleteOrderCommandHandler : IRequestHandler<DeleteOrderCommand, DeletedOrderCommandResponse>
     {
         private readonly IOrderRepository _orderRepository;

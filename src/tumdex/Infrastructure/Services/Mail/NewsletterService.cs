@@ -37,7 +37,7 @@ public class NewsletterService : INewsletterService
         INewsletterEmailService newsletterEmailService, // Interface türünü değiştirdik
         ILogger<NewsletterService> logger,
         INewsletterLogRepository newsletterLogRepository,
-        IConfiguration configuration, 
+        IConfiguration configuration,
         IOrderItemRepository orderItemRepository,
         IBackgroundTaskQueue backgroundTaskQueue)
     {
@@ -79,7 +79,7 @@ public class NewsletterService : INewsletterService
             throw new Exception("Invalid or expired unsubscribe link");
         }
     }
-    
+
     /// <summary>
     /// E-posta ile bülten aboneliğini iptal eder
     /// </summary>
@@ -87,7 +87,7 @@ public class NewsletterService : INewsletterService
     {
         if (string.IsNullOrWhiteSpace(email))
             throw new ArgumentException("Email is required");
-        
+
         return await _newsletterRepository.UnsubscribeAsync(email);
     }
 
@@ -179,12 +179,12 @@ public class NewsletterService : INewsletterService
         try
         {
             _logger.LogInformation("Starting to send {Mode} newsletter", isTest ? "test" : "monthly");
-            
+
             // Test modu için sadece birkaç abone al veya test e-postaları kullan
             var subscribers = isTest
                 ? (await _newsletterRepository.GetActiveSubscribersAsync()).Take(3).ToList()
                 : await _newsletterRepository.GetActiveSubscribersAsync();
-                
+
             if (!subscribers.Any())
             {
                 _logger.LogInformation("No active subscribers found. Newsletter sending skipped.");
@@ -212,13 +212,13 @@ public class NewsletterService : INewsletterService
             var successCount = 0;
             var failCount = 0;
             var firstEmailContent = string.Empty; // İlk e-posta içeriğini sakla
-            
+
             // Tahmini tamamlanma süresini hesapla
             var delayBetweenEmails = _configuration.GetValue<int>("Newsletter:Throttling:DelayBetweenEmails", 1000);
             var estimatedDuration = TimeSpan.FromMilliseconds(subscribers.Count * delayBetweenEmails);
             var estimatedEndTime = DateTime.Now.Add(estimatedDuration);
-            
-            _logger.LogInformation("Sending newsletter to {Count} subscribers. Estimated completion: {Time}", 
+
+            _logger.LogInformation("Sending newsletter to {Count} subscribers. Estimated completion: {Time}",
                 subscribers.Count, estimatedEndTime.ToString("HH:mm:ss"));
 
             // E-postaları işlemek için aboneleri döngüye al
@@ -246,7 +246,7 @@ public class NewsletterService : INewsletterService
                         subscriber.Email,
                         "TUMDEX Monthly Newsletter - New Products and Opportunities",
                         finalEmailContent);
-                    
+
                     successCount++;
                 }
                 catch (Exception ex)
@@ -268,7 +268,7 @@ public class NewsletterService : INewsletterService
             };
 
             await _newsletterLogRepository.LogNewsletterSendAsync(log);
-            
+
             _logger.LogInformation("Newsletter sent successfully. Success: {Success}, Failed: {Failed}",
                 successCount, failCount);
         }
@@ -278,17 +278,14 @@ public class NewsletterService : INewsletterService
             throw;
         }
     }
-    
+
     /// <summary>
     /// Aylık bülten gönderimini kuyruğa ekler
     /// </summary>
     public async Task QueueSendMonthlyNewsletterAsync(bool isTest = false)
     {
-        _backgroundTaskQueue.QueueBackgroundWorkItem(async (token) =>
-        {
-            await SendMonthlyNewsletterAsync(isTest);
-        });
-        
+        _backgroundTaskQueue.QueueBackgroundWorkItem(async (token) => { await SendMonthlyNewsletterAsync(isTest); });
+
         _logger.LogInformation("Queued monthly newsletter sending. Test mode: {IsTest}", isTest);
     }
 }

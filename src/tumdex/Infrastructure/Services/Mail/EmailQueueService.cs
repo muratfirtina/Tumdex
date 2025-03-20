@@ -201,9 +201,9 @@ public class EmailQueueService : IEmailQueueService
 
         switch (message.Type)
         {
-            case EmailType.EmailConfirmation:
+            /*case EmailType.EmailConfirmation:
                 await _accountEmailService.SendEmailConfirmationAsync(message.To, userId, token);
-                break;
+                break;*/
             case EmailType.PasswordReset:
                 await _accountEmailService.SendPasswordResetEmailAsync(message.To, userId, token);
                 break;

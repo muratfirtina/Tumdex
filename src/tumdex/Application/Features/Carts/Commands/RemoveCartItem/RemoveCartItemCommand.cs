@@ -4,7 +4,7 @@ using MediatR;
 
 namespace Application.Features.Carts.Commands.RemoveCartItem;
 
-public class RemoveCartItemCommand : IRequest<RemoveCartItemResponse>,ICacheRemoverRequest
+public class RemoveCartItemCommand : IRequest<RemoveCartItemResponse>
 {
     public string CartItemId { get; set; }
     

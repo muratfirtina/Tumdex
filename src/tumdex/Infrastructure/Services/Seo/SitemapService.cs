@@ -37,68 +37,67 @@ public class SitemapService : ISitemapService
     }
 
     public async Task<string> GenerateSitemapIndex()
-{
-    _logger.LogInformation("Starting sitemap index generation");
-    var sitemaps = new List<SitemapUrl>();
-    try
     {
-        // Ürünler için kontrol ve log
-        var products = await _productRepository.GetAllAsync();
-        _logger.LogInformation($"Found {products.Count()} products");
-        if (products.Any())
+        _logger.LogInformation("Starting sitemap index generation");
+        var sitemaps = new List<SitemapUrl>();
+        try
         {
-            sitemaps.Add(new SitemapUrl
+            // Ürünler için kontrol ve log
+            var products = await _productRepository.GetAllAsync();
+            _logger.LogInformation($"Found {products.Count()} products");
+            if (products.Any())
             {
-                Loc = $"{_baseUrl}/sitemaps/products.xml",
-                LastMod = DateTime.UtcNow
-            });
-        }
+                sitemaps.Add(new SitemapUrl
+                {
+                    Loc = $"{_baseUrl}/sitemaps/products.xml",
+                    LastMod = DateTime.UtcNow
+                });
+            }
 
-        // Kategoriler için kontrol ve log
-        var categories = await _categoryRepository.GetAllAsync();
-        _logger.LogInformation($"Found {categories.Count()} categories");
-        if (categories.Any())
-        {
-            sitemaps.Add(new SitemapUrl
+            // Kategoriler için kontrol ve log
+            var categories = await _categoryRepository.GetAllAsync();
+            _logger.LogInformation($"Found {categories.Count()} categories");
+            if (categories.Any())
             {
-                Loc = $"{_baseUrl}/sitemaps/categories.xml",
-                LastMod = DateTime.UtcNow
-            });
-        }
+                sitemaps.Add(new SitemapUrl
+                {
+                    Loc = $"{_baseUrl}/sitemaps/categories.xml",
+                    LastMod = DateTime.UtcNow
+                });
+            }
 
-        // Markalar için kontrol ve log
-        var brands = await _brandRepository.GetAllAsync();
-        _logger.LogInformation($"Found {brands.Count()} brands");
-        if (brands.Any())
-        {
-            sitemaps.Add(new SitemapUrl
+            // Markalar için kontrol ve log
+            var brands = await _brandRepository.GetAllAsync();
+            _logger.LogInformation($"Found {brands.Count()} brands");
+            if (brands.Any())
             {
-                Loc = $"{_baseUrl}/sitemaps/brands.xml",
-                LastMod = DateTime.UtcNow
-            });
-        }
+                sitemaps.Add(new SitemapUrl
+                {
+                    Loc = $"{_baseUrl}/sitemaps/brands.xml",
+                    LastMod = DateTime.UtcNow
+                });
+            }
 
-        // XML oluşturulmadan önce kontrol
-        _logger.LogInformation($"Base URL: {_baseUrl}");
-        _logger.LogInformation($"Total sitemaps to be included: {sitemaps.Count}");
-        foreach (var sitemap in sitemaps)
+            // XML oluşturulmadan önce kontrol
+            _logger.LogInformation($"Base URL: {_baseUrl}");
+            _logger.LogInformation($"Total sitemaps to be included: {sitemaps.Count}");
+            foreach (var sitemap in sitemaps)
+            {
+                _logger.LogInformation($"Sitemap URL: {sitemap.Loc}");
+            }
+
+            var xmlResult = GenerateSitemapXml(sitemaps, true);
+            _logger.LogInformation($"Generated XML length: {xmlResult?.Length ?? 0}");
+            _logger.LogInformation($"Generated XML content: {xmlResult}");
+
+            return xmlResult;
+        }
+        catch (Exception ex)
         {
-            _logger.LogInformation($"Sitemap URL: {sitemap.Loc}");
+            _logger.LogError(ex, "Error generating sitemap index");
+            throw;
         }
-
-        var xmlResult = GenerateSitemapXml(sitemaps, true);
-        _logger.LogInformation($"Generated XML length: {xmlResult?.Length ?? 0}");
-        _logger.LogInformation($"Generated XML content: {xmlResult}");
-
-        return xmlResult;
     }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error generating sitemap index");
-        throw;
-    }
-}
-
 
 
     public async Task<string> GenerateProductSitemap()
@@ -181,17 +180,20 @@ public class SitemapService : ISitemapService
     {
         var staticPages = new List<SitemapUrl>
         {
-            new() {
+            new()
+            {
                 Loc = $"{_baseUrl}",
                 ChangeFreq = ChangeFrequency.Daily,
                 Priority = 1.0
             },
-            new() {
+            new()
+            {
                 Loc = $"{_baseUrl}/about",
                 ChangeFreq = ChangeFrequency.Monthly,
                 Priority = 0.5
             },
-            new() {
+            new()
+            {
                 Loc = $"{_baseUrl}/contact",
                 ChangeFreq = ChangeFrequency.Monthly,
                 Priority = 0.5
@@ -212,7 +214,6 @@ public class SitemapService : ISitemapService
             { "Yandex", $"http://www.yandex.com/ping?sitemap={sitemapUrl}" },
             { "Baidu", $"http://www.baidu.com/ping?sitemap={sitemapUrl}" },
             { "Sogou", $"http://www.sogou.com/ping?sitemap={sitemapUrl}" },
-            
         };
 
         var response = new SitemapOperationResponse
@@ -235,8 +236,10 @@ public class SitemapService : ISitemapService
                 else
                 {
                     response.Success = false;
-                    response.Errors.Add($"Failed to submit sitemap to {engine.Key}. Status: {engineResponse.StatusCode}");
-                    _logger.LogWarning($"Failed to submit sitemap to {engine.Key}. Status: {engineResponse.StatusCode}");
+                    response.Errors.Add(
+                        $"Failed to submit sitemap to {engine.Key}. Status: {engineResponse.StatusCode}");
+                    _logger.LogWarning(
+                        $"Failed to submit sitemap to {engine.Key}. Status: {engineResponse.StatusCode}");
                 }
             }
             catch (Exception ex)
@@ -338,12 +341,14 @@ public class SitemapService : ISitemapService
             status.IsAccessible = true;
             status.ResponseTime = (long)(DateTime.UtcNow - startTime).TotalMilliseconds;
             status.FileSize = System.Text.Encoding.UTF8.GetByteCount(content);
-            status.UrlCount = xmlDoc.Descendants(XName.Get("url", "http://www.sitemaps.org/schemas/sitemap/0.9")).Count();
-            status.LastModified = xmlDoc.Descendants(XName.Get("lastmod", "http://www.sitemaps.org/schemas/sitemap/0.9"))
-                .FirstOrDefault()?.Value != null 
-                    ? DateTime.Parse(xmlDoc.Descendants(XName.Get("lastmod", "http://www.sitemaps.org/schemas/sitemap/0.9"))
-                        .First().Value) 
-                    : null;
+            status.UrlCount = xmlDoc.Descendants(XName.Get("url", "http://www.sitemaps.org/schemas/sitemap/0.9"))
+                .Count();
+            status.LastModified = xmlDoc
+                .Descendants(XName.Get("lastmod", "http://www.sitemaps.org/schemas/sitemap/0.9"))
+                .FirstOrDefault()?.Value != null
+                ? DateTime.Parse(xmlDoc.Descendants(XName.Get("lastmod", "http://www.sitemaps.org/schemas/sitemap/0.9"))
+                    .First().Value)
+                : null;
         }
         catch (Exception ex)
         {
@@ -407,14 +412,16 @@ public class SitemapService : ISitemapService
 
         return issues;
     }
-    
+
     private string GenerateSitemapXml(List<SitemapUrl> urls, bool isIndex = false)
     {
         var ns = XNamespace.Get("http://www.sitemaps.org/schemas/sitemap/0.9");
         var imageNs = XNamespace.Get("http://www.google.com/schemas/sitemap-image/1.1");
 
-        var root = isIndex ? new XElement(ns + "sitemapindex") : new XElement(ns + "urlset",
-            new XAttribute(XNamespace.Xmlns + "image", imageNs));
+        var root = isIndex
+            ? new XElement(ns + "sitemapindex")
+            : new XElement(ns + "urlset",
+                new XAttribute(XNamespace.Xmlns + "image", imageNs));
 
         foreach (var url in urls)
         {
@@ -422,17 +429,17 @@ public class SitemapService : ISitemapService
                 new XElement(ns + "loc", url.Loc));
 
             if (url.LastMod.HasValue)
-                urlElement.Add(new XElement(ns + "lastmod", 
+                urlElement.Add(new XElement(ns + "lastmod",
                     url.LastMod.Value.ToString("yyyy-MM-ddTHH:mm:sszzz")));
 
             if (!isIndex)
             {
                 if (url.ChangeFreq.HasValue)
-                    urlElement.Add(new XElement(ns + "changefreq", 
+                    urlElement.Add(new XElement(ns + "changefreq",
                         url.ChangeFreq.Value.ToString().ToLower()));
 
                 if (url.Priority.HasValue)
-                    urlElement.Add(new XElement(ns + "priority", 
+                    urlElement.Add(new XElement(ns + "priority",
                         url.Priority.Value.ToString("0.0")));
 
                 foreach (var image in url.Images)
@@ -461,5 +468,4 @@ public class SitemapService : ISitemapService
 
         return new XDocument(new XDeclaration("1.0", "UTF-8", null), root).ToString();
     }
-    
 }

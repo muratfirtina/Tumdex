@@ -64,7 +64,7 @@ namespace Persistence.Repositories
                 if (product == null) throw new Exception("Product not found.");
 
                 // Stok kontrolü: Yeni quantity mevcut stoktan fazla ise hata ver
-                int stockDifference = newQuantity - orderItem.Quantity;
+                int? stockDifference = newQuantity - orderItem.Quantity;
                 if (stockDifference > product.Stock)
                 {
                     throw new Exception($"Not enough stock for product {product.Name}. Available stock: {product.Stock}");

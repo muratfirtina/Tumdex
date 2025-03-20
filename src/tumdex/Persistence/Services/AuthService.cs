@@ -13,7 +13,6 @@ using Application.Abstraction.Services.Tokens;
 using Application.Abstraction.Services.Utilities;
 using Application.Dtos.Token;
 using Application.Exceptions;
-using Application.Features.Users.Commands.ActivationCode.ActivationUrlToken;
 using Application.Features.Users.Commands.CreateUser;
 using Domain.Identity;
 using Microsoft.AspNetCore.Http;
@@ -221,44 +220,44 @@ public class AuthService : IAuthService, IInternalAuthentication
         return tokenDto.ToToken();
     }
 
-        private async Task CheckForSuspiciousActivityAsync(AppUser user, string? ipAddress, string? userAgent)
+    private async Task CheckForSuspiciousActivityAsync(AppUser user, string? ipAddress, string? userAgent)
+    {
+        if (string.IsNullOrEmpty(ipAddress)) return;
+
+        try
         {
-            if (string.IsNullOrEmpty(ipAddress)) return;
+            // Get the known IPs for this user from cache
+            var key = $"known_ips_{user.Id}";
+            var result = await _cacheService.TryGetValueAsync<HashSet<string>>(key);
 
-            try
+            if (result.success)
             {
-                // Get the known IPs for this user from cache
-                var key = $"known_ips_{user.Id}";
-                var result = await _cacheService.TryGetValueAsync<HashSet<string>>(key);
+                var knownIps = result.value;
 
-                if (result.success)
+                // If this is a new IP for this user, log it
+                if (!knownIps.Contains(ipAddress))
                 {
-                    var knownIps = result.value;
+                    _logger.LogInformation("New login location for user: {Username} from IP: {IpAddress}",
+                        user.UserName, ipAddress);
 
-                    // If this is a new IP for this user, log it
-                    if (!knownIps.Contains(ipAddress))
-                    {
-                        _logger.LogInformation("New login location for user: {Username} from IP: {IpAddress}",
-                            user.UserName, ipAddress);
-
-                        // Add the new IP to the known IPs set
-                        knownIps.Add(ipAddress);
-                        await _cacheService.SetAsync(key, knownIps, TimeSpan.FromDays(30));
-                    }
-                }
-                else
-                {
-                    // First login we're tracking, initialize the known IPs set
-                    var knownIps = new HashSet<string> { ipAddress };
+                    // Add the new IP to the known IPs set
+                    knownIps.Add(ipAddress);
                     await _cacheService.SetAsync(key, knownIps, TimeSpan.FromDays(30));
                 }
             }
-            catch (Exception ex)
+            else
             {
-                // Non-critical error, so just log it
-                _logger.LogError(ex, "Error checking for suspicious activity for user: {Username}", user.UserName);
+                // First login we're tracking, initialize the known IPs set
+                var knownIps = new HashSet<string> { ipAddress };
+                await _cacheService.SetAsync(key, knownIps, TimeSpan.FromDays(30));
             }
         }
+        catch (Exception ex)
+        {
+            // Non-critical error, so just log it
+            _logger.LogError(ex, "Error checking for suspicious activity for user: {Username}", user.UserName);
+        }
+    }
 
     private async Task HandleFailedLoginAttemptAsync(AppUser user, string? ipAddress, string? userAgent)
     {
@@ -418,136 +417,6 @@ public class AuthService : IAuthService, IInternalAuthentication
         }
 
         return httpContext.Connection.RemoteIpAddress?.ToString() ?? "0.0.0.0";
-    }
-
-    #endregion
-
-    
-
-    #region Email Activation Methods
-
-    /// <summary>
-    /// Generates an email activation code for a user
-    /// </summary>
-    public async Task<string> GenerateActivationCodeAsync(string userId)
-    {
-        // 6 haneli rastgele bir kod oluştur
-        var random = new Random();
-        var activationCode = random.Next(100000, 999999).ToString();
-
-        // Kodu önbellekte sakla (24 saat süreyle)
-        var cacheKey = $"email_activation_code_{userId}";
-        var options = new DistributedCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
-        };
-
-        // Kod oluşturma zamanını da sakla (hız sınırlama ve yeniden oluşturma için)
-        var codeData = new
-        {
-            Code = activationCode,
-            CreatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            AttemptCount = 0
-        };
-
-        // JSON olarak serialize et ve önbelleğe al
-        string codeJson = JsonSerializer.Serialize(codeData);
-        await _cache.SetStringAsync(cacheKey, codeJson, options);
-
-        return activationCode;
-    }
-
-    /// <summary>
-    /// Verifies an email activation code (direct alias for VerifyActivationCodeAsync)
-    /// </summary>
-    public async Task<bool> VerifyActivationCodeAsync(string userId, string code)
-        {
-            var cacheKey = $"email_activation_code_{userId}";
-            var storedCodeData = await _cache.GetStringAsync(cacheKey);
-
-            // Logger'ı _userManager aracılığıyla kullanmak için
-            var loggerFactory = _httpContextAccessor.HttpContext?
-                .RequestServices.GetService(typeof(ILoggerFactory)) as ILoggerFactory;
-            var logger = loggerFactory?.CreateLogger<UserService>();
-
-            if (string.IsNullOrEmpty(storedCodeData))
-            {
-                logger?.LogWarning("Aktivasyon kodu bulunamadı: {UserId}", userId);
-                return false;
-            }
-
-            try
-            {
-                // JSON verisini parse et
-                var codeInfo = JsonSerializer.Deserialize<JsonElement>(storedCodeData);
-                var storedCode = codeInfo.GetProperty("Code").GetString();
-            
-                if (storedCode != code)
-                {
-                    logger?.LogWarning("Geçersiz aktivasyon kodu denemesi: {UserId}", userId);
-                    return false;
-                }
-
-                // Kod doğru, kullanıcıyı güncelle
-                var user = await _userManager.FindByIdAsync(userId);
-                if (user == null)
-                {
-                    logger?.LogWarning("Kullanıcı bulunamadı: {UserId}", userId);
-                    return false;
-                }
-
-                // Kullanıcıyı güncelle
-                user.EmailConfirmed = true;
-                var result = await _userManager.UpdateAsync(user);
-
-                if (result.Succeeded)
-                {
-                    // Kodu önbellekten kaldır
-                    await _cache.RemoveAsync(cacheKey);
-                    logger?.LogInformation("E-posta başarıyla doğrulandı: {UserId}, {Email}", userId, user.Email);
-                    return true;
-                }
-                else
-                {
-                    logger?.LogError("Kullanıcı güncellenemedi: {UserId}, {Errors}", userId, string.Join(", ", result.Errors.Select(e => e.Description)));
-                    return false;
-                }
-            }
-            catch (Exception ex)
-            {
-                logger?.LogError(ex, "E-posta doğrulama hatası: {UserId}", userId);
-                return false;
-            }
-        }
-
-    /// <summary>
-    /// Resends activation email to a user
-    /// </summary>
-    public async Task ResendEmailActivationCodeAsync(string email, string activationCode)
-    {
-        var user = await _userManager.FindByEmailAsync(email);
-        if (user != null)
-        {
-            _logger.LogInformation("Resending activation email to {Email}", email);
-
-            // Queue the email in the background
-            _backgroundTaskQueue.QueueBackgroundWorkItem(async token =>
-            {
-                try
-                {
-                    await _accountEmailService.SendEmailActivationCodeAsync(email, user.Id, activationCode);
-                    _logger.LogInformation("Activation email successfully queued for {Email}", email);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to send activation email to {Email}", email);
-                }
-            });
-        }
-        else
-        {
-            _logger.LogWarning("Attempted to resend activation email to non-existent user: {Email}", email);
-        }
     }
 
     #endregion

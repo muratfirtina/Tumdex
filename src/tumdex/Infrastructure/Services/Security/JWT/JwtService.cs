@@ -77,7 +77,7 @@ public class JwtService : IJwtService
 
                 // Azure Key Vault'tan ayarları al ve JwtConfiguration'a dönüştür
                 config = await CreateConfigurationFromKeyVault();
-                
+
                 // Yapılandırmayı doğrula
                 ValidateConfiguration(config);
 
@@ -133,11 +133,12 @@ public class JwtService : IJwtService
         var issuerResponse = await _secretClient.GetSecretAsync("JwtIssuer");
         var audienceResponse = await _secretClient.GetSecretAsync("JwtAudience");
 
-        if (securityKeyResponse?.Value == null || 
-            issuerResponse?.Value == null || 
+        if (securityKeyResponse?.Value == null ||
+            issuerResponse?.Value == null ||
             audienceResponse?.Value == null)
         {
-            throw new InvalidOperationException("Key Vault'ta JWT yapılandırma anahtarları eksik. JwtSecurityKey, JwtIssuer ve JwtAudience değerlerinin varlığını kontrol edin.");
+            throw new InvalidOperationException(
+                "Key Vault'ta JWT yapılandırma anahtarları eksik. JwtSecurityKey, JwtIssuer ve JwtAudience değerlerinin varlığını kontrol edin.");
         }
 
         var securityKey = new SymmetricSecurityKey(
@@ -145,7 +146,7 @@ public class JwtService : IJwtService
 
         var issuerKey = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(issuerResponse.Value.Value));
-        
+
         var audienceKey = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(audienceResponse.Value.Value));
 
@@ -226,8 +227,8 @@ public class JwtService : IJwtService
                 AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(RedisCacheMinutes)
             };
 
-            await _cache.SetAsync(CacheKeyPrefix + "CONFIG", 
-                JsonSerializer.SerializeToUtf8Bytes(cacheModel), 
+            await _cache.SetAsync(CacheKeyPrefix + "CONFIG",
+                JsonSerializer.SerializeToUtf8Bytes(cacheModel),
                 options);
         }
         catch (Exception ex)

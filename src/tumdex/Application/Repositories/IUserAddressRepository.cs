@@ -11,6 +11,6 @@ public interface IUserAddressRepository : IAsyncRepository<UserAddress, string>,
     Task<UserAddress> AddAddressAsync(CreateUserAddressDto addressDto);
     Task<UserAddress> UpdateAddressAsync(UpdateUserAddressDto addressDto);
     Task<bool> DeleteAddressAsync(string id);
-    Task<IList<UserAddress>> GetUserAddressesAsync();
+    Task<IList<UserAddressDto>> GetUserAddressesAsync();
     Task<bool> SetDefaultAddressAsync(string id);
 }

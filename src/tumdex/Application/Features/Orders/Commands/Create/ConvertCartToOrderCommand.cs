@@ -2,6 +2,7 @@ using System.Text.Json;
 using Application.Abstraction.Services;
 using Application.Abstraction.Services.Email;
 using Application.Abstraction.Services.HubServices;
+using Application.Consts;
 using Application.Events.OrderEvetns;
 using Application.Extensions;
 using Application.Features.Carts.Dtos;
@@ -19,17 +20,17 @@ using Microsoft.Extensions.Logging;
 
 namespace Application.Features.Orders.Commands.Create;
 
-public class ConvertCartToOrderCommand : IRequest<ConvertCartToOrderCommandResponse>,ITransactionalRequest,ICacheRemoverRequest
+public class ConvertCartToOrderCommand : IRequest<ConvertCartToOrderCommandResponse>
 {
     public string? AddressId { get; set; }
     public string? PhoneNumberId { get; set; }
     public string? Description { get; set; }
-    
     public string CacheKey => "";
     public bool BypassCache => false;
-    public string? CacheGroupKey => "Orders";
+    public string? CacheGroupKey => CacheGroups.CartsAndOrders;
 
-    public class ConvertCartToOrderCommandHandler : IRequestHandler<ConvertCartToOrderCommand, ConvertCartToOrderCommandResponse>
+    public class
+        ConvertCartToOrderCommandHandler : IRequestHandler<ConvertCartToOrderCommand, ConvertCartToOrderCommandResponse>
     {
         private readonly IOrderRepository _orderRepository;
         private readonly IOutboxRepository _outboxRepository;
@@ -37,8 +38,8 @@ public class ConvertCartToOrderCommand : IRequest<ConvertCartToOrderCommandRespo
         private readonly IOrderEmailService _orderEmailService;
 
         public ConvertCartToOrderCommandHandler(
-            IOrderRepository orderRepository, 
-            IOutboxRepository outboxRepository, 
+            IOrderRepository orderRepository,
+            IOutboxRepository outboxRepository,
             ILogger<ConvertCartToOrderCommandHandler> logger,
             IOrderEmailService orderEmailService)
         {
@@ -48,7 +49,8 @@ public class ConvertCartToOrderCommand : IRequest<ConvertCartToOrderCommandRespo
             _orderEmailService = orderEmailService;
         }
 
-        public async Task<ConvertCartToOrderCommandResponse> Handle(ConvertCartToOrderCommand request, CancellationToken cancellationToken)
+        public async Task<ConvertCartToOrderCommandResponse> Handle(ConvertCartToOrderCommand request,
+            CancellationToken cancellationToken)
         {
             try
             {
@@ -61,7 +63,13 @@ public class ConvertCartToOrderCommand : IRequest<ConvertCartToOrderCommandRespo
 
                 if (!succeeded || orderDto == null)
                 {
-                    throw new Exception("Cart could not be converted to order.");
+                    // Daha açıklayıcı hata mesajı
+                    var errorMessage =
+                        "Sipariş oluşturulamadı. Lütfen sepetinizi, adres ve telefon bilgilerinizi kontrol edin.";
+                    _logger.LogError(
+                        "Sipariş oluşturma başarısız. AddressId: {AddressId}, PhoneNumberId: {PhoneNumberId}",
+                        request.AddressId, request.PhoneNumberId);
+                    throw new Exception(errorMessage);
                 }
 
                 // 2. Try to send email
@@ -78,25 +86,30 @@ public class ConvertCartToOrderCommand : IRequest<ConvertCartToOrderCommandRespo
                         orderDto.OrderItems,
                         orderDto.TotalPrice
                     );
-                    
+
                     // Email sent successfully
                     emailSent = true;
-                    _logger.LogInformation("Order confirmation email was successfully sent. OrderId: {OrderId}", orderDto.OrderId);
+                    _logger.LogInformation("Order confirmation email was successfully sent. OrderId: {OrderId}",
+                        orderDto.OrderId);
                 }
                 catch (Exception mailEx)
                 {
-                    _logger.LogError(mailEx, "Order confirmation email could not be sent. OrderId: {OrderId}. Canceling the order.", orderDto.OrderId);
-                    
+                    _logger.LogError(mailEx,
+                        "Order confirmation email could not be sent. OrderId: {OrderId}. Canceling the order.",
+                        orderDto.OrderId);
+
                     // If email sending fails, roll back the order
                     var cancelResult = await _orderRepository.CancelOrderAsync(orderDto.OrderId);
-                    
+
                     if (!cancelResult)
                     {
                         _logger.LogError("Order could not be canceled. OrderId: {OrderId}", orderDto.OrderId);
                     }
-                    
+
                     // Throw a custom error to inform the user
-                    throw new Exception("The transaction was canceled because the order confirmation email could not be sent. Please try again later or contact customer service.", mailEx);
+                    throw new Exception(
+                        "The transaction was canceled because the order confirmation email could not be sent. Please try again later or contact customer service.",
+                        mailEx);
                 }
 
                 // 3. Save the Event to Outbox

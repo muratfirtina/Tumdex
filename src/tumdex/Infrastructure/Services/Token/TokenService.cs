@@ -2,7 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Application.Abstraction.Services.Tokens;
 using Application.Abstraction.Services.Utilities;
-using Application.Features.Users.Commands.ActivationCode.ActivationUrlToken;
+using Application.Features.Tokens.Command.ActivationCode.ActivationUrlToken;
 using Domain.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
@@ -244,6 +244,9 @@ public class TokenService : ITokenService
         return await VerifySecureTokenAsync(userId, resetToken, "PasswordReset");
     }
 
+    /// <summary>
+    /// Generates an email activation code for a user
+    /// </summary>
     public async Task<string> GenerateActivationCodeAsync(string userId)
     {
         // 6 haneli rastgele bir kod oluştur
@@ -257,138 +260,84 @@ public class TokenService : ITokenService
             AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
         };
 
-        // Kod oluşturma zamanını da sakla (hız sınırlama ve yeniden oluşturma için)
+        // Kod oluşturma zamanını da sakla
         var codeData = new
         {
             Code = activationCode,
             CreatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            AttemptCount = 0
+            AttemptCount = 0,
+            EmailStatus = "pending" // Yeni: E-posta durumunu izle
         };
 
         // JSON olarak serialize et ve önbelleğe al
         string codeJson = JsonSerializer.Serialize(codeData);
         await _cache.SetStringAsync(cacheKey, codeJson, options);
-
+    
+        _logger.LogInformation("Aktivasyon kodu oluşturuldu: UserId={UserId}, Kod={Code}", userId, activationCode);
+    
         return activationCode;
     }
     
     public async Task<bool> VerifyActivationCodeAsync(string userId, string code)
-    {
-        var cacheKey = $"email_activation_code_{userId}";
-        var storedCodeData = await _cache.GetStringAsync(cacheKey);
+{
+    var cacheKey = $"email_activation_code_{userId}";
+    var storedCodeData = await _cache.GetStringAsync(cacheKey);
 
-        if (string.IsNullOrEmpty(storedCodeData))
+    _logger.LogInformation("Verifying activation code: UserId={UserId}, InputCode={Code}, HasCachedCode={HasCode}", 
+                          userId, code, !string.IsNullOrEmpty(storedCodeData));
+
+    if (string.IsNullOrEmpty(storedCodeData))
+    {
+        _logger.LogWarning("Aktivasyon kodu bulunamadı: {UserId}", userId);
+        return false;
+    }
+
+    try
+    {
+        // JSON verisini parse et
+        var codeInfo = JsonSerializer.Deserialize<JsonElement>(storedCodeData);
+        var storedCode = codeInfo.GetProperty("Code").GetString();
+
+        _logger.LogInformation("Comparing codes: Input={InputCode}, Stored={StoredCode}", code, storedCode);
+
+        if (storedCode != code)
         {
-            _logger.LogWarning("Aktivasyon kodu bulunamadı: {UserId}", userId);
+            _logger.LogWarning("Geçersiz aktivasyon kodu denemesi: {UserId}", userId);
             return false;
         }
 
-        try
+        // Kod doğru, kullanıcıyı güncelle
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null)
         {
-            // JSON verisini parse et
-            var codeInfo = JsonSerializer.Deserialize<JsonElement>(storedCodeData);
-            var storedCode = codeInfo.GetProperty("Code").GetString();
-            
-            if (storedCode != code)
-            {
-                _logger.LogWarning("Geçersiz aktivasyon kodu denemesi: {UserId}", userId);
-                return false;
-            }
-
-            // Kod doğru, kullanıcıyı güncelle
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null)
-            {
-                _logger.LogWarning("Kullanıcı bulunamadı: {UserId}", userId);
-                return false;
-            }
-
-            // Kullanıcıyı güncelle
-            user.EmailConfirmed = true;
-            var result = await _userManager.UpdateAsync(user);
-
-            if (result.Succeeded)
-            {
-                // Kodu önbellekten kaldır
-                await _cache.RemoveAsync(cacheKey);
-                _logger.LogInformation("E-posta başarıyla doğrulandı: {UserId}, {Email}", userId, user.Email);
-                return true;
-            }
-            else
-            {
-                _logger.LogError("Kullanıcı güncellenemedi: {UserId}, {Errors}", userId, string.Join(", ", result.Errors.Select(e => e.Description)));
-                return false;
-            }
+            _logger.LogWarning("Kullanıcı bulunamadı: {UserId}", userId);
+            return false;
         }
-        catch (Exception ex)
+
+        // Kullanıcıyı güncelle
+        user.EmailConfirmed = true;
+        var result = await _userManager.UpdateAsync(user);
+
+        if (result.Succeeded)
         {
-            _logger.LogError(ex, "E-posta doğrulama hatası: {UserId}", userId);
+            // Kodu önbellekten kaldır
+            await _cache.RemoveAsync(cacheKey);
+            _logger.LogInformation("E-posta başarıyla doğrulandı: {UserId}, {Email}", userId, user.Email);
+            return true;
+        }
+        else
+        {
+            _logger.LogError("Kullanıcı güncellenemedi: {UserId}, {Errors}", userId,
+                string.Join(", ", result.Errors.Select(e => e.Description)));
             return false;
         }
     }
-
-
-    /*public async Task<bool> VerifyActivationCodeAsync(string userId, string code)
+    catch (Exception ex)
     {
-        var cacheKey = $"email_activation_code_{userId}";
-        var storedCodeData = await _cache.GetStringAsync(cacheKey);
-
-        // Logger'ı _userManager aracılığıyla kullanmak için
-        var loggerFactory = _httpContextAccessor.HttpContext?
-            .RequestServices.GetService(typeof(ILoggerFactory)) as ILoggerFactory;
-        var logger = loggerFactory?.CreateLogger<UserService>();
-
-        if (string.IsNullOrEmpty(storedCodeData))
-        {
-            logger?.LogWarning("Aktivasyon kodu bulunamadı: {UserId}", userId);
-            return false;
-        }
-
-        try
-        {
-            // JSON verisini parse et
-            var codeInfo = JsonSerializer.Deserialize<JsonElement>(storedCodeData);
-            var storedCode = codeInfo.GetProperty("Code").GetString();
-
-            if (storedCode != code)
-            {
-                logger?.LogWarning("Geçersiz aktivasyon kodu denemesi: {UserId}", userId);
-                return false;
-            }
-
-            // Kod doğru, kullanıcıyı güncelle
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null)
-            {
-                logger?.LogWarning("Kullanıcı bulunamadı: {UserId}", userId);
-                return false;
-            }
-
-            // Kullanıcıyı güncelle
-            user.EmailConfirmed = true;
-            var result = await _userManager.UpdateAsync(user);
-
-            if (result.Succeeded)
-            {
-                // Kodu önbellekten kaldır
-                await _cache.RemoveAsync(cacheKey);
-                logger?.LogInformation("E-posta başarıyla doğrulandı: {UserId}, {Email}", userId, user.Email);
-                return true;
-            }
-            else
-            {
-                logger?.LogError("Kullanıcı güncellenemedi: {UserId}, {Errors}", userId,
-                    string.Join(", ", result.Errors.Select(e => e.Description)));
-                return false;
-            }
-        }
-        catch (Exception ex)
-        {
-            logger?.LogError(ex, "E-posta doğrulama hatası: {UserId}", userId);
-            return false;
-        }
-    }*/
-
+        _logger.LogError(ex, "E-posta doğrulama hatası: {UserId}", userId);
+        return false;
+    }
+}
     public async Task<string> GenerateActivationUrlAsync(string userId, string email)
     {
         // Client URL'ini yapılandırmadan al

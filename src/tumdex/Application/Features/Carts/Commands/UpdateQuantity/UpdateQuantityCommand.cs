@@ -8,7 +8,7 @@ using MediatR;
 
 namespace Application.Features.Carts.Commands.UpdateQuantity;
 
-public class UpdateQuantityCommand : IRequest<UpdateQuantityResponse>, ICacheRemoverRequest
+public class UpdateQuantityCommand : IRequest<UpdateQuantityResponse>
 {
     public string CartItemId { get; set; }
     public int Quantity { get; set; }

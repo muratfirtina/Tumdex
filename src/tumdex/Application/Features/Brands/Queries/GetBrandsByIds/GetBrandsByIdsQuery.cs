@@ -18,7 +18,9 @@ namespace Application.Features.Brands.Queries.GetBrandsByIds;
 public class GetBrandsByIdsQuery : IRequest<GetListResponse<GetBrandsByIdsQueryResponse>>, ICachableRequest
 {
     public List<string> Ids { get; set; }
-    public string CacheKey => $"GetBrandsByIdsQuery({string.Join(",", Ids)})";
+    
+    // More descriptive cache key with IDs
+    public string CacheKey => $"Brands-ByIds-{string.Join(",", Ids)}";
     public bool BypassCache => false;
     public string? CacheGroupKey => CacheGroups.GetAll;
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(30);

@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Application.Features.Carts.Commands.UpdateCartItem;
 
-public class UpdateCartItemCommand : IRequest<UpdateCartItemResponse>, ICacheRemoverRequest
+public class UpdateCartItemCommand : IRequest<UpdateCartItemResponse>
 {
     public string CartItemId { get; set; }
     public bool IsChecked { get; set; } = true;

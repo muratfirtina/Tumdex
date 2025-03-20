@@ -53,7 +53,7 @@ public class StockUpdatedEventConsumer : IConsumer<StockUpdatedEvent>
                 throw new ThrottlingException("Stock update is currently throttled");
             }
 
-            _logger.LogInformation("Processing stock update for ProductId: {ProductId}, NewStock: {NewStock}", 
+            _logger.LogInformation("Processing stock update for ProductId: {ProductId}, NewStock: {NewStock}",
                 stockEvent.ProductId, stockEvent.NewStock);
 
             // API metriği kaydet
@@ -130,7 +130,7 @@ public class StockUpdatedEventConsumer : IConsumer<StockUpdatedEvent>
             // Stok değişim yüzdesini hesapla
             var oldStockDecimal = (decimal)oldStock;
             var newStockDecimal = (decimal)stockEvent.NewStock;
-            var stockChangePercentage = oldStockDecimal != 0 
+            var stockChangePercentage = oldStockDecimal != 0
                 ? Math.Abs(((newStockDecimal - oldStockDecimal) / oldStockDecimal) * 100)
                 : 100;
 
@@ -173,7 +173,7 @@ public class StockUpdatedEventConsumer : IConsumer<StockUpdatedEvent>
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing stock update for ProductId: {ProductId}", 
+            _logger.LogError(ex, "Error processing stock update for ProductId: {ProductId}",
                 stockEvent.ProductId);
 
             _metricsService.IncrementAlertCounter("stock_update_error", new Dictionary<string, string>

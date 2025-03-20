@@ -15,10 +15,10 @@ public static class LoggingConfiguration
         // Key Vault'tan loglama ayarlarını al
         var seqServerUrl = builder.Configuration.GetSecretFromKeyVault("SeqServerUrl");
         var seqApiKey = builder.Configuration.GetSecretFromKeyVault("SeqApiKey");
-        
+
         // Minimum log seviyesini yapılandırmadan al veya varsayılan değeri kullan
         var minimumLevel = builder.Configuration.GetValue<string>("Serilog:MinimumLevel:Default")
-            ?.ToLower() switch
+                ?.ToLower() switch
             {
                 "debug" => LogEventLevel.Debug,
                 "error" => LogEventLevel.Error,
@@ -103,20 +103,20 @@ public static class LoggingConfiguration
             .WriteTo.Console()
             .CreateLogger();
     }
-    
+
     public static IApplicationBuilder UseCustomRequestLogging(this IApplicationBuilder app)
     {
         app.UseSerilogRequestLogging(options =>
         {
-            options.MessageTemplate = 
+            options.MessageTemplate =
                 "[{Timestamp:HH:mm:ss} {Level:u3}] HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000}ms";
-        
+
             options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
             {
                 diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
                 diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
                 diagnosticContext.Set("RemoteIpAddress", httpContext.Connection.RemoteIpAddress);
-            
+
                 // Kullanıcı bilgilerini ekle
                 if (httpContext.User?.Identity?.IsAuthenticated == true)
                 {

@@ -1,3 +1,4 @@
+using Application.Consts;
 using Application.Repositories;
 using AutoMapper;
 using Core.Application.Pipelines.Caching;
@@ -11,7 +12,7 @@ public class GetListPhoneNumberQuery : IRequest<GetListResponse<GetListPhoneNumb
     
     public string CacheKey => "GetListPhoneNumberQuery()";
     public bool BypassCache => false;
-    public string? CacheGroupKey => "PhoneNumbers";
+    public string CacheGroupKey => CacheGroups.PhoneNumbers;
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(5);
     public class GetListPhoneNumberQueryHandler : IRequestHandler<GetListPhoneNumberQuery, GetListResponse<GetListPhoneNumberQueryResponse>>
     {

@@ -9,10 +9,10 @@ using MediatR;
 
 namespace Application.Features.Categories.Commands.Delete;
 
-public class DeleteCategoryCommand : IRequest<DeletedCategoryResponse>,ICacheRemoverRequest
+public class DeleteCategoryCommand : IRequest<DeletedCategoryResponse>, ICacheRemoverRequest
 {
     public string Id { get; set; }
-    public string CacheKey => "";
+    public string CacheKey => $"Category-{Id}";
     public bool BypassCache => false;
     public string? CacheGroupKey => CacheGroups.GetAll;
     

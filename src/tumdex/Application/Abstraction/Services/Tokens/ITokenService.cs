@@ -1,4 +1,4 @@
-using Application.Features.Users.Commands.ActivationCode.ActivationUrlToken;
+using Application.Features.Tokens.Command.ActivationCode.ActivationUrlToken;
 
 namespace Application.Abstraction.Services.Tokens;
 

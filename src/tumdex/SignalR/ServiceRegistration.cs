@@ -17,9 +17,6 @@ public static class ServiceRegistration
                 options.KeepAliveInterval = TimeSpan.FromSeconds(15);
                 options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
             })
-            .AddJsonProtocol(options =>
-            {
-                options.PayloadSerializerOptions.PropertyNamingPolicy = null;
-            });
+            .AddJsonProtocol(options => { options.PayloadSerializerOptions.PropertyNamingPolicy = null; });
     }
 }

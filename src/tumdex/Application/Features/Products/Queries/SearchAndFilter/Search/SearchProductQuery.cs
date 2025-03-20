@@ -20,7 +20,9 @@ public class SearchProductQuery : IRequest<SearchResponse>, ICachableRequest
 {
     public string SearchTerm { get; set; }
     public PageRequest PageRequest { get; set; }
-    public string CacheKey => $"SearchProductQuery_{SearchTerm}_{PageRequest.PageIndex}_{PageRequest.PageSize}";
+    
+    // More descriptive cache key with search term and pagination info
+    public string CacheKey => $"Products-Search-{SearchTerm ?? "all"}-Page{PageRequest.PageIndex}-Size{PageRequest.PageSize}";
     public bool BypassCache => false;
     public string? CacheGroupKey => CacheGroups.GetAll;
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(2);
@@ -71,4 +73,3 @@ public class SearchProductQuery : IRequest<SearchResponse>, ICachableRequest
         }
     }
 }
-    

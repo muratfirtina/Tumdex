@@ -3,13 +3,19 @@ using MediatR;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Application.Consts;
+using Core.Application.Pipelines.Caching;
 using Core.Application.Pipelines.Transaction;
 
 namespace Application.Features.OrderItems.Commands.Delete
 {
-    public class DeleteOrderItemCommand : IRequest<bool>,ITransactionalRequest
+    public class DeleteOrderItemCommand : IRequest<bool>,ITransactionalRequest,ICacheRemoverRequest
     {
         public string Id { get; set; }  // Silinecek OrderItem ID'si
+
+        public string CacheKey => "";
+        public bool BypassCache => false;
+        public string CacheGroupKey => CacheGroups.Orders;
 
         public class DeleteOrderItemCommandHandler : IRequestHandler<DeleteOrderItemCommand, bool>
         {

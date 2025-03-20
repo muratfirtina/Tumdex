@@ -38,7 +38,8 @@ namespace Infrastructure.Consumers
                     // E-posta zaten gönderilmişse, gönderme
                     if (order.EmailSent)
                     {
-                        _logger.LogInformation($"Email was already sent for order {order.OrderId}, skipping email sending");
+                        _logger.LogInformation(
+                            $"Email was already sent for order {order.OrderId}, skipping email sending");
                     }
                     else
                     {

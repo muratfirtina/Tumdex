@@ -25,7 +25,7 @@ public class EnhancedMetricsMiddleware
     public async Task InvokeAsync(HttpContext context)
     {
         var sw = Stopwatch.StartNew();
-        
+
         try
         {
             await _next(context);
@@ -34,14 +34,14 @@ public class EnhancedMetricsMiddleware
         {
             sw.Stop();
             var duration = sw.ElapsedMilliseconds;
-            
+
             var path = context.Request.Path.Value;
             var method = context.Request.Method;
-            
+
             _metrics.RecordRequestDuration(method, path, duration);
             _metrics.IncrementTotalRequests(
-                method, 
-                path, 
+                method,
+                path,
                 context.Response.StatusCode.ToString()
             );
 

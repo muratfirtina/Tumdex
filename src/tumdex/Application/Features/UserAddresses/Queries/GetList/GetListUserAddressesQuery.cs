@@ -1,3 +1,4 @@
+using Application.Consts;
 using Application.Features.UserAddresses.Dtos;
 using Application.Repositories;
 using AutoMapper;
@@ -7,8 +8,12 @@ using MediatR;
 
 namespace Application.Features.UserAddresses.Queries.GetList;
 
-public class GetListUserAddressesQuery : IRequest<GetListResponse<GetListUserAdressesQueryResponse>>
-{
+public class GetListUserAddressesQuery : IRequest<GetListResponse<GetListUserAdressesQueryResponse>>,ICachableRequest
+{ 
+    public string CacheKey => "GetListUserAddressesQuery()";
+    public bool BypassCache { get; }
+    public string? CacheGroupKey => CacheGroups.UserAddress;
+    public TimeSpan? SlidingExpiration { get; }
 
     public class GetListUserAddressesQueryHandler : IRequestHandler<GetListUserAddressesQuery, GetListResponse<GetListUserAdressesQueryResponse>>
     {
@@ -29,4 +34,6 @@ public class GetListUserAddressesQuery : IRequest<GetListResponse<GetListUserAdr
         }
         
     }
+
+
 }

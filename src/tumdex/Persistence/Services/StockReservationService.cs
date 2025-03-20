@@ -24,71 +24,71 @@ public class StockReservationService : IStockReservationService
     }
 
     public async Task<bool> CreateReservationAsync(string productId, string cartItemId, int quantity)
-{
-    using var transaction = await _reservationRepository.BeginTransactionAsync();
-    try
     {
-        var product = await _productRepository.GetAsync(p => p.Id == productId);
-        if (product == null)
+        using var transaction = await _reservationRepository.BeginTransactionAsync();
+        try
         {
-            _logger.LogWarning($"Product not found during reservation: {productId}");
-            return false;
-        }
-
-        var existingReservation = await _reservationRepository.GetAsync(
-            r => r.CartItemId == cartItemId && r.IsActive);
-
-        var totalReserved = await GetReservedQuantityAsync(productId);
-        var availableStock = product.Stock - totalReserved + (existingReservation?.Quantity ?? 0);
-
-        if (availableStock < quantity)
-        {
-            _logger.LogWarning(
-                $"Insufficient stock for reservation. Product: {productId}, Requested: {quantity}, Available: {availableStock}");
-            return false;
-        }
-
-        if (existingReservation != null)
-        {
-            // Update stock, keeping original ExpirationTime
-            product.Stock += (existingReservation.Quantity - quantity);
-            await _productRepository.UpdateAsync(product);
-
-            existingReservation.Quantity = quantity;
-            await _reservationRepository.UpdateAsync(existingReservation);
-
-            _logger.LogInformation(
-                $"Stock reservation updated. Product: {productId}, CartItem: {cartItemId}, Quantity: {quantity}");
-        }
-        else
-        {
-            var reservation = new StockReservation
+            var product = await _productRepository.GetAsync(p => p.Id == productId);
+            if (product == null)
             {
-                ProductId = productId,
-                CartItemId = cartItemId,
-                Quantity = quantity,
-                ExpirationTime = DateTime.UtcNow.AddMinutes(RESERVATION_MINUTES),
-                IsActive = true
-            };
-            await _reservationRepository.AddAsync(reservation);
+                _logger.LogWarning($"Product not found during reservation: {productId}");
+                return false;
+            }
 
-            product.Stock -= quantity;
-            await _productRepository.UpdateAsync(product);
+            var existingReservation = await _reservationRepository.GetAsync(
+                r => r.CartItemId == cartItemId && r.IsActive);
 
-            _logger.LogInformation(
-                $"Stock reservation created. Product: {productId}, CartItem: {cartItemId}, Quantity: {quantity}");
+            var totalReserved = await GetReservedQuantityAsync(productId);
+            var availableStock = product.Stock - totalReserved + (existingReservation?.Quantity ?? 0);
+
+            if (availableStock < quantity)
+            {
+                _logger.LogWarning(
+                    $"Insufficient stock for reservation. Product: {productId}, Requested: {quantity}, Available: {availableStock}");
+                return false;
+            }
+
+            if (existingReservation != null)
+            {
+                // Update stock, keeping original ExpirationTime
+                product.Stock += (existingReservation.Quantity - quantity);
+                await _productRepository.UpdateAsync(product);
+
+                existingReservation.Quantity = quantity;
+                await _reservationRepository.UpdateAsync(existingReservation);
+
+                _logger.LogInformation(
+                    $"Stock reservation updated. Product: {productId}, CartItem: {cartItemId}, Quantity: {quantity}");
+            }
+            else
+            {
+                var reservation = new StockReservation
+                {
+                    ProductId = productId,
+                    CartItemId = cartItemId,
+                    Quantity = quantity,
+                    ExpirationTime = DateTime.UtcNow.AddMinutes(RESERVATION_MINUTES),
+                    IsActive = true
+                };
+                await _reservationRepository.AddAsync(reservation);
+
+                product.Stock -= quantity;
+                await _productRepository.UpdateAsync(product);
+
+                _logger.LogInformation(
+                    $"Stock reservation created. Product: {productId}, CartItem: {cartItemId}, Quantity: {quantity}");
+            }
+
+            await transaction.CommitAsync();
+            return true;
         }
-
-        await transaction.CommitAsync();
-        return true;
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            _logger.LogError(ex, $"Error creating stock reservation. Product: {productId}, CartItem: {cartItemId}");
+            return false;
+        }
     }
-    catch (Exception ex)
-    {
-        await transaction.RollbackAsync();
-        _logger.LogError(ex, $"Error creating stock reservation. Product: {productId}, CartItem: {cartItemId}");
-        return false;
-    }
-}
 
 
     public async Task<bool> ReleaseReservationAsync(string cartItemId)

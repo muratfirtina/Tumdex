@@ -1,4 +1,5 @@
 // Persistence/Services/DatabaseMigrationService.cs
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -28,7 +29,7 @@ public class DatabaseMigrationService : IHostedService
         try
         {
             _logger.LogInformation("Veritabanı migration ve seeding işlemleri başlatılıyor...");
-            
+
             using var scope = _serviceProvider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<TumdexDbContext>();
 

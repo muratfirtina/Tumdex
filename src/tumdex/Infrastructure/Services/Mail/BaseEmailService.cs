@@ -280,13 +280,13 @@ public abstract class BaseEmailService : IEmailService
             if (!string.IsNullOrEmpty(companyLinkedIn))
             {
                 sb.AppendLine($@"<a href='{companyLinkedIn}' style='margin: 0 10px; text-decoration: none;'>
-                    <img src='{clientUrl}/assets/icons/linkedin.png' alt='LinkedIn' style='width: 24px; height: 24px;' />
+                    <img src='{clientUrl}/assets/icons/linkedinlogo.png' alt='LinkedIn' style='width: 24px; height: 24px;' />
                 </a>");
             }
             if (!string.IsNullOrEmpty(companyWhatsapp))
             {
                 sb.AppendLine($@"<a href='{companyWhatsapp}' style='margin: 0 10px; text-decoration: none;'>
-                    <img src='{clientUrl}/assets/icons/whatsapp.webp' alt='WhatsApp' style='width: 24px; height: 24px;' />
+                    <img src='{clientUrl}/assets/icons/whatsapplogo.png' alt='WhatsApp' style='width: 24px; height: 24px;' />
                 </a>");
             }
             sb.AppendLine("</div>");
@@ -297,7 +297,7 @@ public abstract class BaseEmailService : IEmailService
                 <p>{companyName}</p>
                 <p>{companyAddress}</p>
                 <p>Tel: {companyPhone} | Email: {companyEmail}</p>
-                <p>&copy; {DateTime.Now.Year} {companyName}. All rights reserved.</p>
+                <p>&copy; {DateTime.Now.Year} {companyName} All rights reserved.</p>
             </div>");
         }
         catch (Exception ex)

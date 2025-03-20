@@ -1,9 +1,11 @@
 using System.Reflection;
+using Application.Abstraction.Helpers;
 using Core.Application.Pipelines.Caching;
 using Core.Application.Pipelines.Transaction;
 using Core.Application.Rules;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using Application.Services;
 
 namespace Application;
 
@@ -17,15 +19,17 @@ public static class ServiceRegistration
             configuration.AddOpenBehavior(typeof(TransactionScopeBehavior<,>));
             configuration.AddOpenBehavior(typeof(CachingBehavior<,>));
             configuration.AddOpenBehavior(typeof(CacheRemovingBehavior<,>));
-
         });
-        services.AddAutoMapper(Assembly.GetExecutingAssembly());
         
+        services.AddAutoMapper(Assembly.GetExecutingAssembly());
         services.AddSubClassesOfType(Assembly.GetExecutingAssembly(), typeof(BaseBusinessRules));
-       
+        
+        // Add caching generator services
+        services.AddScoped<ICacheKeyGenerator, UserBasedCacheKeyGenerator>();
         
         return services;
     }
+    
     public static IServiceCollection AddSubClassesOfType(
         this IServiceCollection services,
         Assembly assembly,

@@ -12,10 +12,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Application.Features.Brands.Queries.GetById;
 
-public class GetByIdBrandQuery : IRequest<GetByIdBrandResponse>,ICachableRequest
+public class GetByIdBrandQuery : IRequest<GetByIdBrandResponse>, ICachableRequest
 {
     public string Id { get; set; }
-    public string CacheKey => $"GetByIdBrandQuery({Id})";
+    
+    // Specific cache key with ID
+    public string CacheKey => $"Brand-{Id}";
     public bool BypassCache => false;
     public string? CacheGroupKey => CacheGroups.GetAll;
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(30);
@@ -56,7 +58,6 @@ public class GetByIdBrandQuery : IRequest<GetByIdBrandResponse>,ICachableRequest
                 }
             }
             
-
             return response;
         }
     }

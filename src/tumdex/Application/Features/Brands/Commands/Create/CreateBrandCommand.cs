@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Application.Features.Brands.Commands.Create;
 
-public class CreateBrandCommand : IRequest<CreatedBrandResponse>, ITransactionalRequest,ICacheRemoverRequest
+public class CreateBrandCommand : IRequest<CreatedBrandResponse>, ITransactionalRequest, ICacheRemoverRequest
 {
     public string Name { get; set; }
     public List<IFormFile>? BrandImage { get; set; }
@@ -88,5 +88,4 @@ public class CreateBrandCommand : IRequest<CreatedBrandResponse>, ITransactional
             }
         }
     }
-    
 }

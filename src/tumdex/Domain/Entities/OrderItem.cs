@@ -8,7 +8,7 @@ public class OrderItem : Entity<string>
     public Order Order { get; set; } // İlgili sipariş
     public string ProductId { get; set; } // Sipariş edilen ürün
     public Product Product { get; set; }
-    public int Quantity { get; set; } // Sipariş edilen miktar
+    public int? Quantity { get; set; } // Sipariş edilen miktar
     public bool IsChecked { get; set; } // Ürünün seçili olup olmadığı
     public decimal? Price { get; set; } // Sabitlenen fiyat
     public string? ProductName { get; set; } // Ürün adı

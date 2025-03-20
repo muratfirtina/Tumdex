@@ -10,12 +10,19 @@ using MediatR;
 
 namespace Application.Features.Carts.Queries.GetList;
 
-public class GetCartItemsQuery : IRequest<List<GetCartItemsQueryResponse>>,ICachableRequest
+// GetCartItemsQuery - Yeni yapıya uygun olarak düzenlenmiş
+public class GetCartItemsQuery : IRequest<List<GetCartItemsQueryResponse>>
 {
-    public string CacheKey => "";
-    public bool BypassCache { get; }
+    // Sabit bir CacheKey kullanıyoruz - UserBasedCacheKeyGenerator kullanıcı ID'sini ekleyecek
+    public string CacheKey => "CartItems";
+    
+    public bool BypassCache => false;
+    
+    // CacheGroupKey olarak yine sabit bir değer
     public string? CacheGroupKey => "Carts";
+    
     public TimeSpan? SlidingExpiration { get; } = TimeSpan.FromMinutes(30);
+    
     public class GetCartItemsQueryHandler : IRequestHandler<GetCartItemsQuery, List<GetCartItemsQueryResponse>>
     {
         private readonly ICartService _cartService;

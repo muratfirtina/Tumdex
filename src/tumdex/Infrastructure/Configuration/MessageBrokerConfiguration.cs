@@ -1,4 +1,5 @@
 using Infrastructure.Consumers;
+using Infrastructure.Consumers.EmailConsumers;
 using MassTransit;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -46,6 +47,7 @@ public static class MessageBrokerConfiguration
 
         return services;
     }
+    
 
     private static void RegisterConsumers(IBusRegistrationConfigurator configurator)
     {
@@ -54,28 +56,49 @@ public static class MessageBrokerConfiguration
         configurator.AddConsumer<CartUpdatedEventConsumer>();
         configurator.AddConsumer<StockUpdatedEventConsumer>();
         configurator.AddConsumer<OrderUpdatedEventConsumer>();
+        
+        configurator.AddConsumer<SendActivationCodeConsumer>();
+        configurator.AddConsumer<SendActivationEmailConsumer>();
     }
 
     private static void ConfigureDevelopmentEnvironment(
         IRabbitMqBusFactoryConfigurator cfg,
         IConfiguration configuration)
     {
-        // Development ortamı için bağlantı bilgileri
-        var host = configuration["RABBITMQ_HOST"] ?? "localhost";
-        var port = int.Parse(configuration["RABBITMQ_PORT"] ?? "5672");
-        var username = configuration["RABBITMQ_USERNAME"] ?? "admin";
-        var password = configuration["RABBITMQ_PASSWORD"] ?? "123456";
-        var vhost = configuration["RABBITMQ_VHOST"] ?? "/";
+        // Hem Development ortamında hem de Production ortamında Key Vault'tan bağlantı bilgilerini öncelikle deneyin
+        string host, vhost, username, password;
+        int port;
+
+        try
+        {
+            // Önce Key Vault'tan almayı dene
+            host = configuration.GetSecretFromKeyVault("RabbitMQHost");
+            port = int.Parse(configuration.GetSecretFromKeyVault("RabbitMQPort") ?? "5672");
+            username = configuration.GetSecretFromKeyVault("RabbitMQUsername");
+            password = configuration.GetSecretFromKeyVault("RabbitMQPassword");
+            vhost = configuration.GetSecretFromKeyVault("RabbitMQVHost") ?? "/";
+
+            if (string.IsNullOrEmpty(host) || string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+            {
+                throw new InvalidOperationException("Key Vault credentials are incomplete");
+            }
+        }
+        catch (Exception)
+        {
+            // Key Vault'tan alınamazsa yapılandırma dosyasından veya ortam değişkenlerinden al
+            host = configuration["RABBITMQ_HOST"] ?? "localhost";
+            port = int.Parse(configuration["RABBITMQ_PORT"] ?? "5672");
+            username = configuration["RABBITMQ_USERNAME"] ?? "admin";
+            password = configuration["RABBITMQ_PASSWORD"] ?? "123456";
+            vhost = configuration["RABBITMQ_VHOST"] ?? "/";
+        }
 
         // Host yapılandırması
         cfg.Host(new Uri($"rabbitmq://{host}:{port}/{vhost}"), h =>
-            {
-                h.Username(username);
-                h.Password(password);
-            });
-
-        // Genel endpoint yapılandırması
-        
+        {
+            h.Username(username);
+            h.Password(password);
+        });
     }
 
     private static void ConfigureProductionEnvironment(
@@ -86,13 +109,13 @@ public static class MessageBrokerConfiguration
         var host = configuration.GetSecretFromKeyVault("RabbitMQHost")
                    ?? throw new InvalidOperationException("RabbitMQ host not found");
         var port = int.Parse(configuration.GetSecretFromKeyVault("RabbitMQPort")
-                           ?? throw new InvalidOperationException("RabbitMQ port not found"));
+                             ?? throw new InvalidOperationException("RabbitMQ port not found"));
         var username = configuration.GetSecretFromKeyVault("RabbitMQUsername")
-                      ?? throw new InvalidOperationException("RabbitMQ username not found");
+                       ?? throw new InvalidOperationException("RabbitMQ username not found");
         var password = configuration.GetSecretFromKeyVault("RabbitMQPassword")
-                      ?? throw new InvalidOperationException("RabbitMQ password not found");
+                       ?? throw new InvalidOperationException("RabbitMQ password not found");
         var vhost = configuration.GetSecretFromKeyVault("RabbitMQVHost")
-                   ?? throw new InvalidOperationException("RabbitMQ vhost not found");
+                    ?? throw new InvalidOperationException("RabbitMQ vhost not found");
 
         // Host yapılandırması
         cfg.Host(new Uri($"rabbitmq://{host}:{port}/{vhost}"), h =>
@@ -100,9 +123,6 @@ public static class MessageBrokerConfiguration
             h.Username(username);
             h.Password(password);
         });
-
-        // Genel endpoint yapılandırması
-        
     }
 
     private static void ConfigureQueues(
@@ -136,26 +156,26 @@ public static class MessageBrokerConfiguration
             e.ConfigureConsumer<OrderUpdatedEventConsumer>(context);
             ConfigureEndpoint(e);
         });
+        
+        cfg.ReceiveEndpoint("email-activation-code-queue", e =>
+        {
+            e.ConfigureConsumer<SendActivationCodeConsumer>(context);
+            ConfigureEndpoint(e);
+            
+            // x-expires değerini doğrudan ayarla (milisaniye cinsinden)
+            e.SetQueueArgument("x-expires", 600000); // 10 dakika
+        });
+    
+        cfg.ReceiveEndpoint("email-resend-activation-code-queue", e =>
+        {
+            e.ConfigureConsumer<SendActivationEmailConsumer>(context);
+            ConfigureEndpoint(e);
+            
+            // x-expires değerini doğrudan ayarla (milisaniye cinsinden)
+            e.SetQueueArgument("x-expires", 600000); // 10 dakika
+        });
     }
 
-    /*private static void ConfigureEndpoint(IRabbitMqReceiveEndpointConfigurator endpoint)
-    {
-        // Yeniden deneme politikası yapılandırması
-        endpoint.UseMessageRetry(r => r
-            .Incremental(3, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2)));
-
-        // Performans optimizasyonu için prefetch count ayarı
-        endpoint.PrefetchCount = 16;
-
-        // Devre kesici (Circuit breaker) yapılandırması
-        endpoint.UseCircuitBreaker(cb =>
-        {
-            cb.TrackingPeriod = TimeSpan.FromMinutes(1);
-            cb.TripThreshold = 15;
-            cb.ActiveThreshold = 10;
-            cb.ResetInterval = TimeSpan.FromMinutes(5);
-        });
-    }*/
     private static void ConfigureEndpoint(IRabbitMqReceiveEndpointConfigurator endpoint)
     {
         // Yeniden deneme politikası
@@ -174,8 +194,9 @@ public static class MessageBrokerConfiguration
             cb.ResetInterval = TimeSpan.FromMinutes(5);
         });
 
-        // Kuyruk ömrü (TTL)
-        endpoint.QueueExpiration = TimeSpan.FromMinutes(10);
+        // Kuyruk ömrü (TTL) - QueueExpiration özelliği yerine x-expires kullan
+        // endpoint.QueueExpiration = TimeSpan.FromMinutes(10);
+        endpoint.SetQueueArgument("x-expires", 600000); // 10 dakika
 
         // Mesaj ömrü (Message TTL)
         endpoint.SetQueueArgument("x-message-ttl", 300000); // 5 dakika
@@ -194,8 +215,6 @@ public static class MessageBrokerConfiguration
 
         // Mesaj yeniden gönderme
         endpoint.UseDelayedRedelivery(r => r.Interval(3, TimeSpan.FromSeconds(10)));
-
-        
     }
 
     private static void ConfigureGlobalRetryPolicy(IRabbitMqBusFactoryConfigurator cfg)
@@ -203,6 +222,4 @@ public static class MessageBrokerConfiguration
         // Global yeniden deneme politikası
         cfg.UseMessageRetry(r => r.Immediate(5));
     }
-    
-    
 }

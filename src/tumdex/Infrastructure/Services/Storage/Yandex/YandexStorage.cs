@@ -21,7 +21,7 @@ public class YandexStorage : IYandexStorage
         IOptionsSnapshot<StorageSettings> storageSettings)
     {
         _storageSettings = storageSettings ?? throw new ArgumentNullException(nameof(storageSettings));
-        
+
         var yandexSettings = configuration.GetSection("Storage:Providers:Yandex").Get<YandexStorageSettings>();
         if (yandexSettings == null)
         {
@@ -45,18 +45,19 @@ public class YandexStorage : IYandexStorage
         _s3Client = new AmazonS3Client(credentials, config);
     }
 
-    public async Task<List<(string fileName, string path, string containerName, string url, string format)>> UploadFileToStorage(
-        string entityType,
-        string path,
-        string fileName,
-        MemoryStream fileStream)
+    public async Task<List<(string fileName, string path, string containerName, string url, string format)>>
+        UploadFileToStorage(
+            string entityType,
+            string path,
+            string fileName,
+            MemoryStream fileStream)
     {
         var results = new List<(string fileName, string path, string containerName, string url, string format)>();
-    
+
         try
         {
             var objectKey = $"{entityType}/{path}/{fileName}";
-        
+
             var putRequest = new PutObjectRequest
             {
                 BucketName = _bucketName,
@@ -65,7 +66,7 @@ public class YandexStorage : IYandexStorage
             };
 
             await _s3Client.PutObjectAsync(putRequest);
-        
+
             var format = Path.GetExtension(fileName).TrimStart('.').ToLower();
             var url = $"{_baseUrl}/{objectKey}";
             results.Add((fileName, path, entityType, url, format));
@@ -83,7 +84,7 @@ public class YandexStorage : IYandexStorage
         try
         {
             var objectKey = $"{entityType}/{path}/{fileName}";
-            
+
             var deleteRequest = new DeleteObjectRequest
             {
                 BucketName = _bucketName,
@@ -156,7 +157,7 @@ public class YandexStorage : IYandexStorage
 
     public string GetStorageUrl()
     {
-        return _storageSettings.Value.Providers.Yandex?.Url ?? 
+        return _storageSettings.Value.Providers.Yandex?.Url ??
                throw new InvalidOperationException("Yandex Storage URL is not configured");
     }
 }

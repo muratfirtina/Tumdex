@@ -1,21 +1,27 @@
+using Application.Consts;
 using Application.Features.UserAddresses.Dtos;
 using Application.Repositories;
 using AutoMapper;
 using Core.Application.Pipelines.Caching;
+using Core.Application.Pipelines.Transaction;
 using MediatR;
 
 namespace Application.Features.UserAddresses.Commands.Create;
 
-public class CreateUserAddressCommand : IRequest<CreatedUserAddressCommandResponse>
+public class CreateUserAddressCommand : IRequest<CreatedUserAddressCommandResponse>,ICacheRemoverRequest,ITransactionalRequest
 {
     public string Name { get; set; }
     public string AddressLine1 { get; set; }
     public string? AddressLine2 { get; set; }
-    public string City { get; set; }
-    public string? State { get; set; }
+    public int? CityId { get; set; }
+    public int? DistrictId { get; set; }
     public string? PostalCode { get; set; }
-    public string Country { get; set; }
+    public int? CountryId { get; set; }
     public bool IsDefault { get; set; }
+
+    public string CacheKey => "";
+    public bool BypassCache => false;
+    public string CacheGroupKey => CacheGroups.UserAddress;
     
     
     public class CreateUserAddressCommandHandler : IRequestHandler<CreateUserAddressCommand, CreatedUserAddressCommandResponse>

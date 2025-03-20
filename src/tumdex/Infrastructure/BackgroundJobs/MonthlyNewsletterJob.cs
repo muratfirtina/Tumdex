@@ -27,10 +27,10 @@ public class MonthlyNewsletterJob : IJob
         try
         {
             _logger.LogInformation("Monthly newsletter job started at {Time}", DateTime.UtcNow);
-            
+
             // Check if we're in the correct day of month to send the newsletter
             var sendDay = _configuration.GetValue<int>("Newsletter:SendTime:DayOfMonth", 5);
-            
+
             if (DateTime.UtcNow.Day == sendDay)
             {
                 _logger.LogInformation("Executing scheduled monthly newsletter sending");
@@ -39,14 +39,15 @@ public class MonthlyNewsletterJob : IJob
             }
             else
             {
-                _logger.LogInformation("Skipping newsletter send - current day {CurrentDay} doesn't match configured send day {SendDay}", 
+                _logger.LogInformation(
+                    "Skipping newsletter send - current day {CurrentDay} doesn't match configured send day {SendDay}",
                     DateTime.UtcNow.Day, sendDay);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send monthly newsletter");
-            
+
             // Re-throw the exception to let Quartz handle it according to retry policy
             throw;
         }

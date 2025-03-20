@@ -21,16 +21,16 @@ public class GoogleStorage : IGoogleStorage
     private readonly IConfiguration _configuration;
 
     public GoogleStorage(
-        IConfiguration configuration, 
+        IConfiguration configuration,
         IOptionsSnapshot<StorageSettings> storageSettings, SecretClient secretClient)
     {
         _configuration = configuration;
         _storageSettings = storageSettings ?? throw new ArgumentNullException(nameof(storageSettings));
         _secretClient = secretClient;
 
-        var keyVaultUri = Environment.GetEnvironmentVariable("AZURE_KEYVAULT_URI") ?? 
+        var keyVaultUri = Environment.GetEnvironmentVariable("AZURE_KEYVAULT_URI") ??
                           throw new InvalidOperationException("AZURE_KEYVAULT_URI not found");
-            
+
         var credential = new DefaultAzureCredential();
         _secretClient = new SecretClient(new Uri(keyVaultUri), credential);
 
@@ -41,22 +41,23 @@ public class GoogleStorage : IGoogleStorage
         var googleCredential = GoogleCredential.FromFile(credentialsPath);
         _storageClient = StorageClient.Create(googleCredential);
     }
-    
 
-    public async Task<List<(string fileName, string path, string containerName, string url, string format)>> UploadFileToStorage(
-        string entityType, 
-        string path, 
-        string fileName, 
-        MemoryStream fileStream)
+
+    public async Task<List<(string fileName, string path, string containerName, string url, string format)>>
+        UploadFileToStorage(
+            string entityType,
+            string path,
+            string fileName,
+            MemoryStream fileStream)
     {
         var results = new List<(string fileName, string path, string containerName, string url, string format)>();
         try
         {
             var objectName = $"{entityType}/{path}/{fileName}";
             await _storageClient.UploadObjectAsync(_bucketName, objectName, null, fileStream);
-        
+
             var format = Path.GetExtension(fileName).TrimStart('.').ToLower();
-            
+
             // Düzeltilmiş URL formatı
             var url = $"https://storage.googleapis.com/{_bucketName}/{objectName}";
             results.Add((fileName, path, entityType, url, format));
@@ -110,9 +111,9 @@ public class GoogleStorage : IGoogleStorage
         try
         {
             var objectName = $"{entityType}/{path}/{fileName}";
-            var obj = _storageClient.GetObject(_bucketName, objectName, new GetObjectOptions 
-            { 
-                Projection = Projection.NoAcl 
+            var obj = _storageClient.GetObject(_bucketName, objectName, new GetObjectOptions
+            {
+                Projection = Projection.NoAcl
             });
             return obj != null;
         }

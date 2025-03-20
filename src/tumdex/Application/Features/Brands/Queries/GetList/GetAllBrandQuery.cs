@@ -16,11 +16,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Application.Features.Brands.Queries.GetList;
 
-public class GetAllBrandQuery : IRequest<GetListResponse<GetAllBrandQueryResponse>>,ICachableRequest
+public class GetAllBrandQuery : IRequest<GetListResponse<GetAllBrandQueryResponse>>, ICachableRequest
 {
     public PageRequest PageRequest { get; set; }
     
-    public string CacheKey => $"GetListBrandQuery({PageRequest.PageIndex},{PageRequest.PageSize})";
+    // More descriptive cache key with pagination info
+    public string CacheKey => $"Brands-Page{PageRequest.PageIndex}-Size{PageRequest.PageSize}";
     public bool BypassCache => false;
     public string? CacheGroupKey => CacheGroups.GetAll;
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(30);
@@ -66,5 +67,4 @@ public class GetAllBrandQuery : IRequest<GetListResponse<GetAllBrandQueryRespons
             }
         }
     }
-    
 }

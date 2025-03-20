@@ -18,8 +18,7 @@ namespace Application.Features.Categories.Queries.GetMainCategories;
 public class GetMainCategoiesQuery : IRequest<GetListResponse<GetMainCategoriesResponse>>, ICachableRequest
 {
     public PageRequest PageRequest { get; set; }
-
-    public string CacheKey => $"GetMainCategoiesQuery*";
+    public string CacheKey => $"MainCategories-Page{PageRequest.PageIndex}-Size{PageRequest.PageSize}";
     public bool BypassCache { get; }
     public string? CacheGroupKey => CacheGroups.GetAll;
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(30);
@@ -78,7 +77,5 @@ public class GetMainCategoiesQuery : IRequest<GetListResponse<GetMainCategoriesR
                 return response;
             }
         }
-        
-        
     }
 }

@@ -13,7 +13,7 @@ public interface IAccountEmailService : IEmailService
     /// <summary>
     /// E-posta doğrulama e-postası gönderir.
     /// </summary>
-    Task SendEmailConfirmationAsync(string to, string userId, string confirmationToken);
+    //Task SendEmailConfirmationAsync(string to, string userId, string confirmationToken);
     
     Task SendEmailActivationCodeAsync(string to, string userId, string activationCode);
     Task ResendEmailActivationCodeAsync(string email, string activationCode);

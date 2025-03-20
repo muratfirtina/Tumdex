@@ -34,7 +34,7 @@ public class ImageSeoService : IImageSeoService
         _configuration = configuration;
         _imageFileRepository = imageFileRepository;
     }
-    
+
 
     public async Task<ImageProcessingResultDto> ProcessAndOptimizeImage(
         Stream imageStream,
@@ -86,7 +86,7 @@ public class ImageSeoService : IImageSeoService
             Description = options.Description,
             License = options.License,
             GeoLocation = options.GeoLocation,
-              Caption = options.Caption
+            Caption = options.Caption
         };
 
         return result;
@@ -104,12 +104,11 @@ public class ImageSeoService : IImageSeoService
         var height = dimensions.height == 0
             ? (int)((float)dimensions.width / originalBitmap.Width * originalBitmap.Height)
             : dimensions.height;
-        
-        
+
 
         using (var resizedBitmap = originalBitmap.Resize(
-            new SKImageInfo(dimensions.width, height),
-            SKFilterQuality.High))
+                   new SKImageInfo(dimensions.width, height),
+                   SKFilterQuality.High))
         {
             // AVIF versiyonu
             await CreateOptimizedVersion(resizedBitmap, fileName, size, "avif", result, true);
@@ -211,8 +210,10 @@ public class ImageSeoService : IImageSeoService
         var format = Path.GetExtension(fileName).TrimStart('.').ToLower();
         if (!_supportedFormats.Contains(format))
         {
-            throw new BusinessException($"Desteklenmeyen görsel formatı. Desteklenen formatlar: {string.Join(", ", _supportedFormats)}");
+            throw new BusinessException(
+                $"Desteklenmeyen görsel formatı. Desteklenen formatlar: {string.Join(", ", _supportedFormats)}");
         }
+
         try
         {
             await _fileNameService.FileMustBeInFileFormat(new FormFile(
@@ -264,56 +265,58 @@ public class ImageSeoService : IImageSeoService
         }
     }
 
-      private string GenerateProductJsonLd(ImageFile image)
+    private string GenerateProductJsonLd(ImageFile image)
+    {
+        var baseUrl = _configuration["WebAPIConfiguration:APIDomain:0"];
+        var jsonLd = new
         {
-            var baseUrl = _configuration["WebAPIConfiguration:APIDomain:0"];
-            var jsonLd = new
-            {
-                context = "https://schema.org",
-                type = "ImageObject",
-                url = image.Url,
-                name = image.Name,
-                description = image.Description,
-                 uploadDate = image.CreatedDate.ToString("yyyy-MM-dd"),
-                license = image.License,
-                caption= image.Caption,
-                
-                 encodingFormat = image.Format,
-                 width=image.Width,
-                 height = image.Height
-            };
-            return JsonConvert.SerializeObject(jsonLd, Formatting.Indented);
-        }
-        public async Task<string> GenerateImageSitemap()
+            context = "https://schema.org",
+            type = "ImageObject",
+            url = image.Url,
+            name = image.Name,
+            description = image.Description,
+            uploadDate = image.CreatedDate.ToString(),
+            license = image.License,
+            caption = image.Caption,
+
+            encodingFormat = image.Format,
+            width = image.Width,
+            height = image.Height
+        };
+        return JsonConvert.SerializeObject(jsonLd, Formatting.Indented);
+    }
+
+    public async Task<string> GenerateImageSitemap()
+    {
+        var baseUrl = _configuration["WebAPIConfiguration:APIDomain:0"];
+        var xmlns = "http://www.sitemaps.org/schemas/sitemap/0.9";
+        var xmlnsImage = "http://www.google.com/schemas/sitemap-image/1.1";
+
+        var sitemap = new XDocument(
+            new XDeclaration("1.0", "UTF-8", null),
+            new XElement(XName.Get("urlset", xmlns),
+                new XAttribute(XNamespace.Xmlns + "image", xmlnsImage)));
+
+        var images = await _imageFileRepository.GetAllAsync();
+        var imageNamespace = XNamespace.Get(xmlnsImage);
+
+        foreach (var image in images)
         {
-            var baseUrl = _configuration["WebAPIConfiguration:APIDomain:0"];
-            var xmlns = "http://www.sitemaps.org/schemas/sitemap/0.9";
-            var xmlnsImage = "http://www.google.com/schemas/sitemap-image/1.1";
-
-            var sitemap = new XDocument(
-                new XDeclaration("1.0", "UTF-8", null),
-                new XElement(XName.Get("urlset", xmlns),
-                    new XAttribute(XNamespace.Xmlns + "image", xmlnsImage)));
-
-            var images = await _imageFileRepository.GetAllAsync();
-            var imageNamespace = XNamespace.Get(xmlnsImage);
-
-            foreach (var image in images)
-            {
-                var url = new XElement("url",
-                    new XElement("loc", $"{baseUrl}/images/{image.Id}"),
-                    new XElement(imageNamespace + "image",
-                        new XElement(imageNamespace + "loc", image.Url),
-                        new XElement(imageNamespace + "title", image.Title ?? image.Name),
-                        new XElement(imageNamespace + "caption", image.Caption ?? image.Description),
-                        image.GeoLocation != null ? new XElement(imageNamespace + "geo_location", image.GeoLocation) : null,
-                        image.License != null ? new XElement(imageNamespace + "license", image.License) : null
-                    ),
-                    new XElement("lastmod", image.UpdatedDate?.ToString("yyyy-MM-dd") ?? DateTime.UtcNow.ToString("yyyy-MM-dd"))
-                );
-                sitemap.Root?.Add(url);
-            }
-
-            return sitemap.ToString();
+            var url = new XElement("url",
+                new XElement("loc", $"{baseUrl}/images/{image.Id}"),
+                new XElement(imageNamespace + "image",
+                    new XElement(imageNamespace + "loc", image.Url),
+                    new XElement(imageNamespace + "title", image.Title ?? image.Name),
+                    new XElement(imageNamespace + "caption", image.Caption ?? image.Description),
+                    image.GeoLocation != null ? new XElement(imageNamespace + "geo_location", image.GeoLocation) : null,
+                    image.License != null ? new XElement(imageNamespace + "license", image.License) : null
+                ),
+                new XElement("lastmod",
+                    image.UpdatedDate?.ToString("yyyy-MM-dd") ?? DateTime.UtcNow.ToString("yyyy-MM-dd"))
+            );
+            sitemap.Root?.Add(url);
         }
+
+        return sitemap.ToString();
+    }
 }

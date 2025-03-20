@@ -19,7 +19,7 @@ public class OrderHub : Hub
         IHttpContextAccessor httpContextAccessor)
     {
         _logger = logger;
-        _userService = userService; 
+        _userService = userService;
         _httpContextAccessor = httpContextAccessor;
     }
 
@@ -38,7 +38,7 @@ public class OrderHub : Hub
                     await Groups.AddToGroupAsync(Context.ConnectionId, "Admins");
                     _logger.LogInformation($"User {username} added to Admins group");
                 }
-                else 
+                else
                 {
                     _logger.LogWarning($"Non-admin user {username} attempted to connect");
                     throw new HubException("Only admin users can connect to this hub");
@@ -67,6 +67,7 @@ public class OrderHub : Hub
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, "Admins");
                 _logger.LogInformation($"User {user.Identity.Name} removed from Admins group");
             }
+
             await base.OnDisconnectedAsync(exception);
         }
         catch (Exception ex)

@@ -11,14 +11,14 @@ using Domain;
 using Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Application.Features.Categories.Queries.GetCategoriesByIds;
 
-public class GetCategoriesByIdsQuery : IRequest<GetListResponse<GetCategoriesByIdsQueryResponse>>,ICachableRequest
+public class GetCategoriesByIdsQuery : IRequest<GetListResponse<GetCategoriesByIdsQueryResponse>>, ICachableRequest
 {
     public List<string> Ids { get; set; }
-    
-    public string CacheKey => $"GetCategoriesByIdsQuery({string.Join(",",Ids)})";
+    public string CacheKey => $"Categories-ByIds-{string.Join(",",Ids)}";
     public bool BypassCache { get; }
     public string? CacheGroupKey => CacheGroups.GetAll;
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(30);
@@ -55,6 +55,5 @@ public class GetCategoriesByIdsQuery : IRequest<GetListResponse<GetCategoriesByI
             response.Items.SetImageUrls(_storageService);
             return response;
         }
-        
     }
 }

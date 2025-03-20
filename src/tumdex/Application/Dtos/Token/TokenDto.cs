@@ -7,7 +7,7 @@ public class TokenDto
     public DateTime AccessTokenExpiration { get; set; }
     public DateTime RefreshTokenExpiration { get; set; }
     public string UserId { get; set; } = string.Empty;
-    
+
     // Conversion method to simplify Token/TokenDto conversion
     public Token ToToken()
     {

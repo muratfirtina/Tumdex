@@ -14,7 +14,8 @@ public class SearchCategoryQuery : IRequest<GetListResponse<CategoryDto>>, ICach
 {
     public string SearchTerm { get; set; }
 
-    public string CacheKey => $"SearchCategoryQuery({SearchTerm})";
+    // More descriptive cache key with search term
+    public string CacheKey => $"Categories-Search-{SearchTerm}";
     public bool BypassCache { get; }
     public string? CacheGroupKey => CacheGroups.GetAll;
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(30);

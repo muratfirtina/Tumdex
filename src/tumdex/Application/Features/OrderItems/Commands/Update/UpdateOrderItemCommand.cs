@@ -4,17 +4,23 @@ using MediatR;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Application.Consts;
+using Core.Application.Pipelines.Caching;
 using Core.Application.Pipelines.Transaction;
 
 namespace Application.Features.OrderItems.Commands.Update
 {
-    public class UpdateOrderItemCommand : IRequest<bool>,ITransactionalRequest
+    public class UpdateOrderItemCommand : IRequest<bool>,ITransactionalRequest,ICacheRemoverRequest
     {
         public string Id { get; set; }  // OrderItem ID
         public int Quantity { get; set; }  // Güncellenecek miktar
         public decimal? Price { get; set; }  // Guncellenecek fiyat
         public int? LeadTime { get; set; }  // Güncellenecek lead time
         public decimal? UpdatedPrice { get; set; }  // Yeni fiyat
+
+        public string CacheKey => "";
+        public bool BypassCache => false;
+        public string CacheGroupKey => CacheGroups.Orders;
 
         public class UpdateOrderItemCommandHandler : IRequestHandler<UpdateOrderItemCommand, bool>
         {

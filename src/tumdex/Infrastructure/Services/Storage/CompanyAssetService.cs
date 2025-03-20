@@ -29,7 +29,7 @@ public class CompanyAssetService : ICompanyAssetService
             throw new ArgumentException("File size exceeds limit");
 
         var files = new List<IFormFile> { file };
-        
+
         try
         {
             var results = await _storageService.UploadAsync(
@@ -42,7 +42,8 @@ public class CompanyAssetService : ICompanyAssetService
             {
                 var uploadedFile = results.First();
                 // URL'i Cloudinary'nin beklediği formatta güncelle
-                var newUrl = $"{_storageService.GetStorageUrl()}//{uploadedFile.entityType}/{uploadedFile.path}/{uploadedFile.fileName}";
+                var newUrl =
+                    $"{_storageService.GetStorageUrl()}//{uploadedFile.entityType}/{uploadedFile.path}/{uploadedFile.fileName}";
                 return true;
             }
 

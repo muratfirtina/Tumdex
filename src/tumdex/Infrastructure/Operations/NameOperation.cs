@@ -137,5 +137,4 @@ public class NameOperation
             .Replace("$", "")
             .Replace("i\u0307", "i")
             .Replace("I\u0307", "i");
-
 }

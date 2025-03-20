@@ -1,5 +1,6 @@
 using Application.Abstraction.Services;
 using Application.Abstraction.Services.Configurations;
+using Application.Abstraction.Services.Messaging;
 using Application.Abstraction.Services.Tokens;
 using Application.Abstraction.Services.Utilities;
 using Application.Services;
@@ -9,6 +10,7 @@ using Application.Storage.Local;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 using Infrastructure.Configuration;
+using Infrastructure.Messaging;
 using Infrastructure.Services;
 using Infrastructure.Services.Cache;
 using Infrastructure.Services.Configurations;
@@ -61,6 +63,9 @@ public static class InfrastructureServiceRegistration
         // SEO servisleri
         services.AddScoped<IImageSeoService, ImageSeoService>();
         services.AddScoped<ISitemapService, SitemapService>();
+    
+        // IMessageBroker servisini kaydedelim
+        services.AddScoped<IMessageBroker, RabbitMqMessageBroker>();
 
         return services;
     }

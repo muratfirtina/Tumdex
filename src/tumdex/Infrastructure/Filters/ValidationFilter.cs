@@ -16,6 +16,7 @@ public class ValidationFilter : IAsyncActionFilter
             context.Result = new BadRequestObjectResult(context.ModelState);
             return;
         }
+
         await next();
     }
 }

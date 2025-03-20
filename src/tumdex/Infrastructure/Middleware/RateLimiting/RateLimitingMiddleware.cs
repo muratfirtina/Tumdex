@@ -39,12 +39,13 @@ public class RateLimitingMiddleware
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         _metrics = metrics ?? throw new ArgumentNullException(nameof(metrics));
         _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
-        
+
         var securitySettings = settings?.Value ?? throw new ArgumentNullException(nameof(settings));
-        _settings = securitySettings.RateLimitConfig ?? throw new ArgumentNullException("RateLimitConfig is not configured");
-        
+        _settings = securitySettings.RateLimitConfig ??
+                    throw new ArgumentNullException("RateLimitConfig is not configured");
+
         _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
-        
+
         _settings.MaxConcurrentRequests = _settings.MaxConcurrentRequests <= 0 ? 100 : _settings.MaxConcurrentRequests;
         _throttler = new SemaphoreSlim(_settings.MaxConcurrentRequests);
 
@@ -78,15 +79,15 @@ public class RateLimitingMiddleware
             var (isAllowed, currentCount, retryAfter) = await _rateLimiter.CheckRateLimitAsync(key);
 
             using (LogContext.PushProperty("RateLimitInfo", new
-            {
-                UserId = userId,
-                ClientIP = clientIp,
-                RequestCount = currentCount,
-                MaxRequests = _settings.RequestsPerHour,
-                Path = path,
-                IsAllowed = isAllowed,
-                WindowSize = _settings.WindowSizeInMinutes
-            }))
+                   {
+                       UserId = userId,
+                       ClientIP = clientIp,
+                       RequestCount = currentCount,
+                       MaxRequests = _settings.RequestsPerHour,
+                       Path = path,
+                       IsAllowed = isAllowed,
+                       WindowSize = _settings.WindowSizeInMinutes
+                   }))
             {
                 if (!isAllowed)
                 {
@@ -126,12 +127,12 @@ public class RateLimitingMiddleware
         ILogService logService)
     {
         var userId = context.User?.Identity?.Name ?? "anonymous";
-        
+
         _metrics.IncrementRateLimitHit(clientIp, path, userId);
 
         var requestHeaders = context.Request.Headers
             .ToDictionary(h => h.Key, h => h.Value.ToString());
-        
+
         await logService.CreateLogAsync(new SecurityLog
         {
             Timestamp = DateTime.UtcNow,
@@ -202,7 +203,7 @@ public class RateLimitingMiddleware
 
         context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         context.Response.ContentType = "application/json";
-        
+
         var response = new
         {
             error = "Server is busy. Please try again later.",

@@ -60,7 +60,7 @@ services:
     networks:
       - tumdexNetwork
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -92,7 +92,7 @@ services:
       - .env
   
   # RedisInsight Configuration
- 
+  
   # RabbitMQ Configuration
   rabbitmq:
     image: rabbitmq:3-management
@@ -109,7 +109,7 @@ services:
     networks:
       - tumdexNetwork
     healthcheck:
-      test: ["CMD", "rabbitmqctl", "status"]
+      test: [ "CMD", "rabbitmqctl", "status" ]
       interval: 10s
       timeout: 5s
       retries: 5

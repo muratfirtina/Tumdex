@@ -1,9 +1,11 @@
 using Core.Persistence.Repositories;
-
-namespace Domain.Entities;
+using Domain.Entities;
 
 public class Product : Entity<string>
 {
+    // Sınırsız stok için özel değer
+    public const int UnlimitedStock = -1;
+
     public Product(string? name, string? sku) : base(name, sku)
     {
         Name = name;
@@ -12,6 +14,7 @@ public class Product : Entity<string>
         ProductFeatureValues = new List<ProductFeatureValue>();
         ProductLikes = new List<ProductLike>();
         ProductViews = new List<ProductView>();
+        Stock = 0; // Varsayılan olarak 0 stok
     }
 
     public string Name { get; set; }
@@ -26,6 +29,18 @@ public class Product : Entity<string>
     public decimal? Price { get; set; }
     public int? Stock { get; set; } = 0;
     public int? Tax { get; set; }
+
+    // Stok kontrolü için yardımcı metot
+    public bool HasUnlimitedStock()
+    {
+        return Stock == UnlimitedStock;
+    }
+
+    // Stok kontrolü için yardımcı metot
+    public bool HasSufficientStock(int requestedQuantity)
+    {
+        return HasUnlimitedStock() || Stock >= requestedQuantity;
+    }
 
     public virtual ICollection<ProductImageFile>? ProductImageFiles { get; set; }
     public virtual ICollection<ProductFeatureValue>? ProductFeatureValues { get; set; }

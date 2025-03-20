@@ -14,7 +14,8 @@ public class SecurityHeadersMiddleware
     {
         _next = next ?? throw new ArgumentNullException(nameof(next));
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-        _defaultCsp = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';";
+        _defaultCsp =
+            "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';";
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -28,11 +29,11 @@ public class SecurityHeadersMiddleware
             var allowedOrigins = _configuration.GetSection("WebAPIConfiguration:AllowedOrigins").Get<string[]>();
             if (allowedOrigins?.Any() == true)
             {
-                context.Response.Headers.Add("Access-Control-Allow-Origin", 
+                context.Response.Headers.Add("Access-Control-Allow-Origin",
                     context.Request.Headers.Origin.ToString());
-                context.Response.Headers.Add("Access-Control-Allow-Methods", 
+                context.Response.Headers.Add("Access-Control-Allow-Methods",
                     "GET, POST, PUT, DELETE, OPTIONS");
-                context.Response.Headers.Add("Access-Control-Allow-Headers", 
+                context.Response.Headers.Add("Access-Control-Allow-Headers",
                     "Content-Type, Authorization, X-Requested-With");
                 context.Response.Headers.Add("Access-Control-Allow-Credentials", "true");
             }
@@ -52,14 +53,14 @@ public class SecurityHeadersMiddleware
                     }
                 }
             }
-            
+
             // Security Headers
             context.Response.Headers.Add("X-Content-Type-Options", "nosniff");
-            context.Response.Headers.Add("X-Frame-Options", 
+            context.Response.Headers.Add("X-Frame-Options",
                 _configuration["Security:XFrameOptions"] ?? "DENY");
             context.Response.Headers.Add("X-XSS-Protection", "1; mode=block");
             context.Response.Headers.Add("Referrer-Policy", "strict-origin-when-cross-origin");
-            context.Response.Headers.Add("Content-Security-Policy", 
+            context.Response.Headers.Add("Content-Security-Policy",
                 cspBuilder.Length > 0 ? cspBuilder.ToString().Trim() : _defaultCsp);
             context.Response.Headers.Add("X-Permitted-Cross-Domain-Policies", "none");
             context.Response.Headers.Add("Expect-CT", "max-age=86400, enforce");

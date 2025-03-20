@@ -1,3 +1,4 @@
+using Application.Consts;
 using Application.Extensions;
 using Application.Extensions.ImageFileExtensions;
 using Application.Repositories;
@@ -8,12 +9,12 @@ using MediatR;
 
 namespace Application.Features.Orders.Queries.GetUserOrderById;
 
-public class GetUserOrderByIdQuery : IRequest<GetUserOrderByIdQueryResponse>, ICachableRequest
+public class GetUserOrderByIdQuery : IRequest<GetUserOrderByIdQueryResponse>
 {
     public string Id { get; set; }
-    public string CacheKey => $"GetUserOrderByIdQuery({Id})";
+    public string CacheKey => $"GetUserOrderById-{Id}";
     public bool BypassCache { get; }
-    public string? CacheGroupKey => "Orders";
+    public string CacheGroupKey => CacheGroups.Orders;
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(2);
 
     public class GetUserOrderByIdQueryHandler : IRequestHandler<GetUserOrderByIdQuery, GetUserOrderByIdQueryResponse>

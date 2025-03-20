@@ -1,5 +1,4 @@
 using Application.Dtos.Token;
-using Application.Features.Users.Commands.ActivationCode.ActivationUrlToken;
 using Application.Features.Users.Commands.CreateUser;
 using Domain.Identity;
 using Microsoft.AspNetCore.Identity;

@@ -1,3 +1,4 @@
+using Application.Consts;
 using Application.Extensions;
 using Application.Extensions.ImageFileExtensions;
 using Application.Repositories;
@@ -9,13 +10,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Application.Features.Orders.Queries.GetById;
 
-public class GetOrderByIdQuery : IRequest<GetOrderByIdQueryResponse>,ICachableRequest
+public class GetOrderByIdQuery : IRequest<GetOrderByIdQueryResponse>
 {
     public string Id { get; set; }
 
-    public string CacheKey => $"GetOrderByIdQuery({Id})";
+    public string CacheKey => $"GetOrderById-{Id}";
     public bool BypassCache { get; }
-    public string? CacheGroupKey => "Orders";
+    public string CacheGroupKey => CacheGroups.Orders;
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(5);
 
     public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, GetOrderByIdQueryResponse>

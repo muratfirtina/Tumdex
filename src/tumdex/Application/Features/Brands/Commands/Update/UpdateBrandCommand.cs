@@ -23,7 +23,7 @@ public class UpdateBrandCommand : IRequest<UpdatedBrandResponse>,ITransactionalR
     public List<IFormFile>? BrandImage { get; set; }
     public bool RegenerateId { get; set; } = true;
     
-    public string CacheKey => "";
+    public string CacheKey => $"Brand-update-{Id}";
     public bool BypassCache => false;
     public string? CacheGroupKey => CacheGroups.GetAll;
 }

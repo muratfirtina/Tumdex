@@ -1,9 +1,7 @@
+using System.Text.Json;
 using Application.Consts;
-using Application.Extensions;
 using Application.Extensions.ImageFileExtensions;
-using Application.Features.Categories.Dtos;
 using Application.Features.Categories.Rules;
-using Application.Features.Products.Dtos;
 using Application.Repositories;
 using Application.Storage;
 using AutoMapper;
@@ -12,7 +10,6 @@ using Core.Application.Requests;
 using Core.Application.Responses;
 using Core.Persistence.Dynamic;
 using Core.Persistence.Paging;
-using Domain;
 using Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -24,8 +21,8 @@ public class GetListCategoryByDynamicQuery : IRequest<GetListResponse<GetListCat
     public PageRequest PageRequest { get; set; }
     public DynamicQuery DynamicQuery { get; set; }
 
-    public string CacheKey => $"GetListCategoryByDynamicQuery({PageRequest.PageIndex},{PageRequest.PageSize})";
-    public bool BypassCache { get; } = true;
+    public string CacheKey => $"{GetType().Name}-{PageRequest.PageIndex}-{PageRequest.PageSize}-{JsonSerializer.Serialize(DynamicQuery)}";
+    public bool BypassCache { get; } = false;
     public string? CacheGroupKey => CacheGroups.GetAll;
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(30);
 

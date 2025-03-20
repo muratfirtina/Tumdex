@@ -2,24 +2,27 @@ using Application.Events.OrderEvetns;
 using Application.Features.Carts.Dtos;
 using Application.Services;
 using Core.Application.Pipelines.Caching;
-using Core.Application.Pipelines.Transaction;
 using MassTransit;
 using MediatR;
+using System.Text.Json;
 
 namespace Application.Features.Carts.Commands.AddItemToCart;
 
-public class CreateCartCommand : IRequest<CreatedCartResponse>, ICacheRemoverRequest
+// CreateCartCommand - Yeni yapıya uygun olarak düzenlenmiş
+public class CreateCartCommand : IRequest<CreatedCartResponse>
 {
+    public CreateCartItemDto CreateCartItem { get; set; }
+    
+    // Sabit bir CacheKey kullanıyoruz, kullanıcı bilgisi ICacheKeyGenerator tarafından eklenecek
+    public string CacheKey => "";
+    public bool BypassCache => false;
+    // CacheGroupKey olarak yine sabit bir değer kullanıyoruz
+    public string? CacheGroupKey => "Carts";
+
     public CreateCartCommand(CreateCartItemDto createCartItem)
     {
         CreateCartItem = createCartItem;
     }
-
-    public CreateCartItemDto CreateCartItem { get; set; }
-    
-    public string CacheKey => "";
-    public bool BypassCache { get; }
-    public string? CacheGroupKey => "Carts";
 
     public class CreateCartCommandHandler : IRequestHandler<CreateCartCommand, CreatedCartResponse>
     {

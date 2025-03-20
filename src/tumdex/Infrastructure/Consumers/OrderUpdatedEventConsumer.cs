@@ -55,7 +55,7 @@ public class OrderUpdatedEventConsumer : IConsumer<OrderUpdatedEvent>
             // SignalR bildirimi
             try
             {
-                await _orderHubService.OrderUpdatedMessageAsync(order.OrderId, 
+                await _orderHubService.OrderUpdatedMessageAsync(order.OrderId,
                     $"Sipariş durumu güncellendi: {order.OriginalStatus} -> {order.UpdatedStatus}");
                 _logger.LogInformation("SignalR notification sent: {OrderId}", order.OrderId);
             }

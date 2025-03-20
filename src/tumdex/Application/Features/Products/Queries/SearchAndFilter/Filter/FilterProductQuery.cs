@@ -12,6 +12,7 @@ using Core.Persistence.Paging;
 using Domain;
 using Domain.Entities;
 using MediatR;
+using System.Text.Json;
 
 namespace Application.Features.Products.Queries.SearchAndFilter.Filter;
 
@@ -22,20 +23,25 @@ public class FilterProductWithPaginationQuery : IRequest<GetListResponse<FilterP
     public Dictionary<string, List<string>> Filters { get; set; }
     public string SortOrder { get; set; } = "default";
     
-    // Update cache key to include filters
-    public string CacheKey => $"FilterProduct_{SearchTerm ?? "all"}_{PageRequest.PageIndex}_{PageRequest.PageSize}_{SortOrder}_{SerializeFilters(Filters)}";
+    // Updated cache key with serialized filters
+    public string CacheKey => $"Products-Filtered-{SearchTerm ?? "all"}-Page{PageRequest.PageIndex}-Size{PageRequest.PageSize}-Sort{SortOrder}-{SerializeFilters()}";
     public bool BypassCache => false;
     public string? CacheGroupKey => CacheGroups.GetAll;
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(2);
 
     // Helper method to serialize filters for cache key
-    private string SerializeFilters(Dictionary<string, List<string>> filters)
+    private string SerializeFilters()
     {
-        if (filters == null || !filters.Any())
+        if (Filters == null || !Filters.Any())
             return "nofilters";
 
-        return string.Join("_", filters.OrderBy(f => f.Key)
-            .Select(f => $"{f.Key}:{string.Join(",", f.Value.OrderBy(v => v))}"));
+        var orderedFilters = new Dictionary<string, List<string>>();
+        foreach (var key in Filters.Keys.OrderBy(k => k))
+        {
+            orderedFilters[key] = Filters[key].OrderBy(v => v).ToList();
+        }
+        
+        return JsonSerializer.Serialize(orderedFilters);
     }
 
     public class FilterProductQueryHandler : IRequestHandler<FilterProductWithPaginationQuery, GetListResponse<FilterProductQueryResponse>>
@@ -73,18 +79,33 @@ public class FilterProductWithPaginationQuery : IRequest<GetListResponse<FilterP
             
             return response;
         }
-
-        
     }
 }
 
-public class FilterProductQuery : IRequest<GetListResponse<FilterProductQueryResponse>>,ICachableRequest
+public class FilterProductQuery : IRequest<GetListResponse<FilterProductQueryResponse>>, ICachableRequest
 {
     public string SearchTerm { get; set; }
     public Dictionary<string, List<string>> Filters { get; set; }
     public string SortOrder { get; set; } = "default";
-    public string CacheKey => $"FilterProductQuery_{SearchTerm}_{SortOrder}";
+    
+    // More descriptive cache key with search term and sort order
+    public string CacheKey => $"Products-Filter-{SearchTerm ?? "all"}-Sort{SortOrder}-{SerializeFilters()}";
     public bool BypassCache => false;
     public string? CacheGroupKey => CacheGroups.GetAll;
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(2);
+    
+    // Helper method to serialize filters for cache key
+    private string SerializeFilters()
+    {
+        if (Filters == null || !Filters.Any())
+            return "nofilters";
+
+        var orderedFilters = new Dictionary<string, List<string>>();
+        foreach (var key in Filters.Keys.OrderBy(k => k))
+        {
+            orderedFilters[key] = Filters[key].OrderBy(v => v).ToList();
+        }
+        
+        return JsonSerializer.Serialize(orderedFilters);
+    }
 }

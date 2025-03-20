@@ -23,7 +23,7 @@ public class SlidingWindowRateLimiter
 
         _redisDb = connectionMultiplexer.GetDatabase();
         _logger = logger;
-        
+
         _windowSize = TimeSpan.Parse(
             configuration.GetValue<string>("Security:RateLimiting:WindowSize") ?? "01:00:00");
         _limit = configuration.GetValue<int>("Security:RateLimiting:RequestsPerHour", 1000);

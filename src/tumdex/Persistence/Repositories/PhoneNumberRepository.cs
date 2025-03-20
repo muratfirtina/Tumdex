@@ -95,24 +95,32 @@ public class PhoneNumberRepository : EfRepositoryBase<PhoneNumber, string, Tumde
     public async Task<bool> SetDefaultPhoneAsync(string id)
     {
         var user = await GetCurrentUserAsync();
-        var phone = await GetAsync(p => p.Id == id && p.UserId == user.Id);
-        if (phone == null)
+        
+        // First, find the phone to set as default
+        var phoneToSetDefault = await GetAsync(p => p.Id == id && p.UserId == user.Id);
+        if (phoneToSetDefault == null)
             return false;
 
+        // Unset all default phones for this user
         await UnsetCurrentDefaultPhone(user.Id);
-        phone.IsDefault = true;
-        await UpdateAsync(phone);
+        
+        // Set the selected phone as default
+        phoneToSetDefault.IsDefault = true;
+        await UpdateAsync(phoneToSetDefault);
+        
         return true;
     }
 
-    private async Task UnsetCurrentDefaultPhone(string id)
+    private async Task UnsetCurrentDefaultPhone(string userId)
     {
-        var user = await GetCurrentUserAsync();
-        var phone = await GetAllAsync(p => p.UserId == user.Id);
-        foreach (var item in phone)
+        // Get all default phones for this user
+        var defaultPhones = await GetAllAsync(p => p.UserId == userId && p.IsDefault == true);
+        
+        // Update each phone to not be default
+        foreach (var phone in defaultPhones)
         {
-            item.IsDefault = false;
-            await UpdateAsync(item);
+            phone.IsDefault = false;
+            await UpdateAsync(phone);
         }
     }
 }

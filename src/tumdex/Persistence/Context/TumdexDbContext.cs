@@ -49,6 +49,9 @@ public class TumdexDbContext : IdentityDbContext<AppUser,AppRole,string>
     public DbSet<StockReservation> StockReservations { get; set; }
     public DbSet<OutboxMessage> OutboxMessages { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
+    public DbSet<Country> Countries { get; set; }
+    public DbSet<City> Cities { get; set; }
+    public DbSet<District> Districts { get; set; }
     
     
     protected override void OnModelCreating(ModelBuilder builder)
@@ -82,6 +85,55 @@ public class TumdexDbContext : IdentityDbContext<AppUser,AppRole,string>
         builder.Entity<StockReservation>().HasQueryFilter(sr => !sr.DeletedDate.HasValue);
         builder.Entity<OutboxMessage>().HasQueryFilter(om => !om.DeletedDate.HasValue);
         builder.Entity<RefreshToken>().HasQueryFilter(rt => !rt.DeletedDate.HasValue);
+        builder.Entity<Country>().HasQueryFilter(c => !c.DeletedDate.HasValue);
+        builder.Entity<City>().HasQueryFilter(c => !c.DeletedDate.HasValue);
+        builder.Entity<District>().HasQueryFilter(d => !d.DeletedDate.HasValue);
+        
+        builder.Entity<Country>(a =>
+        {
+            a.ToTable("Countries").HasKey(k => k.Id);
+            a.Property(p => p.Id).HasColumnName("Id");
+            a.Property(p => p.Code).HasColumnName("Code").HasMaxLength(10);
+            a.Property(p => p.Name).HasColumnName("Name").HasMaxLength(100);
+            a.Property(p => p.PhoneCode).HasColumnName("PhoneCode").HasMaxLength(10);
+        
+            a.HasMany(p => p.Cities)
+                .WithOne(p => p.Country)
+                .HasForeignKey(p => p.CountryId);
+        });
+    
+        // City configuration
+        builder.Entity<City>(a =>
+        {
+            a.ToTable("Cities").HasKey(k => k.Id);
+            a.Property(p => p.Id).HasColumnName("Id");
+            a.Property(p => p.CountryId).HasColumnName("CountryId");
+            a.Property(p => p.Name).HasColumnName("Name").HasMaxLength(100);
+            a.Property(p => p.Code).HasColumnName("Code").HasMaxLength(20).IsRequired(false);
+        
+            a.HasOne(p => p.Country)
+                .WithMany(p => p.Cities)
+                .HasForeignKey(p => p.CountryId);
+            
+            a.HasMany(p => p.Districts)
+                .WithOne(p => p.City)
+                .HasForeignKey(p => p.CityId);
+        });
+    
+        // District configuration
+        builder.Entity<District>(a =>
+        {
+            a.ToTable("Districts").HasKey(k => k.Id);
+            a.Property(p => p.Id).HasColumnName("Id");
+            a.Property(p => p.CityId).HasColumnName("CityId");
+            a.Property(p => p.Name).HasColumnName("Name").HasMaxLength(100);
+            a.Property(p => p.Code).HasColumnName("Code").HasMaxLength(20).IsRequired(false);
+        
+            a.HasOne(p => p.City)
+                .WithMany(p => p.Districts)
+                .HasForeignKey(p => p.CityId);
+        });
+        
         
         builder.Entity<ProductLike>()
             .HasOne(pl => pl.Product)

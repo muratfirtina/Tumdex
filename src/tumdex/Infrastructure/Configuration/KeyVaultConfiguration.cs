@@ -6,7 +6,8 @@ namespace Infrastructure.Configuration;
 
 public static class KeyVaultConfiguration
 {
-    public static string GetSecretFromKeyVault(this IConfiguration configuration, string secretName, string defaultValue = "")
+    public static string GetSecretFromKeyVault(this IConfiguration configuration, string secretName,
+        string defaultValue = "")
     {
         var value = configuration[secretName];
         return string.IsNullOrEmpty(value) ? defaultValue : value;
@@ -20,10 +21,10 @@ public static class KeyVaultConfiguration
 
         if (string.IsNullOrEmpty(keyVaultUri))
         {
-            keyVaultUri = builder.Configuration["AZURE_KEYVAULT_URI"] ?? 
+            keyVaultUri = builder.Configuration["AZURE_KEYVAULT_URI"] ??
                           builder.Configuration["AzureKeyVault:VaultUri"];
         }
-    
+
         if (string.IsNullOrEmpty(keyVaultUri))
         {
             throw new InvalidOperationException("""
@@ -36,7 +37,7 @@ public static class KeyVaultConfiguration
                                                 Örnek: AZURE_KEYVAULT_URI=https://your-vault-name.vault.azure.net/
                                                 """);
         }
-    
+
         try
         {
             var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
@@ -45,7 +46,7 @@ public static class KeyVaultConfiguration
                 ExcludeAzureCliCredential = false,
                 ExcludeVisualStudioCredential = true,
                 ExcludeVisualStudioCodeCredential = true,
-            
+
                 Diagnostics =
                 {
                     LoggedHeaderNames = { "x-ms-request-id" },
@@ -55,7 +56,7 @@ public static class KeyVaultConfiguration
             });
 
             builder.Configuration.AddAzureKeyVault(
-                new Uri(keyVaultUri), 
+                new Uri(keyVaultUri),
                 credential);
 
             // Test the connection
@@ -92,29 +93,29 @@ public static class KeyVaultConfiguration
     private static void HandleKeyVaultConfigurationError(Exception ex, string keyVaultUri)
     {
         var errorMessage = $"""
-            Key Vault yapılandırması başarısız oldu!
-            
-            Olası nedenler ve çözümler:
-            1. Azure CLI ile giriş yapılmamış olabilir
-               Çözüm: Terminal'de 'az login' komutunu çalıştırın
-               
-            2. Key Vault URI yanlış olabilir
-               Kontrol edilecek URI: {keyVaultUri}
-               
-            3. RBAC rolleri eksik olabilir
-               Gerekli rol: Key Vault Secrets User
-               Çözüm: Azure Portal'dan rol atamasını kontrol edin
-               
-            4. Ağ erişimi engellenmiş olabilir
-               Key Vault güvenlik duvarı ayarlarını kontrol edin
-            
-            Teknik Detaylar:
-            {ex.Message}
-            
-            Stack Trace:
-            {ex.StackTrace}
-            """;
-        
+                            Key Vault yapılandırması başarısız oldu!
+
+                            Olası nedenler ve çözümler:
+                            1. Azure CLI ile giriş yapılmamış olabilir
+                               Çözüm: Terminal'de 'az login' komutunu çalıştırın
+                               
+                            2. Key Vault URI yanlış olabilir
+                               Kontrol edilecek URI: {keyVaultUri}
+                               
+                            3. RBAC rolleri eksik olabilir
+                               Gerekli rol: Key Vault Secrets User
+                               Çözüm: Azure Portal'dan rol atamasını kontrol edin
+                               
+                            4. Ağ erişimi engellenmiş olabilir
+                               Key Vault güvenlik duvarı ayarlarını kontrol edin
+
+                            Teknik Detaylar:
+                            {ex.Message}
+
+                            Stack Trace:
+                            {ex.StackTrace}
+                            """;
+
         throw new InvalidOperationException(errorMessage, ex);
     }
 }

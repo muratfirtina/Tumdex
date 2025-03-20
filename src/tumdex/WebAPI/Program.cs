@@ -27,7 +27,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 try
 {
-    DotEnv.Load(); // .env dosyasını yükle
+    DotEnv.Load();
     
     // Environment variables'ları Configuration'a ekle
     builder.Configuration.AddEnvironmentVariables();
@@ -107,6 +107,9 @@ void ConfigureServiceLayers(WebApplicationBuilder builder)
     // 6. SignalR Services
     builder.Services.AddSignalRServices();
     builder.Services.AddDistributedMemoryCache(); 
+    builder.Logging.ClearProviders();
+    builder.Logging.AddConsole();
+    builder.Logging.SetMinimumLevel(LogLevel.Debug);
 }
 
 // Security and Authentication Configuration
@@ -198,7 +201,7 @@ async Task ConfigureApplication(WebApplication app)
     // Basic Middleware
     app.UseMetricServer();
     app.UseCors();
-    //app.UseHttpsRedirection();
+    
     app.UseMiddleware<ImageOptimizationMiddleware>();
     app.UseMiddleware<TokenValidationMiddleware>();
     app.UseStaticFiles(new StaticFileOptions

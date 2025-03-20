@@ -14,16 +14,26 @@ public class MappingProfiles : Profile
 {
     public MappingProfiles()
     {
-        CreateMap<UserAddress, UserAddressDto>().ReverseMap();
-        CreateMap<UserAddress, CreateUserAddressDto>().ReverseMap();
-        CreateMap<UserAddress, UpdateUserAddressDto>().ReverseMap();
+        // Entity -> DTO Mapping
+        CreateMap<UserAddress, UserAddressDto>();
+        
+        // DTO -> Response Mapping (Eksik olan mapping burası!)
+        CreateMap<UserAddressDto, GetListUserAdressesQueryResponse>();
+        
+        // Entity -> Response Mapping
         CreateMap<UserAddress, GetListUserAdressesQueryResponse>();
-        CreateMap<UserAddress, CreatedUserAddressCommandResponse>();
-        CreateMap<UserAddress, UpdatedUserAddressCommandResponse>();
+        
+        // Collection Mappings
         CreateMap<List<UserAddress>, GetListResponse<GetListUserAdressesQueryResponse>>()
             .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src));
+        CreateMap<List<UserAddressDto>, GetListResponse<GetListUserAdressesQueryResponse>>()
+            .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src));
+
         
+        // CQRS Command Mappings
         CreateMap<CreateUserAddressCommand, CreateUserAddressDto>();
         CreateMap<UpdateUserAddressCommand, UpdateUserAddressDto>();
+        CreateMap<UserAddress, CreatedUserAddressCommandResponse>();
+        CreateMap<UserAddress, UpdatedUserAddressCommandResponse>();
     }
 }

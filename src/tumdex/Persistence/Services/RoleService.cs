@@ -60,7 +60,6 @@ public class RoleService : IRoleService
             IPaginate<AppRole> roles = await roleQuery.ToPaginateAsync(pageRequest.PageIndex, pageRequest.PageSize);
             return roles.Items.ToList();
         }
-       
     }
 
     public async Task<(string roleId, string roleName)> GetRoleByIdAsync(string roleId)
@@ -70,12 +69,13 @@ public class RoleService : IRoleService
         {
             // Rol bulunamadığında uygun bir şekilde işleyin
             // Örneğin, özel bir exception fırlatabilir veya default değerler dönebilirsiniz
-            throw new ($"Role with ID {roleId} not found.");
+            throw new($"Role with ID {roleId} not found.");
             // Veya: return (string.Empty, string.Empty);
         }
+
         return (role.Id, role.Name);
     }
-    
+
     public async Task<List<AppUser>> GetUsersByRoleIdAsync(string roleId)
     {
         var role = await _roleManager.FindByIdAsync(roleId);

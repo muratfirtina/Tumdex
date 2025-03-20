@@ -7,10 +7,12 @@ using MediatR;
 
 namespace Application.Features.Products.Queries.SearchAndFilter.Filter.GetAvailableFilter;
 
-public class GetAvailableFiltersQuery : IRequest<List<FilterGroupDto>>,ICachableRequest
+public class GetAvailableFiltersQuery : IRequest<List<FilterGroupDto>>, ICachableRequest
 {
     public string SearchTerm { get; set; }
-    public string CacheKey => $"AvailableFilters_{SearchTerm ?? "all"}";
+    
+    // More descriptive cache key with search term
+    public string CacheKey => $"Filters-{SearchTerm ?? "all"}";
     public bool BypassCache => false;
     public string? CacheGroupKey => CacheGroups.GetAll;
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(2);

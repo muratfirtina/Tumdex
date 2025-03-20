@@ -1,3 +1,4 @@
+using Application.Consts;
 using Application.Features.PhoneNumbers.Dtos;
 using Application.Repositories;
 using AutoMapper;
@@ -15,7 +16,8 @@ public class UpdatePhoneNumberCommand : IRequest<UpdatedPhoneNumberCommandRespon
     
     public string CacheKey => "";
     public bool BypassCache => false;
-    public string? CacheGroupKey => "PhoneNumbers";
+    public string CacheGroupKey => CacheGroups.PhoneNumbers;
+
 
     public class UpdatePhoneNumberCommandHandler : IRequestHandler<UpdatePhoneNumberCommand, UpdatedPhoneNumberCommandResponse>
     {

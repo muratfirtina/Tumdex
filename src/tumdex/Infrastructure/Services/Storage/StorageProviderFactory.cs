@@ -27,10 +27,10 @@ public class StorageProviderFactory : IStorageProviderFactory
         _storageSettings = storageSettings;
         _configuration = configuration;
         _secretClient = secretClient;
-        
-        var keyVaultUri = Environment.GetEnvironmentVariable("AZURE_KEYVAULT_URI") ?? 
+
+        var keyVaultUri = Environment.GetEnvironmentVariable("AZURE_KEYVAULT_URI") ??
                           throw new InvalidOperationException("AZURE_KEYVAULT_URI not found");
-            
+
         var credential = new DefaultAzureCredential();
         _secretClient = new SecretClient(new Uri(keyVaultUri), credential);
     }

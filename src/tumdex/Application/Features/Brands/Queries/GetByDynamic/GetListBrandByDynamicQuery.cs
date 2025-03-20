@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Application.Consts;
 using Application.Extensions;
 using Application.Extensions.ImageFileExtensions;
@@ -18,10 +19,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Application.Features.Brands.Queries.GetByDynamic;
 
-public class GetListBrandByDynamicQuery : IRequest<GetListResponse<GetListBrandByDynamicQueryResponse>>
+public class GetListBrandByDynamicQuery : IRequest<GetListResponse<GetListBrandByDynamicQueryResponse>>, ICachableRequest
 {
     public PageRequest PageRequest { get; set; }
     public DynamicQuery DynamicQuery { get; set; }
+    public string CacheKey => $"{GetType().Name}-{PageRequest.PageIndex}-{PageRequest.PageSize}-{JsonSerializer.Serialize(DynamicQuery)}";
+    public bool BypassCache => false;
+    public string? CacheGroupKey => CacheGroups.GetAll;
+    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(30);
     
     public class GetListByDynamicBrandQueryHandler : IRequestHandler<GetListBrandByDynamicQuery, GetListResponse<GetListBrandByDynamicQueryResponse>>
     {

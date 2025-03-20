@@ -10,11 +10,12 @@ using MediatR;
 
 namespace Application.Features.Brands.Commands.Delete;
 
-public class DeleteBrandCommand : IRequest<DeletedBrandResponse>, ITransactionalRequest,ICacheRemoverRequest
+public class DeleteBrandCommand : IRequest<DeletedBrandResponse>, ITransactionalRequest, ICacheRemoverRequest
 {
     public string Id { get; set; }
     
-    public string CacheKey => "";
+    // Specific cache key with ID
+    public string CacheKey => $"Brand-{Id}";
     public bool BypassCache => false;
     public string? CacheGroupKey => CacheGroups.GetAll;
     
@@ -39,5 +40,4 @@ public class DeleteBrandCommand : IRequest<DeletedBrandResponse>, ITransactional
             return new DeletedBrandResponse { Success = true };
         }
     }
-    
 }

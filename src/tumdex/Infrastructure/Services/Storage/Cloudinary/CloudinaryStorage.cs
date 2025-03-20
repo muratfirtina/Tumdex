@@ -18,7 +18,7 @@ public class CloudinaryStorage : ICloudinaryStorage
     private readonly IOptionsSnapshot<StorageSettings> _storageSettings;
     private readonly IConfiguration _configuration;
     private readonly SecretClient _secretClient;
-    
+
     public CloudinaryStorage(
         IOptionsSnapshot<StorageSettings> storageSettings,
         IConfiguration configuration, SecretClient secretClient)
@@ -28,9 +28,9 @@ public class CloudinaryStorage : ICloudinaryStorage
         _secretClient = secretClient;
 
         // Azure Key Vault'tan Cloudinary ayarlarını al
-        var keyVaultUri = Environment.GetEnvironmentVariable("AZURE_KEYVAULT_URI") ?? 
+        var keyVaultUri = Environment.GetEnvironmentVariable("AZURE_KEYVAULT_URI") ??
                           throw new InvalidOperationException("AZURE_KEYVAULT_URI not found");
-            
+
         var credential = new DefaultAzureCredential();
         _secretClient = new SecretClient(new Uri(keyVaultUri), credential);
 
@@ -41,18 +41,18 @@ public class CloudinaryStorage : ICloudinaryStorage
         var account = new Account(cloudName, apiKey, apiSecret);
         _cloudinary = new CloudinaryDotNet.Cloudinary(account);
     }
-    
-    
+
+
     public async Task<List<(string fileName, string path, string containerName, string url, string format)>> UploadFileToStorage(
-        string entityType, 
-        string path, 
-        string fileName, 
-        MemoryStream fileStream)
+            string entityType,
+            string path,
+            string fileName,
+            MemoryStream fileStream)
     {
-        try 
+        try
         {
             var datas = new List<(string fileName, string path, string containerName, string url, string format)>();
-        
+
             ImageUploadParams imageUploadParams = new()
             {
                 File = new FileDescription(fileName, stream: fileStream),
@@ -62,17 +62,17 @@ public class CloudinaryStorage : ICloudinaryStorage
                 Folder = $"{entityType}/{path}",
                 PublicId = Path.GetFileNameWithoutExtension(fileName)
             };
-        
+
             var uploadResult = await _cloudinary.UploadAsync(imageUploadParams);
-        
+
             if (uploadResult.Error != null)
             {
                 throw new InvalidOperationException($"Cloudinary upload failed: {uploadResult.Error.Message}");
             }
-            
+
             var format = Path.GetExtension(fileName).TrimStart('.').ToLower();
             datas.Add((fileName, path, entityType, uploadResult.SecureUrl.ToString(), format));
-        
+
             return datas;
         }
         catch (Exception ex)
@@ -83,7 +83,7 @@ public class CloudinaryStorage : ICloudinaryStorage
 
     public async Task DeleteAsync(string entityType, string path, string fileName)
     {
-        try 
+        try
         {
             var publicId = GetPublicId($"{entityType}/{path}/{fileName}");
             if (!string.IsNullOrEmpty(publicId))
@@ -93,7 +93,7 @@ public class CloudinaryStorage : ICloudinaryStorage
                     ResourceType = ResourceType.Image
                 };
                 var result = await _cloudinary.DestroyAsync(deletionParams);
-                
+
                 if (result.Error != null)
                 {
                     throw new InvalidOperationException($"Cloudinary deletion failed: {result.Error.Message}");
@@ -153,7 +153,7 @@ public class CloudinaryStorage : ICloudinaryStorage
 
     public string GetStorageUrl()
     {
-        return _storageSettings.Value.Providers.Cloudinary.Url ?? 
+        return _storageSettings.Value.Providers.Cloudinary.Url ??
                throw new InvalidOperationException("Cloudinary URL is not configured");
     }
 
@@ -164,9 +164,10 @@ public class CloudinaryStorage : ICloudinaryStorage
         {
             var fileName = pathParts[pathParts.Length - 1];
             var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
-            
+
             return string.Join("/", pathParts.Take(pathParts.Length - 1).Append(fileNameWithoutExtension));
         }
+
         return string.Empty;
     }
 }

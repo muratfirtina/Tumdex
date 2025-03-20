@@ -25,13 +25,17 @@ public class StorageService : IStorageService
         _configuration = configuration;
     }
 
-    public async Task<List<(string fileName, string path, string entityType, string storageType, string url, string format)>> UploadAsync(
-        string entityType,
-        string path,
-        List<IFormFile> files)
+    public async
+        Task<List<(string fileName, string path, string entityType, string storageType, string url, string format)>>
+        UploadAsync(
+            string entityType,
+            string path,
+            List<IFormFile> files)
     {
-        var results = new List<(string fileName, string path, string entityType, string storageType, string url, string format)>();
-        
+        var results =
+            new List<(string fileName, string path, string entityType, string storageType, string url, string format
+                )>();
+
         foreach (var file in files)
         {
             var (newPath, fileNewName) = await PrepareFileDetails(file, entityType, path);
@@ -143,7 +147,12 @@ public class StorageService : IStorageService
     private class UploadTask
     {
         public IStorageProvider? Provider { get; init; }
-        public List<(string fileName, string path, string containerName, string url, string format)>? Result { get; set; }
+
+        public List<(string fileName, string path, string containerName, string url, string format)>? Result
+        {
+            get;
+            set;
+        }
     }
 
     private async Task<UploadTask> UploadToProvider(

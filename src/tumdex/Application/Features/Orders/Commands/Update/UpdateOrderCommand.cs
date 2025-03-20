@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Application.Abstraction.Services.HubServices;
+using Application.Consts;
 using Application.Events.OrderEvetns;
 using Application.Extensions.ImageFileExtensions;
 using Application.Features.Orders.Dtos;
@@ -17,7 +18,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Application.Features.Orders.Commands.Update;
 
-public class UpdateOrderCommand : IRequest<bool>, ITransactionalRequest, ICacheRemoverRequest
+public class UpdateOrderCommand : IRequest<bool>
 {
     public string Id { get; set; }
     public OrderStatus? Status { get; set; }
@@ -27,7 +28,7 @@ public class UpdateOrderCommand : IRequest<bool>, ITransactionalRequest, ICacheR
 
     public string CacheKey => "";
     public bool BypassCache => false;
-    public string? CacheGroupKey => "Orders";
+    public string CacheGroupKey => CacheGroups.Orders;
 
     public class UpdateOrderCommandHandler : IRequestHandler<UpdateOrderCommand, bool>
     {

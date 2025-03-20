@@ -13,11 +13,11 @@ public class RedisCacheService : ICacheService, IDisposable
     private readonly IDatabase _redisDb;
     private readonly ILogger<RedisCacheService> _logger;
     private readonly IMetricsService _metrics;
-    private readonly IConnectionMultiplexer _connectionMultiplexer;  // IConnectionMultiplexer olarak değiştirildi
+    private readonly IConnectionMultiplexer _connectionMultiplexer; // IConnectionMultiplexer olarak değiştirildi
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _keySemaphores = new();
     private readonly JsonSerializerOptions _jsonOptions;
-    
+
     private const int ConnectionRetryCount = 3;
     private const int OperationTimeoutSeconds = 2;
 
@@ -27,18 +27,18 @@ public class RedisCacheService : ICacheService, IDisposable
         IMetricsService metrics,
         IOptions<JsonSerializerOptions> jsonOptions = null)
     {
-        _connectionMultiplexer = connectionMultiplexer ?? 
+        _connectionMultiplexer = connectionMultiplexer ??
                                  throw new ArgumentNullException(nameof(connectionMultiplexer));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _metrics = metrics ?? throw new ArgumentNullException(nameof(metrics));
         _redisDb = _connectionMultiplexer.GetDatabase();
-        
+
         _jsonOptions = jsonOptions?.Value ?? new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
-        
+
         _logger.LogInformation("Redis Cache Service initialized");
     }
 
@@ -53,7 +53,7 @@ public class RedisCacheService : ICacheService, IDisposable
 
             try
             {
-                var redisValue = await ExecuteWithRetryAsync(() => 
+                var redisValue = await ExecuteWithRetryAsync(() =>
                     _redisDb.StringGetAsync(key));
 
                 if (!redisValue.IsNull)
@@ -91,9 +91,9 @@ public class RedisCacheService : ICacheService, IDisposable
             try
             {
                 var serializedValue = JsonSerializer.Serialize(value, _jsonOptions);
-                await ExecuteWithRetryAsync(() => 
+                await ExecuteWithRetryAsync(() =>
                     _redisDb.StringSetAsync(key, serializedValue, expiration));
-                
+
                 _logger.LogDebug("Successfully set value for key: {Key}", key);
             }
             finally
@@ -119,7 +119,7 @@ public class RedisCacheService : ICacheService, IDisposable
 
             try
             {
-                return await ExecuteWithRetryAsync(() => 
+                return await ExecuteWithRetryAsync(() =>
                     _redisDb.KeyDeleteAsync(key));
             }
             finally
@@ -177,7 +177,7 @@ public class RedisCacheService : ICacheService, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in GetManyAsync for keys: {Keys}", 
+            _logger.LogError(ex, "Error in GetManyAsync for keys: {Keys}",
                 string.Join(", ", keys));
             throw;
         }
@@ -198,21 +198,21 @@ public class RedisCacheService : ICacheService, IDisposable
 
             batch.Execute();
             await Task.WhenAll(tasks);
-            
-            _logger.LogDebug("Successfully set multiple values. Keys: {Keys}", 
+
+            _logger.LogDebug("Successfully set multiple values. Keys: {Keys}",
                 string.Join(", ", keyValues.Keys));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in SetManyAsync for keys: {Keys}", 
+            _logger.LogError(ex, "Error in SetManyAsync for keys: {Keys}",
                 string.Join(", ", keyValues.Keys));
             throw;
         }
     }
 
     public async Task<T> GetOrCreateAsync<T>(
-        string key, 
-        Func<Task<T>> factory, 
+        string key,
+        Func<Task<T>> factory,
         TimeSpan? expiry = null)
     {
         ArgumentNullException.ThrowIfNull(key);
@@ -255,8 +255,8 @@ public class RedisCacheService : ICacheService, IDisposable
     }
 
     public async Task<bool> IncrementAsync(
-        string key, 
-        int value = 1, 
+        string key,
+        int value = 1,
         TimeSpan? expiry = null)
     {
         ArgumentNullException.ThrowIfNull(key);
@@ -268,15 +268,15 @@ public class RedisCacheService : ICacheService, IDisposable
 
             try
             {
-                var result = await ExecuteWithRetryAsync(() => 
+                var result = await ExecuteWithRetryAsync(() =>
                     _redisDb.StringIncrementAsync(key, value));
-                
+
                 if (expiry.HasValue)
                 {
-                    await ExecuteWithRetryAsync(() => 
+                    await ExecuteWithRetryAsync(() =>
                         _redisDb.KeyExpireAsync(key, expiry.Value));
                 }
-                
+
                 return true;
             }
             finally
@@ -297,9 +297,9 @@ public class RedisCacheService : ICacheService, IDisposable
 
         try
         {
-            var value = await ExecuteWithRetryAsync(() => 
+            var value = await ExecuteWithRetryAsync(() =>
                 _redisDb.StringGetAsync(key));
-            
+
             return value.IsNull ? 0 : (int)value;
         }
         catch (Exception ex)
@@ -322,7 +322,7 @@ public class RedisCacheService : ICacheService, IDisposable
             {
                 var timeoutTask = Task.Delay(TimeSpan.FromSeconds(OperationTimeoutSeconds));
                 var operationTask = operation();
-                
+
                 var completedTask = await Task.WhenAny(operationTask, timeoutTask);
                 if (completedTask == timeoutTask)
                 {
@@ -333,11 +333,11 @@ public class RedisCacheService : ICacheService, IDisposable
             }
             catch (RedisConnectionException ex)
             {
-                _logger.LogWarning(ex, "Redis connection attempt {Attempt} of {MaxAttempts} failed", 
+                _logger.LogWarning(ex, "Redis connection attempt {Attempt} of {MaxAttempts} failed",
                     i + 1, ConnectionRetryCount);
-                
+
                 if (i == ConnectionRetryCount - 1) throw;
-                
+
                 await Task.Delay((i + 1) * 200); // Exponential backoff
             }
         }
@@ -351,6 +351,7 @@ public class RedisCacheService : ICacheService, IDisposable
         {
             semaphore.Dispose();
         }
+
         _connectionLock.Dispose();
     }
 }

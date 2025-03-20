@@ -87,7 +87,7 @@ namespace Persistence.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -117,7 +117,7 @@ namespace Persistence.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -140,7 +140,7 @@ namespace Persistence.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -185,7 +185,7 @@ namespace Persistence.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -207,7 +207,7 @@ namespace Persistence.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -242,7 +242,7 @@ namespace Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -275,7 +275,7 @@ namespace Persistence.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -300,12 +300,52 @@ namespace Persistence.Migrations
                     b.ToTable("Categories");
                 });
 
+            modelBuilder.Entity("Domain.Entities.City", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("Code");
+
+                    b.Property<int>("CountryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("CountryId");
+
+                    b.Property<DateTime?>("CreatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("DeletedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("Name");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CountryId");
+
+                    b.ToTable("Cities", (string)null);
+                });
+
             modelBuilder.Entity("Domain.Entities.CompletedOrder", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -364,6 +404,87 @@ namespace Persistence.Migrations
                     b.ToTable("Contacts");
                 });
 
+            modelBuilder.Entity("Domain.Entities.Country", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("Code");
+
+                    b.Property<DateTime?>("CreatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("DeletedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("Name");
+
+                    b.Property<string>("PhoneCode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("PhoneCode");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Countries", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Entities.District", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CityId")
+                        .HasColumnType("integer")
+                        .HasColumnName("CityId");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("Code");
+
+                    b.Property<DateTime?>("CreatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("DeletedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("Name");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CityId");
+
+                    b.ToTable("Districts", (string)null);
+                });
+
             modelBuilder.Entity("Domain.Entities.Endpoint", b =>
                 {
                     b.Property<string>("Id")
@@ -381,7 +502,7 @@ namespace Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Definition")
@@ -410,7 +531,7 @@ namespace Persistence.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -432,7 +553,7 @@ namespace Persistence.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -459,7 +580,7 @@ namespace Persistence.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -489,7 +610,7 @@ namespace Persistence.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -528,7 +649,7 @@ namespace Persistence.Migrations
                     b.Property<string>("Caption")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -596,7 +717,7 @@ namespace Persistence.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -652,7 +773,7 @@ namespace Persistence.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -692,7 +813,7 @@ namespace Persistence.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -734,7 +855,7 @@ namespace Persistence.Migrations
                     b.Property<string>("AdminNote")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -794,7 +915,7 @@ namespace Persistence.Migrations
                     b.Property<string>("BrandName")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -849,7 +970,7 @@ namespace Persistence.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Data")
@@ -895,7 +1016,7 @@ namespace Persistence.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -937,7 +1058,7 @@ namespace Persistence.Migrations
                     b.Property<string>("CategoryId")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -1005,7 +1126,7 @@ namespace Persistence.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -1039,7 +1160,7 @@ namespace Persistence.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -1079,7 +1200,7 @@ namespace Persistence.Migrations
                     b.Property<string>("ClientIP")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -1136,7 +1257,7 @@ namespace Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -1174,17 +1295,20 @@ namespace Persistence.Migrations
                     b.Property<string>("AddressLine2")
                         .HasColumnType("text");
 
-                    b.Property<string>("City")
-                        .HasColumnType("text");
+                    b.Property<int?>("CityId")
+                        .HasColumnType("integer");
 
-                    b.Property<string>("Country")
-                        .HasColumnType("text");
+                    b.Property<int?>("CountryId")
+                        .HasColumnType("integer");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
                         .HasColumnType("timestamp without time zone");
+
+                    b.Property<int?>("DistrictId")
+                        .HasColumnType("integer");
 
                     b.Property<bool>("IsDefault")
                         .HasColumnType("boolean");
@@ -1195,9 +1319,6 @@ namespace Persistence.Migrations
                     b.Property<string>("PostalCode")
                         .HasColumnType("text");
 
-                    b.Property<string>("State")
-                        .HasColumnType("text");
-
                     b.Property<DateTime?>("UpdatedDate")
                         .HasColumnType("timestamp without time zone");
 
@@ -1205,6 +1326,12 @@ namespace Persistence.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CityId");
+
+                    b.HasIndex("CountryId");
+
+                    b.HasIndex("DistrictId");
 
                     b.HasIndex("UserId");
 
@@ -1685,6 +1812,17 @@ namespace Persistence.Migrations
                     b.Navigation("ParentCategory");
                 });
 
+            modelBuilder.Entity("Domain.Entities.City", b =>
+                {
+                    b.HasOne("Domain.Entities.Country", "Country")
+                        .WithMany("Cities")
+                        .HasForeignKey("CountryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Country");
+                });
+
             modelBuilder.Entity("Domain.Entities.CompletedOrder", b =>
                 {
                     b.HasOne("Domain.Entities.Order", "Order")
@@ -1694,6 +1832,17 @@ namespace Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("Domain.Entities.District", b =>
+                {
+                    b.HasOne("Domain.Entities.City", "City")
+                        .WithMany("Districts")
+                        .HasForeignKey("CityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("City");
                 });
 
             modelBuilder.Entity("Domain.Entities.Endpoint", b =>
@@ -1880,9 +2029,27 @@ namespace Persistence.Migrations
 
             modelBuilder.Entity("Domain.Entities.UserAddress", b =>
                 {
+                    b.HasOne("Domain.Entities.City", "City")
+                        .WithMany("UserAddresses")
+                        .HasForeignKey("CityId");
+
+                    b.HasOne("Domain.Entities.Country", "Country")
+                        .WithMany("UserAddresses")
+                        .HasForeignKey("CountryId");
+
+                    b.HasOne("Domain.Entities.District", "District")
+                        .WithMany("UserAddresses")
+                        .HasForeignKey("DistrictId");
+
                     b.HasOne("Domain.Identity.AppUser", "User")
                         .WithMany("UserAddresses")
                         .HasForeignKey("UserId");
+
+                    b.Navigation("City");
+
+                    b.Navigation("Country");
+
+                    b.Navigation("District");
 
                     b.Navigation("User");
                 });
@@ -2016,6 +2183,25 @@ namespace Persistence.Migrations
                     b.Navigation("Products");
 
                     b.Navigation("SubCategories");
+                });
+
+            modelBuilder.Entity("Domain.Entities.City", b =>
+                {
+                    b.Navigation("Districts");
+
+                    b.Navigation("UserAddresses");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Country", b =>
+                {
+                    b.Navigation("Cities");
+
+                    b.Navigation("UserAddresses");
+                });
+
+            modelBuilder.Entity("Domain.Entities.District", b =>
+                {
+                    b.Navigation("UserAddresses");
                 });
 
             modelBuilder.Entity("Domain.Entities.Feature", b =>

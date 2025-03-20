@@ -30,21 +30,21 @@ public static class RoleAndUserSeeder
     }
 
     private static async Task SeedAdminUserAsync(
-        IServiceProvider serviceProvider, 
+        IServiceProvider serviceProvider,
         IConfiguration configuration)
     {
         var userManager = serviceProvider.GetRequiredService<UserManager<AppUser>>();
 
         // Admin bilgilerini Key Vault'tan al
-        var adminUsername = configuration["AdminUsername"] 
+        var adminUsername = configuration["AdminUsername"]
                             ?? throw new InvalidOperationException("Admin kullanıcı adı bulunamadı");
-        var adminEmail = configuration["AdminEmail"] 
+        var adminEmail = configuration["AdminEmail"]
                          ?? throw new InvalidOperationException("Admin email adresi bulunamadı");
-        var adminPassword = configuration["AdminPassword"] 
+        var adminPassword = configuration["AdminPassword"]
                             ?? throw new InvalidOperationException("Admin şifresi bulunamadı");
 
         var adminUser = await userManager.FindByNameAsync(adminUsername);
-        
+
         if (adminUser == null)
         {
             adminUser = new AppUser
@@ -53,12 +53,12 @@ public static class RoleAndUserSeeder
                 UserName = adminUsername,
                 Email = adminEmail,
                 EmailConfirmed = true,
-                NameSurname = configuration["AdminNameSurname"] 
+                NameSurname = configuration["AdminNameSurname"]
                               ?? throw new InvalidOperationException("Admin adı soyadı bulunamadı")
             };
 
             var result = await userManager.CreateAsync(adminUser, adminPassword);
-            
+
             if (result.Succeeded)
             {
                 await userManager.AddToRoleAsync(adminUser, "Admin");

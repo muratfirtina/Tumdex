@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Application.Consts;
 using Application.Extensions;
 using Application.Extensions.ImageFileExtensions;
 using Application.Repositories;
@@ -14,14 +16,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Application.Features.Orders.Queries.GetOrdersByDynamic;
 
-public class GetOrdersByDynamicQuery : IRequest<GetListResponse<GetOrdersByDynamicQueryResponse>>,ICachableRequest
+public class GetOrdersByDynamicQuery : IRequest<GetListResponse<GetOrdersByDynamicQueryResponse>>
 {
    public PageRequest PageRequest { get; set; }
    public DynamicQuery DynamicQuery { get; set; }
 
-   public string CacheKey => $"GetOrdersByDynamicQuery({DynamicQuery})";
+   public string CacheKey => $"GetOrdersByDynamic-Page{PageRequest.PageIndex}-Size{PageRequest.PageSize}-{JsonSerializer.Serialize(DynamicQuery)}";
    public bool BypassCache { get; }
-   public string? CacheGroupKey => "Orders";
+   public string CacheGroupKey => CacheGroups.Orders;
    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(2);
    
    public class GetOrdersByDynamicQueryHandler : IRequestHandler<GetOrdersByDynamicQuery, GetListResponse<GetOrdersByDynamicQueryResponse>>

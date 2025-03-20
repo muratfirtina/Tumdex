@@ -13,7 +13,9 @@ namespace Application.Features.Brands.Queries.Search;
 public class SearchBrandQuery : IRequest<GetListResponse<BrandDto>>, ICachableRequest
 {
     public string SearchTerm { get; set; }
-    public string CacheKey => $"SearchBrandQuery({SearchTerm})";
+    
+    // More descriptive cache key with search term
+    public string CacheKey => $"Brands-Search-{SearchTerm}";
     public bool BypassCache => false;
     public string? CacheGroupKey => CacheGroups.GetAll;
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(30);

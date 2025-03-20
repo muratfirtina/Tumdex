@@ -13,7 +13,7 @@ namespace Persistence.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.RenameColumn(
-                name: "District",
+                name: "State",
                 table: "UserAddresses",
                 newName: "District");
 

@@ -12,8 +12,8 @@ using Persistence.Context;
 namespace Persistence.Migrations
 {
     [DbContext(typeof(TumdexDbContext))]
-    [Migration("20250227224525_mig_3")]
-    partial class mig_3
+    [Migration("20250320225444_mig_1")]
+    partial class mig_1
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -85,12 +85,42 @@ namespace Persistence.Migrations
                     b.ToTable("CategoryFeature", (string)null);
                 });
 
-            modelBuilder.Entity("Domain.ACMenu", b =>
+            modelBuilder.Entity("Domain.Cart", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("DeletedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("OrderId")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Carts");
+                });
+
+            modelBuilder.Entity("Domain.Entities.ACMenu", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -108,12 +138,12 @@ namespace Persistence.Migrations
                     b.ToTable("ACMenus");
                 });
 
-            modelBuilder.Entity("Domain.AlertLog", b =>
+            modelBuilder.Entity("Domain.Entities.AlertLog", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -153,12 +183,12 @@ namespace Persistence.Migrations
                     b.ToTable("AlertLogs");
                 });
 
-            modelBuilder.Entity("Domain.Brand", b =>
+            modelBuilder.Entity("Domain.Entities.Brand", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -175,12 +205,12 @@ namespace Persistence.Migrations
                     b.ToTable("Brands");
                 });
 
-            modelBuilder.Entity("Domain.Carousel", b =>
+            modelBuilder.Entity("Domain.Entities.Carousel", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -206,37 +236,7 @@ namespace Persistence.Migrations
                     b.ToTable("Carousel");
                 });
 
-            modelBuilder.Entity("Domain.Cart", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<DateTime?>("DeletedDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("OrderId")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("UpdatedDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OrderId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Carts");
-                });
-
-            modelBuilder.Entity("Domain.CartItem", b =>
+            modelBuilder.Entity("Domain.Entities.CartItem", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
@@ -245,7 +245,7 @@ namespace Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -273,12 +273,12 @@ namespace Persistence.Migrations
                     b.ToTable("CartItems");
                 });
 
-            modelBuilder.Entity("Domain.Category", b =>
+            modelBuilder.Entity("Domain.Entities.Category", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -303,12 +303,52 @@ namespace Persistence.Migrations
                     b.ToTable("Categories");
                 });
 
-            modelBuilder.Entity("Domain.CompletedOrder", b =>
+            modelBuilder.Entity("Domain.Entities.City", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("Code");
+
+                    b.Property<int>("CountryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("CountryId");
+
+                    b.Property<DateTime?>("CreatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("DeletedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("Name");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CountryId");
+
+                    b.ToTable("Cities", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Entities.CompletedOrder", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -329,7 +369,7 @@ namespace Persistence.Migrations
                     b.ToTable("CompletedOrders");
                 });
 
-            modelBuilder.Entity("Domain.Contact", b =>
+            modelBuilder.Entity("Domain.Entities.Contact", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
@@ -367,7 +407,88 @@ namespace Persistence.Migrations
                     b.ToTable("Contacts");
                 });
 
-            modelBuilder.Entity("Domain.Endpoint", b =>
+            modelBuilder.Entity("Domain.Entities.Country", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("Code");
+
+                    b.Property<DateTime?>("CreatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("DeletedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("Name");
+
+                    b.Property<string>("PhoneCode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("PhoneCode");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Countries", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Entities.District", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CityId")
+                        .HasColumnType("integer")
+                        .HasColumnName("CityId");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("Code");
+
+                    b.Property<DateTime?>("CreatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("DeletedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("Name");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CityId");
+
+                    b.ToTable("Districts", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Entities.Endpoint", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
@@ -384,7 +505,7 @@ namespace Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Definition")
@@ -408,58 +529,12 @@ namespace Persistence.Migrations
                     b.ToTable("Endpoints");
                 });
 
-            modelBuilder.Entity("Domain.Entities.OutboxMessage", b =>
+            modelBuilder.Entity("Domain.Entities.Feature", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("Data")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("DeletedDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("Error")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("ProcessedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<int>("RetryCount")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<DateTime?>("UpdatedDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedDate");
-
-                    b.HasIndex("ProcessedAt");
-
-                    b.HasIndex("Status");
-
-                    b.ToTable("OutboxMessages", (string)null);
-                });
-
-            modelBuilder.Entity("Domain.Feature", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -476,12 +551,12 @@ namespace Persistence.Migrations
                     b.ToTable("Features");
                 });
 
-            modelBuilder.Entity("Domain.FeatureValue", b =>
+            modelBuilder.Entity("Domain.Entities.FeatureValue", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -503,12 +578,12 @@ namespace Persistence.Migrations
                     b.ToTable("FeatureValues");
                 });
 
-            modelBuilder.Entity("Domain.FilterGroup", b =>
+            modelBuilder.Entity("Domain.Entities.FilterGroup", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -533,12 +608,12 @@ namespace Persistence.Migrations
                     b.ToTable("FilterGroups");
                 });
 
-            modelBuilder.Entity("Domain.FilterOption", b =>
+            modelBuilder.Entity("Domain.Entities.FilterOption", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -566,192 +641,7 @@ namespace Persistence.Migrations
                     b.ToTable("FilterOptions");
                 });
 
-            modelBuilder.Entity("Domain.Identity.AppRole", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ConcurrencyStamp")
-                        .IsConcurrencyToken()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Name")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<string>("NormalizedName")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("NormalizedName")
-                        .IsUnique()
-                        .HasDatabaseName("RoleNameIndex");
-
-                    b.ToTable("AspNetRoles", (string)null);
-                });
-
-            modelBuilder.Entity("Domain.Identity.AppUser", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text");
-
-                    b.Property<int>("AccessFailedCount")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ConcurrencyStamp")
-                        .IsConcurrencyToken()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<DateTime?>("DeletedDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("Email")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<bool>("EmailConfirmed")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("LockoutEnabled")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset?>("LockoutEnd")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("NameSurname")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("NormalizedEmail")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<string>("NormalizedUserName")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<string>("PasswordHash")
-                        .HasColumnType("text");
-
-                    b.Property<string>("PhoneNumber")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("PhoneNumberConfirmed")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("RefreshToken")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("RefreshTokenEndDateTime")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("SecurityStamp")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("TwoFactorEnabled")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("UpdatedDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("UserName")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("NormalizedEmail")
-                        .HasDatabaseName("EmailIndex");
-
-                    b.HasIndex("NormalizedUserName")
-                        .IsUnique()
-                        .HasDatabaseName("UserNameIndex");
-
-                    b.ToTable("AspNetUsers", (string)null);
-                });
-
-            modelBuilder.Entity("Domain.Identity.RefreshToken", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text");
-
-                    b.Property<string>("CreatedByIp")
-                        .IsRequired()
-                        .HasMaxLength(45)
-                        .HasColumnType("character varying(45)");
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<DateTime?>("DeletedDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<DateTime>("ExpiryDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("FamilyId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsRevoked")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsUsed")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("JwtId")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<string>("ReasonRevoked")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("RevokedByIp")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("RevokedDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("TokenHash")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<DateTime?>("UpdatedDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("UserAgent")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FamilyId");
-
-                    b.HasIndex("TokenHash");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("RefreshTokens");
-                });
-
-            modelBuilder.Entity("Domain.ImageFile", b =>
+            modelBuilder.Entity("Domain.Entities.ImageFile", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
@@ -762,7 +652,7 @@ namespace Persistence.Migrations
                     b.Property<string>("Caption")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -825,12 +715,12 @@ namespace Persistence.Migrations
                     b.UseTphMappingStrategy();
                 });
 
-            modelBuilder.Entity("Domain.ImageVersion", b =>
+            modelBuilder.Entity("Domain.Entities.ImageVersion", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -881,12 +771,12 @@ namespace Persistence.Migrations
                     b.ToTable("ImageVersions");
                 });
 
-            modelBuilder.Entity("Domain.Newsletter", b =>
+            modelBuilder.Entity("Domain.Entities.Newsletter", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -921,12 +811,12 @@ namespace Persistence.Migrations
                     b.ToTable("Newsletters");
                 });
 
-            modelBuilder.Entity("Domain.NewsletterLog", b =>
+            modelBuilder.Entity("Domain.Entities.NewsletterLog", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -960,7 +850,7 @@ namespace Persistence.Migrations
                     b.ToTable("NewsletterLogs");
                 });
 
-            modelBuilder.Entity("Domain.Order", b =>
+            modelBuilder.Entity("Domain.Entities.Order", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
@@ -968,7 +858,7 @@ namespace Persistence.Migrations
                     b.Property<string>("AdminNote")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -1020,7 +910,7 @@ namespace Persistence.Migrations
                     b.ToTable("Orders");
                 });
 
-            modelBuilder.Entity("Domain.OrderItem", b =>
+            modelBuilder.Entity("Domain.Entities.OrderItem", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
@@ -1028,7 +918,7 @@ namespace Persistence.Migrations
                     b.Property<string>("BrandName")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -1060,7 +950,7 @@ namespace Persistence.Migrations
                     b.Property<string>("ProductTitle")
                         .HasColumnType("text");
 
-                    b.Property<int>("Quantity")
+                    b.Property<int?>("Quantity")
                         .HasColumnType("integer");
 
                     b.Property<DateTime?>("UpdatedDate")
@@ -1078,12 +968,58 @@ namespace Persistence.Migrations
                     b.ToTable("OrderItems");
                 });
 
-            modelBuilder.Entity("Domain.PhoneNumber", b =>
+            modelBuilder.Entity("Domain.Entities.OutboxMessage", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Data")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedDate");
+
+                    b.HasIndex("ProcessedAt");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("OutboxMessages", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Entities.PhoneNumber", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -1114,61 +1050,7 @@ namespace Persistence.Migrations
                     b.ToTable("PhoneNumbers");
                 });
 
-            modelBuilder.Entity("Domain.Product", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text");
-
-                    b.Property<string>("BrandId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("CategoryId")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<DateTime?>("DeletedDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<decimal?>("Price")
-                        .HasColumnType("numeric");
-
-                    b.Property<string>("Sku")
-                        .HasColumnType("text");
-
-                    b.Property<int?>("Stock")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("Tax")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Title")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("UpdatedDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("VaryantGroupID")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BrandId");
-
-                    b.HasIndex("CategoryId");
-
-                    b.ToTable("Products");
-                });
-
-            modelBuilder.Entity("Domain.ProductFeatureValue", b =>
+            modelBuilder.Entity("Domain.Entities.ProductFeatureValue", b =>
                 {
                     b.Property<string>("ProductId")
                         .HasColumnType("text");
@@ -1188,12 +1070,12 @@ namespace Persistence.Migrations
                     b.ToTable("ProductFeatureValues");
                 });
 
-            modelBuilder.Entity("Domain.ProductLike", b =>
+            modelBuilder.Entity("Domain.Entities.ProductLike", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -1222,12 +1104,12 @@ namespace Persistence.Migrations
                     b.ToTable("ProductLikes");
                 });
 
-            modelBuilder.Entity("Domain.ProductView", b =>
+            modelBuilder.Entity("Domain.Entities.ProductView", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -1256,7 +1138,7 @@ namespace Persistence.Migrations
                     b.ToTable("ProductViews");
                 });
 
-            modelBuilder.Entity("Domain.SecurityLog", b =>
+            modelBuilder.Entity("Domain.Entities.SecurityLog", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
@@ -1267,7 +1149,7 @@ namespace Persistence.Migrations
                     b.Property<string>("ClientIP")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -1315,7 +1197,7 @@ namespace Persistence.Migrations
                     b.ToTable("SecurityLogs");
                 });
 
-            modelBuilder.Entity("Domain.StockReservation", b =>
+            modelBuilder.Entity("Domain.Entities.StockReservation", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
@@ -1324,7 +1206,7 @@ namespace Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
@@ -1351,7 +1233,7 @@ namespace Persistence.Migrations
                     b.ToTable("StockReservations");
                 });
 
-            modelBuilder.Entity("Domain.UserAddress", b =>
+            modelBuilder.Entity("Domain.Entities.UserAddress", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
@@ -1362,17 +1244,20 @@ namespace Persistence.Migrations
                     b.Property<string>("AddressLine2")
                         .HasColumnType("text");
 
-                    b.Property<string>("City")
-                        .HasColumnType("text");
+                    b.Property<int?>("CityId")
+                        .HasColumnType("integer");
 
-                    b.Property<string>("Country")
-                        .HasColumnType("text");
+                    b.Property<int?>("CountryId")
+                        .HasColumnType("integer");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("DeletedDate")
                         .HasColumnType("timestamp without time zone");
+
+                    b.Property<int?>("DistrictId")
+                        .HasColumnType("integer");
 
                     b.Property<bool>("IsDefault")
                         .HasColumnType("boolean");
@@ -1383,9 +1268,6 @@ namespace Persistence.Migrations
                     b.Property<string>("PostalCode")
                         .HasColumnType("text");
 
-                    b.Property<string>("State")
-                        .HasColumnType("text");
-
                     b.Property<DateTime?>("UpdatedDate")
                         .HasColumnType("timestamp without time zone");
 
@@ -1394,9 +1276,217 @@ namespace Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CityId");
+
+                    b.HasIndex("CountryId");
+
+                    b.HasIndex("DistrictId");
+
                     b.HasIndex("UserId");
 
                     b.ToTable("UserAddresses");
+                });
+
+            modelBuilder.Entity("Domain.Identity.AppRole", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("NormalizedName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("RoleNameIndex");
+
+                    b.ToTable("AspNetRoles", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Identity.AppUser", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<int>("AccessFailedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("DeletedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("FailedLoginAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastLoginDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("LastLoginIp")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LastLoginUserAgent")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("LockoutEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("NameSurname")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NormalizedEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("NormalizedUserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("PhoneNumberConfirmed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RefreshToken")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("RefreshTokenExpiryTime")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("SecurityStamp")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SessionId")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("TwoFactorEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("UserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedEmail")
+                        .HasDatabaseName("EmailIndex");
+
+                    b.HasIndex("NormalizedUserName")
+                        .IsUnique()
+                        .HasDatabaseName("UserNameIndex");
+
+                    b.ToTable("AspNetUsers", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Identity.RefreshToken", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AppUserId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedByIp")
+                        .IsRequired()
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)");
+
+                    b.Property<DateTime?>("CreatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("DeletedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime>("ExpiryDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("FamilyId")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsRevoked")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("JwtId")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)");
+
+                    b.Property<string>("ReasonRevoked")
+                        .HasColumnType("text");
+
+                    b.Property<string>("RevokedByIp")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("RevokedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("UserAgent")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppUserId");
+
+                    b.HasIndex("FamilyId");
+
+                    b.HasIndex("TokenHash");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RefreshTokens");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -1505,6 +1595,60 @@ namespace Persistence.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Product", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<string>("BrandId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CategoryId")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("CreatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("DeletedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("Price")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("Sku")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("Stock")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Tax")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("VaryantGroupID")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BrandId");
+
+                    b.HasIndex("CategoryId");
+
+                    b.ToTable("Products");
+                });
+
             modelBuilder.Entity("ProductProductImageFile", b =>
                 {
                     b.Property<string>("ProductImageFilesId")
@@ -1520,16 +1664,16 @@ namespace Persistence.Migrations
                     b.ToTable("ProductProductImageFile");
                 });
 
-            modelBuilder.Entity("Domain.BrandImageFile", b =>
+            modelBuilder.Entity("Domain.Entities.BrandImageFile", b =>
                 {
-                    b.HasBaseType("Domain.ImageFile");
+                    b.HasBaseType("Domain.Entities.ImageFile");
 
                     b.HasDiscriminator().HasValue("BrandImageFile");
                 });
 
-            modelBuilder.Entity("Domain.CarouselImageFile", b =>
+            modelBuilder.Entity("Domain.Entities.CarouselImageFile", b =>
                 {
-                    b.HasBaseType("Domain.ImageFile");
+                    b.HasBaseType("Domain.Entities.ImageFile");
 
                     b.Property<string>("CarouselId")
                         .HasColumnType("text");
@@ -1539,16 +1683,16 @@ namespace Persistence.Migrations
                     b.HasDiscriminator().HasValue("CarouselImageFile");
                 });
 
-            modelBuilder.Entity("Domain.CategoryImageFile", b =>
+            modelBuilder.Entity("Domain.Entities.CategoryImageFile", b =>
                 {
-                    b.HasBaseType("Domain.ImageFile");
+                    b.HasBaseType("Domain.Entities.ImageFile");
 
                     b.HasDiscriminator().HasValue("CategoryImageFile");
                 });
 
-            modelBuilder.Entity("Domain.ProductImageFile", b =>
+            modelBuilder.Entity("Domain.Entities.ProductImageFile", b =>
                 {
-                    b.HasBaseType("Domain.ImageFile");
+                    b.HasBaseType("Domain.Entities.ImageFile");
 
                     b.Property<string>("CartItemId")
                         .HasColumnType("text");
@@ -1568,7 +1712,7 @@ namespace Persistence.Migrations
 
             modelBuilder.Entity("AppRoleEndpoint", b =>
                 {
-                    b.HasOne("Domain.Endpoint", null)
+                    b.HasOne("Domain.Entities.Endpoint", null)
                         .WithMany()
                         .HasForeignKey("EndpointsId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1583,13 +1727,13 @@ namespace Persistence.Migrations
 
             modelBuilder.Entity("BrandBrandImageFile", b =>
                 {
-                    b.HasOne("Domain.BrandImageFile", null)
+                    b.HasOne("Domain.Entities.BrandImageFile", null)
                         .WithMany()
                         .HasForeignKey("BrandImageFilesId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Domain.Brand", null)
+                    b.HasOne("Domain.Entities.Brand", null)
                         .WithMany()
                         .HasForeignKey("BrandsId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1598,13 +1742,13 @@ namespace Persistence.Migrations
 
             modelBuilder.Entity("CategoryCategoryImageFile", b =>
                 {
-                    b.HasOne("Domain.Category", null)
+                    b.HasOne("Domain.Entities.Category", null)
                         .WithMany()
                         .HasForeignKey("CategoriesId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Domain.CategoryImageFile", null)
+                    b.HasOne("Domain.Entities.CategoryImageFile", null)
                         .WithMany()
                         .HasForeignKey("CategoryImageFilesId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1613,13 +1757,13 @@ namespace Persistence.Migrations
 
             modelBuilder.Entity("CategoryFeature", b =>
                 {
-                    b.HasOne("Domain.Category", null)
+                    b.HasOne("Domain.Entities.Category", null)
                         .WithMany()
                         .HasForeignKey("CategoriesId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Domain.Feature", null)
+                    b.HasOne("Domain.Entities.Feature", null)
                         .WithMany()
                         .HasForeignKey("FeaturesId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1628,7 +1772,7 @@ namespace Persistence.Migrations
 
             modelBuilder.Entity("Domain.Cart", b =>
                 {
-                    b.HasOne("Domain.Order", "Order")
+                    b.HasOne("Domain.Entities.Order", "Order")
                         .WithMany()
                         .HasForeignKey("OrderId");
 
@@ -1643,7 +1787,7 @@ namespace Persistence.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Domain.CartItem", b =>
+            modelBuilder.Entity("Domain.Entities.CartItem", b =>
                 {
                     b.HasOne("Domain.Cart", "Cart")
                         .WithMany("CartItems")
@@ -1651,7 +1795,7 @@ namespace Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Domain.Product", "Product")
+                    b.HasOne("Product", "Product")
                         .WithMany()
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1662,29 +1806,51 @@ namespace Persistence.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("Domain.Category", b =>
+            modelBuilder.Entity("Domain.Entities.Category", b =>
                 {
-                    b.HasOne("Domain.Category", "ParentCategory")
+                    b.HasOne("Domain.Entities.Category", "ParentCategory")
                         .WithMany("SubCategories")
                         .HasForeignKey("ParentCategoryId");
 
                     b.Navigation("ParentCategory");
                 });
 
-            modelBuilder.Entity("Domain.CompletedOrder", b =>
+            modelBuilder.Entity("Domain.Entities.City", b =>
                 {
-                    b.HasOne("Domain.Order", "Order")
+                    b.HasOne("Domain.Entities.Country", "Country")
+                        .WithMany("Cities")
+                        .HasForeignKey("CountryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Country");
+                });
+
+            modelBuilder.Entity("Domain.Entities.CompletedOrder", b =>
+                {
+                    b.HasOne("Domain.Entities.Order", "Order")
                         .WithOne("CompletedOrder")
-                        .HasForeignKey("Domain.CompletedOrder", "OrderId")
+                        .HasForeignKey("Domain.Entities.CompletedOrder", "OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Order");
                 });
 
-            modelBuilder.Entity("Domain.Endpoint", b =>
+            modelBuilder.Entity("Domain.Entities.District", b =>
                 {
-                    b.HasOne("Domain.ACMenu", "AcMenu")
+                    b.HasOne("Domain.Entities.City", "City")
+                        .WithMany("Districts")
+                        .HasForeignKey("CityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("City");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Endpoint", b =>
+                {
+                    b.HasOne("Domain.Entities.ACMenu", "AcMenu")
                         .WithMany("Endpoints")
                         .HasForeignKey("AcMenuId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1693,18 +1859,18 @@ namespace Persistence.Migrations
                     b.Navigation("AcMenu");
                 });
 
-            modelBuilder.Entity("Domain.FeatureValue", b =>
+            modelBuilder.Entity("Domain.Entities.FeatureValue", b =>
                 {
-                    b.HasOne("Domain.Feature", "Feature")
+                    b.HasOne("Domain.Entities.Feature", "Feature")
                         .WithMany("FeatureValues")
                         .HasForeignKey("FeatureId");
 
                     b.Navigation("Feature");
                 });
 
-            modelBuilder.Entity("Domain.FilterOption", b =>
+            modelBuilder.Entity("Domain.Entities.FilterOption", b =>
                 {
-                    b.HasOne("Domain.FilterGroup", "FilterGroup")
+                    b.HasOne("Domain.Entities.FilterGroup", "FilterGroup")
                         .WithMany("Options")
                         .HasForeignKey("FilterGroupId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1713,20 +1879,9 @@ namespace Persistence.Migrations
                     b.Navigation("FilterGroup");
                 });
 
-            modelBuilder.Entity("Domain.Identity.RefreshToken", b =>
+            modelBuilder.Entity("Domain.Entities.ImageVersion", b =>
                 {
-                    b.HasOne("Domain.Identity.AppUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Domain.ImageVersion", b =>
-                {
-                    b.HasOne("Domain.ImageFile", "ImageFile")
+                    b.HasOne("Domain.Entities.ImageFile", "ImageFile")
                         .WithMany("Versions")
                         .HasForeignKey("ImageFileId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1735,7 +1890,7 @@ namespace Persistence.Migrations
                     b.Navigation("ImageFile");
                 });
 
-            modelBuilder.Entity("Domain.Newsletter", b =>
+            modelBuilder.Entity("Domain.Entities.Newsletter", b =>
                 {
                     b.HasOne("Domain.Identity.AppUser", "User")
                         .WithMany()
@@ -1744,13 +1899,13 @@ namespace Persistence.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Domain.Order", b =>
+            modelBuilder.Entity("Domain.Entities.Order", b =>
                 {
-                    b.HasOne("Domain.PhoneNumber", "PhoneNumber")
+                    b.HasOne("Domain.Entities.PhoneNumber", "PhoneNumber")
                         .WithMany()
                         .HasForeignKey("PhoneNumberId");
 
-                    b.HasOne("Domain.UserAddress", "UserAddress")
+                    b.HasOne("Domain.Entities.UserAddress", "UserAddress")
                         .WithMany()
                         .HasForeignKey("UserAddressId");
 
@@ -1767,15 +1922,15 @@ namespace Persistence.Migrations
                     b.Navigation("UserAddress");
                 });
 
-            modelBuilder.Entity("Domain.OrderItem", b =>
+            modelBuilder.Entity("Domain.Entities.OrderItem", b =>
                 {
-                    b.HasOne("Domain.Order", "Order")
+                    b.HasOne("Domain.Entities.Order", "Order")
                         .WithMany("OrderItems")
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Domain.Product", "Product")
+                    b.HasOne("Product", "Product")
                         .WithMany()
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1786,7 +1941,7 @@ namespace Persistence.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("Domain.PhoneNumber", b =>
+            modelBuilder.Entity("Domain.Entities.PhoneNumber", b =>
                 {
                     b.HasOne("Domain.Identity.AppUser", "User")
                         .WithMany("PhoneNumbers")
@@ -1797,36 +1952,19 @@ namespace Persistence.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Domain.Product", b =>
+            modelBuilder.Entity("Domain.Entities.ProductFeatureValue", b =>
                 {
-                    b.HasOne("Domain.Brand", "Brand")
-                        .WithMany("Products")
-                        .HasForeignKey("BrandId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Domain.Category", "Category")
-                        .WithMany("Products")
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Brand");
-
-                    b.Navigation("Category");
-                });
-
-            modelBuilder.Entity("Domain.ProductFeatureValue", b =>
-                {
-                    b.HasOne("Domain.FeatureValue", "FeatureValue")
+                    b.HasOne("Domain.Entities.FeatureValue", "FeatureValue")
                         .WithMany("ProductFeatureValues")
                         .HasForeignKey("FeatureValueId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Domain.OrderItem", null)
+                    b.HasOne("Domain.Entities.OrderItem", null)
                         .WithMany("ProductFeatureValues")
                         .HasForeignKey("OrderItemId");
 
-                    b.HasOne("Domain.Product", "Product")
+                    b.HasOne("Product", "Product")
                         .WithMany("ProductFeatureValues")
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -1837,9 +1975,9 @@ namespace Persistence.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("Domain.ProductLike", b =>
+            modelBuilder.Entity("Domain.Entities.ProductLike", b =>
                 {
-                    b.HasOne("Domain.Product", "Product")
+                    b.HasOne("Product", "Product")
                         .WithMany("ProductLikes")
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1856,9 +1994,9 @@ namespace Persistence.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Domain.ProductView", b =>
+            modelBuilder.Entity("Domain.Entities.ProductView", b =>
                 {
-                    b.HasOne("Domain.Product", "Product")
+                    b.HasOne("Product", "Product")
                         .WithMany("ProductViews")
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1875,11 +2013,44 @@ namespace Persistence.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Domain.UserAddress", b =>
+            modelBuilder.Entity("Domain.Entities.UserAddress", b =>
                 {
+                    b.HasOne("Domain.Entities.City", "City")
+                        .WithMany("UserAddresses")
+                        .HasForeignKey("CityId");
+
+                    b.HasOne("Domain.Entities.Country", "Country")
+                        .WithMany("UserAddresses")
+                        .HasForeignKey("CountryId");
+
+                    b.HasOne("Domain.Entities.District", "District")
+                        .WithMany("UserAddresses")
+                        .HasForeignKey("DistrictId");
+
                     b.HasOne("Domain.Identity.AppUser", "User")
                         .WithMany("UserAddresses")
                         .HasForeignKey("UserId");
+
+                    b.Navigation("City");
+
+                    b.Navigation("Country");
+
+                    b.Navigation("District");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Domain.Identity.RefreshToken", b =>
+                {
+                    b.HasOne("Domain.Identity.AppUser", null)
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("AppUserId");
+
+                    b.HasOne("Domain.Identity.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });
@@ -1935,52 +2106,54 @@ namespace Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Product", b =>
+                {
+                    b.HasOne("Domain.Entities.Brand", "Brand")
+                        .WithMany("Products")
+                        .HasForeignKey("BrandId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Domain.Entities.Category", "Category")
+                        .WithMany("Products")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Brand");
+
+                    b.Navigation("Category");
+                });
+
             modelBuilder.Entity("ProductProductImageFile", b =>
                 {
-                    b.HasOne("Domain.ProductImageFile", null)
+                    b.HasOne("Domain.Entities.ProductImageFile", null)
                         .WithMany()
                         .HasForeignKey("ProductImageFilesId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Domain.Product", null)
+                    b.HasOne("Product", null)
                         .WithMany()
                         .HasForeignKey("ProductsId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Domain.CarouselImageFile", b =>
+            modelBuilder.Entity("Domain.Entities.CarouselImageFile", b =>
                 {
-                    b.HasOne("Domain.Carousel", null)
+                    b.HasOne("Domain.Entities.Carousel", null)
                         .WithMany("CarouselImageFiles")
                         .HasForeignKey("CarouselId");
                 });
 
-            modelBuilder.Entity("Domain.ProductImageFile", b =>
+            modelBuilder.Entity("Domain.Entities.ProductImageFile", b =>
                 {
-                    b.HasOne("Domain.CartItem", null)
+                    b.HasOne("Domain.Entities.CartItem", null)
                         .WithMany("ProductImageFiles")
                         .HasForeignKey("CartItemId");
 
-                    b.HasOne("Domain.OrderItem", null)
+                    b.HasOne("Domain.Entities.OrderItem", null)
                         .WithMany("ProductImageFiles")
                         .HasForeignKey("OrderItemId");
-                });
-
-            modelBuilder.Entity("Domain.ACMenu", b =>
-                {
-                    b.Navigation("Endpoints");
-                });
-
-            modelBuilder.Entity("Domain.Brand", b =>
-                {
-                    b.Navigation("Products");
-                });
-
-            modelBuilder.Entity("Domain.Carousel", b =>
-                {
-                    b.Navigation("CarouselImageFiles");
                 });
 
             modelBuilder.Entity("Domain.Cart", b =>
@@ -1988,31 +2161,85 @@ namespace Persistence.Migrations
                     b.Navigation("CartItems");
                 });
 
-            modelBuilder.Entity("Domain.CartItem", b =>
+            modelBuilder.Entity("Domain.Entities.ACMenu", b =>
+                {
+                    b.Navigation("Endpoints");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Brand", b =>
+                {
+                    b.Navigation("Products");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Carousel", b =>
+                {
+                    b.Navigation("CarouselImageFiles");
+                });
+
+            modelBuilder.Entity("Domain.Entities.CartItem", b =>
                 {
                     b.Navigation("ProductImageFiles");
                 });
 
-            modelBuilder.Entity("Domain.Category", b =>
+            modelBuilder.Entity("Domain.Entities.Category", b =>
                 {
                     b.Navigation("Products");
 
                     b.Navigation("SubCategories");
                 });
 
-            modelBuilder.Entity("Domain.Feature", b =>
+            modelBuilder.Entity("Domain.Entities.City", b =>
+                {
+                    b.Navigation("Districts");
+
+                    b.Navigation("UserAddresses");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Country", b =>
+                {
+                    b.Navigation("Cities");
+
+                    b.Navigation("UserAddresses");
+                });
+
+            modelBuilder.Entity("Domain.Entities.District", b =>
+                {
+                    b.Navigation("UserAddresses");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Feature", b =>
                 {
                     b.Navigation("FeatureValues");
                 });
 
-            modelBuilder.Entity("Domain.FeatureValue", b =>
+            modelBuilder.Entity("Domain.Entities.FeatureValue", b =>
                 {
                     b.Navigation("ProductFeatureValues");
                 });
 
-            modelBuilder.Entity("Domain.FilterGroup", b =>
+            modelBuilder.Entity("Domain.Entities.FilterGroup", b =>
                 {
                     b.Navigation("Options");
+                });
+
+            modelBuilder.Entity("Domain.Entities.ImageFile", b =>
+                {
+                    b.Navigation("Versions");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Order", b =>
+                {
+                    b.Navigation("CompletedOrder")
+                        .IsRequired();
+
+                    b.Navigation("OrderItems");
+                });
+
+            modelBuilder.Entity("Domain.Entities.OrderItem", b =>
+                {
+                    b.Navigation("ProductFeatureValues");
+
+                    b.Navigation("ProductImageFiles");
                 });
 
             modelBuilder.Entity("Domain.Identity.AppUser", b =>
@@ -2025,30 +2252,12 @@ namespace Persistence.Migrations
 
                     b.Navigation("ProductViews");
 
+                    b.Navigation("RefreshTokens");
+
                     b.Navigation("UserAddresses");
                 });
 
-            modelBuilder.Entity("Domain.ImageFile", b =>
-                {
-                    b.Navigation("Versions");
-                });
-
-            modelBuilder.Entity("Domain.Order", b =>
-                {
-                    b.Navigation("CompletedOrder")
-                        .IsRequired();
-
-                    b.Navigation("OrderItems");
-                });
-
-            modelBuilder.Entity("Domain.OrderItem", b =>
-                {
-                    b.Navigation("ProductFeatureValues");
-
-                    b.Navigation("ProductImageFiles");
-                });
-
-            modelBuilder.Entity("Domain.Product", b =>
+            modelBuilder.Entity("Product", b =>
                 {
                     b.Navigation("ProductFeatureValues");
 

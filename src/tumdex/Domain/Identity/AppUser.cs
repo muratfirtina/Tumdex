@@ -9,7 +9,6 @@ public class AppUser : IdentityUser<string>
 {
     public string NameSurname { get; set; }
     
-    // Token bilgileri - RefreshTokenEndDateTime yerine RefreshTokenExpiryTime kullanıldı
     public string? RefreshToken { get; set; }
     public DateTime? RefreshTokenExpiryTime { get; set; } // TokenHandler ile uyumlu olması için isim değiştirildi
     

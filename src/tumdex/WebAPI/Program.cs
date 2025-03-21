@@ -150,8 +150,9 @@ void ConfigureAdditionalServices(WebApplicationBuilder builder)
     var provider = new FileExtensionContentTypeProvider();
     provider.Mappings[".avif"] = "image/avif";
 
-    // Prometheus Metrics
-    builder.Services.AddMetricServer(options => { options.Port = 9100; });
+    // Prometheus Metrics - Yapılandırmadan port okunuyor
+    var metricsPort = builder.Configuration.GetValue<int>("Monitoring:Metrics:Port", 9101);
+    builder.Services.AddMetricServer(options => { options.Port = (ushort)metricsPort; });
 }
 
 // Application Configuration

@@ -1,4 +1,5 @@
 using Application.Features.Carts.Dtos;
+using Application.Features.Dashboard.Dtos;
 using Application.Features.Orders.Dtos;
 using Core.Application.Requests;
 using Core.Application.Responses;
@@ -30,4 +31,5 @@ public interface IOrderRepository: IAsyncRepository<Order, string>, IRepository<
 
     Task<OrderChanges> GetChanges(string orderId);
     Task<bool> CancelOrderAsync(string orderId);
+    Task<List<TopLocationDto>> GetTopOrderLocationsByTimeFrameAsync(int count, DateTime? startDate, CancellationToken cancellationToken);
 }

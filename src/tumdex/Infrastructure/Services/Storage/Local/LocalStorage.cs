@@ -48,9 +48,7 @@ public class LocalStorage : ILocalStorage
 
         var baseUrl = _storageSettings.Value.Providers.LocalStorage.Url?.TrimEnd('/');
         var format = Path.GetExtension(fileName).TrimStart('.').ToLower();
-        
-        // API üzerinden dosya yolu oluştur
-        var url = $"{baseUrl}/api/files/{entityType}/{path}/{fileName}";
+        var url = $"{baseUrl}/{entityType}/{path}/{fileName}";
 
         datas.Add((fileName, path, entityType, url, format));
 
@@ -68,7 +66,6 @@ public class LocalStorage : ILocalStorage
 
     public async Task<List<T>> GetFiles<T>(string entityId, string entityType) where T : ImageFile, new()
     {
-        // baseUrl kullanmak zorunlu değil, ama tutabilirsiniz:
         var baseUrl = _storageSettings.Value.Providers.LocalStorage.Url;
         var entityFolder = Path.Combine(_baseFolderPath, entityType, entityId);
 
@@ -84,17 +81,15 @@ public class LocalStorage : ILocalStorage
         {
             var relativePath = Path.GetRelativePath(_baseFolderPath, file);
             var fileInfo = new FileInfo(file);
-            var fileName = fileInfo.Name;
 
             result.Add(new T
             {
                 Id = Path.GetFileNameWithoutExtension(file),
                 Name = fileInfo.Name,
-                Path = relativePath,
+                Path = Path.GetDirectoryName(relativePath),
                 EntityType = entityType,
                 Storage = "localstorage",
-                // ÖNEMLİ:  /api/files ile başlayan URL
-                Url = $"{baseUrl.TrimEnd('/')}/api/files/{entityType}/{entityId}/{fileName}" // API üzerinden dosya yolu
+                Url = $"{baseUrl.TrimEnd('/')}/{relativePath.Replace('\\', '/')}"
             });
         }
 

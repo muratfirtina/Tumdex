@@ -1,5 +1,5 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.IO;
 
 namespace WebAPI.Controllers
 {
@@ -7,39 +7,32 @@ namespace WebAPI.Controllers
     [ApiController]
     public class FilesController : BaseController
     {
-        private readonly string _wwwrootPath;
-    
+        private readonly IWebHostEnvironment _environment;
+
         public FilesController(IWebHostEnvironment environment)
         {
-            _wwwrootPath = Path.Combine(environment.ContentRootPath, "wwwroot");
+            _environment = environment;
         }
-    
-        [HttpGet("{entityType}/{path}/{fileName}")]
-        public async Task<IActionResult> GetFile(string entityType, string path, string fileName)
+
+        [HttpGet("{*filePath}")]
+        public IActionResult GetFile(string filePath)
         {
-            var filePath = Path.Combine(_wwwrootPath, entityType, path, fileName);
-        
-            if (!System.IO.File.Exists(filePath))
+            var fullPath = Path.Combine(_environment.ContentRootPath, "wwwroot", filePath);
+            
+            if (!System.IO.File.Exists(fullPath))
             {
                 return NotFound();
             }
-        
-            var fileExtension = Path.GetExtension(fileName).ToLowerInvariant();
-            var contentType = GetContentType(fileExtension);
-        
-            var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
-            return File(fileBytes, contentType);
-        }
-    
-        private string GetContentType(string fileExtension)
-        {
-            return fileExtension switch
+            
+            var extension = Path.GetExtension(fullPath).ToLowerInvariant();
+            var contentType = extension switch
             {
                 ".png" => "image/png",
                 ".jpg" or ".jpeg" => "image/jpeg",
                 ".webp" => "image/webp",
                 ".svg" => "image/svg+xml",
                 ".avif" => "image/avif",
+                ".heic" => "image/heic",
                 ".pdf" => "application/pdf",
                 ".doc" => "application/msword",
                 ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -47,6 +40,11 @@ namespace WebAPI.Controllers
                 ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 _ => "application/octet-stream"
             };
+            
+            // Önbelleğe alma başlıkları
+            Response.Headers.Add("Cache-Control", "public, max-age=86400"); // 1 gün
+            
+            return PhysicalFile(fullPath, contentType);
         }
     }
 }

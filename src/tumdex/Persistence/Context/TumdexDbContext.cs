@@ -35,8 +35,6 @@ public class TumdexDbContext : IdentityDbContext<AppUser,AppRole,string>
     public DbSet<OrderItem> OrderItems { get; set; }
     public DbSet<CompletedOrder> CompletedOrders { get; set; }
     public DbSet<Carousel> Carousel { get; set; }
-    public DbSet<FilterGroup> FilterGroups { get; set; }
-    public DbSet<FilterOption> FilterOptions { get; set; }
     public DbSet<ProductLike> ProductLikes { get; set; }
     public DbSet<ProductView> ProductViews { get; set; }
     public DbSet<UserAddress> UserAddresses { get; set; }
@@ -70,8 +68,6 @@ public class TumdexDbContext : IdentityDbContext<AppUser,AppRole,string>
         builder.Entity<OrderItem>().HasQueryFilter(oi => !oi.DeletedDate.HasValue);
         builder.Entity<CompletedOrder>().HasQueryFilter(co => !co.DeletedDate.HasValue);
         builder.Entity<Carousel>().HasQueryFilter(c => !c.DeletedDate.HasValue);
-        builder.Entity<FilterGroup>().HasQueryFilter(fg => !fg.DeletedDate.HasValue);
-        builder.Entity<FilterOption>().HasQueryFilter(fo => !fo.DeletedDate.HasValue);
         builder.Entity<ProductView>().HasQueryFilter(pv => !pv.DeletedDate.HasValue);
         builder.Entity<UserAddress>().HasQueryFilter(ua => !ua.DeletedDate.HasValue);
         builder.Entity<PhoneNumber>().HasQueryFilter(pn => !pn.DeletedDate.HasValue);

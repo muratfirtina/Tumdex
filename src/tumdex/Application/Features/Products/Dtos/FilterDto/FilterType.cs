@@ -1,4 +1,4 @@
-namespace Domain.Enum;
+namespace Application.Features.Products.Dtos.FilterDto;
 
 public enum FilterType
 {

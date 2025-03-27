@@ -4,6 +4,7 @@ using Application.Enums;
 using Application.Features.Categories.Commands.Create;
 using Application.Features.Categories.Commands.Delete;
 using Application.Features.Categories.Commands.Update;
+using Application.Features.Categories.Queries.GetAllSubCategoriesRecursive;
 using Application.Features.Categories.Queries.GetByDynamic;
 using Application.Features.Categories.Queries.GetById;
 using Application.Features.Categories.Queries.GetCategoriesByIds;
@@ -102,6 +103,12 @@ namespace WebAPI.Controllers
         public async Task<IActionResult> Search([FromQuery] string searchTerm)
         {
             var response = await Mediator.Send(new SearchCategoryQuery { SearchTerm = searchTerm });
+            return Ok(response);
+        }
+        [HttpGet("GetAllSubCategoriesRecursive/{parentCategoryId}")]
+        public async Task<IActionResult> GetAllSubCategoriesRecursive([FromRoute] string parentCategoryId)
+        {
+            GetListResponse<GetAllSubCategoriesRecursiveResponse> response = await Mediator.Send(new GetAllSubCategoriesRecursiveQuery { ParentCategoryId = parentCategoryId });
             return Ok(response);
         }
 

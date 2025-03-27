@@ -1,5 +1,6 @@
 using Application.Extensions.ImageFileExtensions;
 using Application.Features.ProductImageFiles.Dtos;
+using Application.Features.Products.Dtos.FilterDto;
 using Application.Repositories;
 using Application.Storage;
 using Core.Application.Requests;
@@ -117,13 +118,14 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
         return await query.ToPaginateAsync(pageRequest.PageIndex, pageRequest.PageSize);
     }
 
-    public async Task<List<FilterGroup>> GetAvailableFilters(string searchTerm = null)
+    public async Task<List<FilterGroupDto>> GetAvailableFilters(string? searchTerm = null, string[]? categoryIds = null, string[]? brandIds = null)
 {
-    var filterDefinitions = new List<FilterGroup>();
-
+    var filterDefinitions = new List<FilterGroupDto>();
+    
+    // Başlangıç sorgusu oluştur
     var query = Context.Products.AsQueryable();
-
-    // Searchterm varsa uygula
+    
+    // 1. Arama terimi varsa uygula
     if (!string.IsNullOrWhiteSpace(searchTerm))
     {
         // Kategori ID kontrolü
@@ -141,11 +143,23 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
             query = query.SearchByTerm(searchTerm);
         }
     }
-
+    
+    // 2. Kategori ID'leri varsa, bunları filtreye ekle
+    if (categoryIds != null && categoryIds.Length > 0)
+    {
+        query = query.Where(p => categoryIds.Contains(p.CategoryId));
+    }
+    
+    // 3. Marka ID'leri varsa, bunları filtreye ekle
+    if (brandIds != null && brandIds.Length > 0)
+    {
+        query = query.Where(p => brandIds.Contains(p.BrandId));
+    }
+    
     // 1. Kategori Filtresi
     var categories = await Context.Categories
         .Where(c => query.Any(p => p.CategoryId == c.Id))
-        .Select(c => new FilterOption
+        .Select(c => new FilterOptionDto
         {
             Value = c.Id,
             DisplayValue = c.Name,
@@ -155,8 +169,9 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
 
     if (categories.Any())
     {
-        filterDefinitions.Add(new FilterGroup
+        filterDefinitions.Add(new FilterGroupDto
         {
+            Key = "Category",
             Name = "Category",
             DisplayName = "Category",
             Type = FilterType.Checkbox,
@@ -167,7 +182,7 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
     // 2. Marka Filtresi
     var brands = await Context.Brands
         .Where(b => query.Any(p => p.BrandId == b.Id))
-        .Select(b => new FilterOption
+        .Select(b => new FilterOptionDto
         {
             Value = b.Id,
             DisplayValue = b.Name
@@ -176,8 +191,9 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
 
     if (brands.Any())
     {
-        filterDefinitions.Add(new FilterGroup
+        filterDefinitions.Add(new FilterGroupDto
         {
+            Key = "Brand",
             Name = "Brand",
             DisplayName = "Brand",
             Type = FilterType.Checkbox,
@@ -195,7 +211,7 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
             Values = f.FeatureValues
                 .Where(fv => query.Any(p => p.ProductFeatureValues
                     .Any(pfv => pfv.FeatureValueId == fv.Id)))
-                .Select(fv => new FilterOption
+                .Select(fv => new FilterOptionDto
                 {
                     Value = fv.Id,
                     DisplayValue = fv.Name
@@ -206,7 +222,7 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
 
     foreach (var feature in features.Where(f => f.Values.Any()))
     {
-        filterDefinitions.Add(new FilterGroup
+        filterDefinitions.Add(new FilterGroupDto
         {
             Name = feature.FeatureName,
             DisplayName = feature.FeatureName,
@@ -226,7 +242,7 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
         var minPrice = prices.Min();
         var maxPrice = prices.Max();
 
-        filterDefinitions.Add(new FilterGroup
+        filterDefinitions.Add(new FilterGroupDto
         {
             Name = "Price",
             DisplayName = "Price",
@@ -238,9 +254,9 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
     return filterDefinitions;
 }
 
-    private List<FilterOption> GeneratePriceRanges(decimal minPrice, decimal maxPrice)
+    private List<FilterOptionDto> GeneratePriceRanges(decimal minPrice, decimal maxPrice)
     {
-        var options = new List<FilterOption>();
+        var options = new List<FilterOptionDto>();
         var step = (maxPrice - minPrice) / 5;
 
         for (int i = 0; i < 5; i++)
@@ -248,10 +264,10 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
             var start = minPrice + (step * i);
             var end = i == 4 ? maxPrice : minPrice + (step * (i + 1));
 
-            options.Add(new FilterOption
+            options.Add(new FilterOptionDto
             {
                 Value = $"{start}-{end}",
-                DisplayValue = $"{start:N0} TL - {end:N0} TL"
+                DisplayValue = $"{start:N0} - {end:N0} "
             });
         }
 

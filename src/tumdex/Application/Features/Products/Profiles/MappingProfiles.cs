@@ -157,13 +157,6 @@ public class MappingProfiles : Profile
         CreateMap<IPaginate<Product>, GetListResponse<FilterProductQueryResponse>>()
             .ReverseMap();
         
-        CreateMap<FilterGroup, FilterGroupDto>()
-            .ForMember(dest => dest.DisplayName, opt => opt.MapFrom(src => src.DisplayName))
-            .ForMember(dest => dest.Type, opt => opt.MapFrom(src => src.Type))
-            .ForMember(dest => dest.Key, opt => opt.MapFrom(src => src.Name))
-            .ForMember(dest => dest.Options, opt => opt.MapFrom(src => src.Options))
-            .ReverseMap();
-        
         CreateMap<Product, GetRandomProductsByProductIdQueryResponse>()
             .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name))
             .ForMember(dest => dest.BrandName, opt => opt.MapFrom(src => src.Brand.Name))

@@ -19,7 +19,7 @@ public interface IProductRepository : IAsyncRepository<Product, string>, IReposi
     Task<(IPaginate<Product>, List<Category>, List<Brand>)> SearchProductsAsync(string searchTerm, int pageIndex, int pageSize);
     
     Task<IPaginate<Product>> FilterProductsAsync(string searchTerm,Dictionary<string, List<string>> filters, PageRequest pageRequest,string sortOrder);
-    Task<List<FilterGroup>> GetAvailableFilters(string searchTerm = null);
+    Task<List<FilterGroupDto>> GetAvailableFilters(string? searchTerm = null, string[]? categoryIds = null, string[]? brandIds = null);
     Task<List<Product>> GetBestSellingProducts(int count);
     
     /*Task<List<Product>> GetMostViewedProducts(int count);

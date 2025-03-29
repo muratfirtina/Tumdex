@@ -12,7 +12,7 @@ namespace Application.Features.Categories.Queries.Search;
 
 public class SearchCategoryQuery : IRequest<GetListResponse<CategoryDto>>, ICachableRequest
 {
-    public string SearchTerm { get; set; }
+    public string? SearchTerm { get; set; }
 
     // More descriptive cache key with search term
     public string CacheKey => $"Categories-Search-{SearchTerm}";

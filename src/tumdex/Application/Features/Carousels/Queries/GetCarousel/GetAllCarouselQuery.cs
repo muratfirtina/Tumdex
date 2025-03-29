@@ -21,7 +21,7 @@ public class GetAllCarouselQuery : IRequest<GetListResponse<GetAllCarouselQueryR
     public string CacheKey => $"GetAllCarouselQuery({PageRequest.PageIndex},{PageRequest.PageSize})";
     public bool BypassCache { get; }
     public string? CacheGroupKey => "Carousels";
-    public TimeSpan? SlidingExpiration => TimeSpan.FromDays(365);
+    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(5);
 
     public class GetCarouselQueryHandler : IRequestHandler<GetAllCarouselQuery, GetListResponse<GetAllCarouselQueryResponse>>
 {

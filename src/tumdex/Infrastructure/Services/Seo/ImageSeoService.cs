@@ -292,18 +292,21 @@ public class ImageSeoService : IImageSeoService
         var xmlns = "http://www.sitemaps.org/schemas/sitemap/0.9";
         var xmlnsImage = "http://www.google.com/schemas/sitemap-image/1.1";
 
+        // XML namespace'leri tanımla
+        var urlNamespace = XNamespace.Get(xmlns);
+        var imageNamespace = XNamespace.Get(xmlnsImage);
+
         var sitemap = new XDocument(
             new XDeclaration("1.0", "UTF-8", null),
-            new XElement(XName.Get("urlset", xmlns),
+            new XElement(urlNamespace + "urlset",
                 new XAttribute(XNamespace.Xmlns + "image", xmlnsImage)));
 
         var images = await _imageFileRepository.GetAllAsync();
-        var imageNamespace = XNamespace.Get(xmlnsImage);
 
         foreach (var image in images)
         {
-            var url = new XElement("url",
-                new XElement("loc", $"{baseUrl}/images/{image.Id}"),
+            var url = new XElement(urlNamespace + "url",  // Namespace ile url oluşturma
+                new XElement(urlNamespace + "loc", $"{baseUrl}/images/{image.Id}"),
                 new XElement(imageNamespace + "image",
                     new XElement(imageNamespace + "loc", image.Url),
                     new XElement(imageNamespace + "title", image.Title ?? image.Name),
@@ -311,7 +314,7 @@ public class ImageSeoService : IImageSeoService
                     image.GeoLocation != null ? new XElement(imageNamespace + "geo_location", image.GeoLocation) : null,
                     image.License != null ? new XElement(imageNamespace + "license", image.License) : null
                 ),
-                new XElement("lastmod",
+                new XElement(urlNamespace + "lastmod",
                     image.UpdatedDate?.ToString("yyyy-MM-dd") ?? DateTime.UtcNow.ToString("yyyy-MM-dd"))
             );
             sitemap.Root?.Add(url);

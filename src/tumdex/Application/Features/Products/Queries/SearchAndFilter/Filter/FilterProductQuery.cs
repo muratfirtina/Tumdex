@@ -18,9 +18,9 @@ namespace Application.Features.Products.Queries.SearchAndFilter.Filter;
 
 public class FilterProductWithPaginationQuery : IRequest<GetListResponse<FilterProductQueryResponse>>, ICachableRequest
 {
-    public string SearchTerm { get; set; }
+    public string? SearchTerm { get; set; }
     public PageRequest PageRequest { get; set; }
-    public Dictionary<string, List<string>> Filters { get; set; }
+    public Dictionary<string, List<string>>? Filters { get; set; }
     public string SortOrder { get; set; } = "default";
     
     // Updated cache key with serialized filters
@@ -84,8 +84,8 @@ public class FilterProductWithPaginationQuery : IRequest<GetListResponse<FilterP
 
 public class FilterProductQuery : IRequest<GetListResponse<FilterProductQueryResponse>>, ICachableRequest
 {
-    public string SearchTerm { get; set; }
-    public Dictionary<string, List<string>> Filters { get; set; }
+    public string? SearchTerm { get; set; }
+    public Dictionary<string, List<string>>? Filters { get; set; }
     public string SortOrder { get; set; } = "default";
     
     // More descriptive cache key with search term and sort order

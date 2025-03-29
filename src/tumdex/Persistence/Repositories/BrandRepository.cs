@@ -14,7 +14,7 @@ public class BrandRepository : EfRepositoryBase<Brand, string, TumdexDbContext>,
     {
     }
     
-    public async Task<IPaginate<Brand>> SearchByNameAsync(string searchTerm)
+    public async Task<IPaginate<Brand>> SearchByNameAsync(string? searchTerm)
     {
         var query = Context.Brands
             .Include(b => b.BrandImageFiles)

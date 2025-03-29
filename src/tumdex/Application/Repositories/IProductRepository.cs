@@ -16,9 +16,9 @@ public interface IProductRepository : IAsyncRepository<Product, string>, IReposi
     Task<ProductImageFile?> GetProductImage(string productId);
 
     //bir sözcük veya kelimeyi içeren ürünleri pagination ile getirir
-    Task<(IPaginate<Product>, List<Category>, List<Brand>)> SearchProductsAsync(string searchTerm, int pageIndex, int pageSize);
+    Task<(IPaginate<Product>, List<Category>, List<Brand>)> SearchProductsAsync(string? searchTerm, int pageIndex, int pageSize);
     
-    Task<IPaginate<Product>> FilterProductsAsync(string searchTerm,Dictionary<string, List<string>> filters, PageRequest pageRequest,string sortOrder);
+    Task<IPaginate<Product>> FilterProductsAsync(string? searchTerm,Dictionary<string, List<string>>? filters, PageRequest pageRequest,string sortOrder);
     Task<List<FilterGroupDto>> GetAvailableFilters(string? searchTerm = null, string[]? categoryIds = null, string[]? brandIds = null);
     Task<List<Product>> GetBestSellingProducts(int count);
     

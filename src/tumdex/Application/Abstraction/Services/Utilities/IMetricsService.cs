@@ -146,4 +146,6 @@ public interface IMetricsService
     void IncrementCounter(string counterName, string status);
 
     #endregion
+    object GetCurrentMetrics();
+    
 }

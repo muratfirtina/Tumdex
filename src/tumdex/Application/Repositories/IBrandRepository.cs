@@ -7,5 +7,5 @@ namespace Application.Repositories;
 
 public interface IBrandRepository : IAsyncRepository<Brand, string>, IRepository<Brand, string>
 {
-    Task<IPaginate<Brand>> SearchByNameAsync(string searchTerm);
+    Task<IPaginate<Brand>> SearchByNameAsync(string? searchTerm);
 }

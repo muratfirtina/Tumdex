@@ -106,7 +106,7 @@ namespace WebAPI.Controllers
         }
         
         [HttpGet("search")]
-        public async Task<IActionResult> Search([FromQuery] string searchTerm, [FromQuery] PageRequest pageRequest)
+        public async Task<IActionResult> Search([FromQuery] string? searchTerm, [FromQuery] PageRequest pageRequest)
         {
             SearchResponse response = await Mediator.Send(new SearchProductQuery { SearchTerm = searchTerm, PageRequest = pageRequest });
             return Ok(response);

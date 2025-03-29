@@ -20,6 +20,7 @@ using Persistence.Services;
 using Prometheus;
 using Serilog;
 using SignalR;
+using WebAPI.Controllers;
 using WebAPI.Extensions;
 
 
@@ -110,6 +111,8 @@ void ConfigureServiceLayers(WebApplicationBuilder builder)
     builder.Logging.ClearProviders();
     builder.Logging.AddConsole();
     builder.Logging.SetMinimumLevel(LogLevel.Debug);
+    builder.Services.AddControllers()
+        .AddApplicationPart(typeof(MetricsController).Assembly);
 }
 
 // Security and Authentication Configuration

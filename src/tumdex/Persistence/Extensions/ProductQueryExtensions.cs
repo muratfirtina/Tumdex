@@ -36,7 +36,7 @@ public static class ProductQueryExtensions
             : query.Include(p => p.ProductImageFiles);
     }
 
-    public static IQueryable<Product> SearchByTerm(this IQueryable<Product> query, string searchTerm)
+    public static IQueryable<Product> SearchByTerm(this IQueryable<Product> query, string? searchTerm)
     {
         if (string.IsNullOrWhiteSpace(searchTerm))
             return query;
@@ -54,7 +54,7 @@ public static class ProductQueryExtensions
 
     public static IQueryable<Product> ApplyFilters(
         this IQueryable<Product> query,
-        Dictionary<string, List<string>> filters)
+        Dictionary<string, List<string>>? filters)
     {
         foreach (var filter in filters.Where(f => f.Value.Count > 0))
         {
@@ -112,7 +112,7 @@ public static class ProductQueryExtensions
         this IQueryable<Product> products,
         IQueryable<Category> categories,
         IQueryable<Brand> brands,
-        string searchTerm)
+        string? searchTerm)
     {
         if (string.IsNullOrWhiteSpace(searchTerm))
             return (new List<Product>(), new List<Category>(), new List<Brand>());

@@ -3,7 +3,9 @@ using Application.Dtos.Sitemap;
 using Application.Repositories;
 using Application.Services;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Persistence.Context;
 
 namespace Infrastructure.Services.Seo;
 
@@ -16,6 +18,7 @@ public class SitemapService : ISitemapService
     private readonly IConfiguration _configuration;
     private readonly ILogger<SitemapService> _logger;
     private readonly IImageSeoService _imageSeoService;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly string _baseUrl;
 
     public SitemapService(
@@ -24,7 +27,7 @@ public class SitemapService : ISitemapService
         IBrandRepository brandRepository,
         IImageFileRepository imageFileRepository,
         IConfiguration configuration,
-        ILogger<SitemapService> logger, IImageSeoService imageSeoService)
+        ILogger<SitemapService> logger, IImageSeoService imageSeoService, IServiceScopeFactory serviceScopeFactory)
     {
         _productRepository = productRepository;
         _categoryRepository = categoryRepository;
@@ -33,6 +36,7 @@ public class SitemapService : ISitemapService
         _configuration = configuration;
         _logger = logger;
         _imageSeoService = imageSeoService;
+        _serviceScopeFactory = serviceScopeFactory;
         _baseUrl = _configuration["WebAPIConfiguration:APIDomain:0"];
     }
 
@@ -285,78 +289,80 @@ public class SitemapService : ISitemapService
             };
         }
     }
-
+    
     public async Task<SitemapMonitoringReport> GetSitemapStatus()
     {
-        var report = new SitemapMonitoringReport
-        {
-            LastFullCheck = DateTime.UtcNow,
-            Sitemaps = new List<SitemapStatus>()
-        };
-
-        try
-        {
-            // Check each sitemap
-            var tasks = new[]
-            {
-                CheckSitemapHealth("sitemap.xml", GenerateSitemapIndex),
-                CheckSitemapHealth("products.xml", GenerateProductSitemap),
-                CheckSitemapHealth("categories.xml", GenerateCategorySitemap),
-                CheckSitemapHealth("brands.xml", GenerateBrandSitemap),
-                CheckSitemapHealth("images.xml", GenerateImageSitemap),
-                CheckSitemapHealth("static-pages.xml", GenerateStaticPagesSitemap)
-            };
-
-            var statuses = await Task.WhenAll(tasks);
-            report.Sitemaps.AddRange(statuses);
-
-            // Calculate metrics
-            report.TotalUrls = report.Sitemaps.Sum(s => s.UrlCount);
-            report.HealthScore = CalculateHealthScore(report.Sitemaps);
-            report.Issues = GenerateIssuesList(report.Sitemaps);
-
-            return report;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting sitemap status");
-            throw;
-        }
+        var report = new SitemapMonitoringReport();
+        var sitemapTasks = new List<Task<SitemapStatus>>();
+    
+        // Doğrudan metot referansları yerine bir fabrika yaklaşımı kullanın
+        sitemapTasks.Add(Task.Run(async () => await CheckSitemapHealth("sitemap.xml", 
+            scope => scope.ServiceProvider.GetRequiredService<ISitemapService>().GenerateSitemapIndex())));
+        sitemapTasks.Add(Task.Run(async () => await CheckSitemapHealth("products.xml", 
+            scope => scope.ServiceProvider.GetRequiredService<ISitemapService>().GenerateProductSitemap())));
+        sitemapTasks.Add(Task.Run(async () => await CheckSitemapHealth("categories.xml", 
+            scope => scope.ServiceProvider.GetRequiredService<ISitemapService>().GenerateCategorySitemap())));
+        sitemapTasks.Add(Task.Run(async () => await CheckSitemapHealth("brands.xml", 
+            scope => scope.ServiceProvider.GetRequiredService<ISitemapService>().GenerateBrandSitemap())));
+        sitemapTasks.Add(Task.Run(async () => await CheckSitemapHealth("images.xml", 
+            scope => scope.ServiceProvider.GetRequiredService<ISitemapService>().GenerateImageSitemap())));
+        sitemapTasks.Add(Task.Run(async () => await CheckSitemapHealth("static-pages.xml", 
+            scope => scope.ServiceProvider.GetRequiredService<ISitemapService>().GenerateStaticPagesSitemap())));
+    
+        var statuses = await Task.WhenAll(sitemapTasks);
+    
+        report.Sitemaps = statuses.ToList();
+        report.TotalUrls = report.Sitemaps.Sum(s => s.UrlCount);
+        report.HealthScore = CalculateHealthScore(report.Sitemaps);
+        report.Issues = GenerateIssuesList(report.Sitemaps);
+        report.LastFullCheck = DateTime.UtcNow;
+    
+        return report;
     }
 
-    private async Task<SitemapStatus> CheckSitemapHealth(string type, Func<Task<string>> generator)
+    private async Task<SitemapStatus> CheckSitemapHealth(string type, Func<IServiceScope, Task<string>> generatorFactory)
     {
-        var startTime = DateTime.UtcNow;
-        var status = new SitemapStatus
+        using (var scope = _serviceScopeFactory.CreateScope())
         {
-            Url = $"sitemaps/{type}",
-            LastChecked = startTime
-        };
+            var startTime = DateTime.UtcNow;
+            var status = new SitemapStatus
+            {
+                Url = $"sitemaps/{type}",
+                LastChecked = startTime,
+                Errors = new List<string>()
+            };
+        
+            try
+            {
+                var content = await generatorFactory(scope);
+                var xmlDoc = XDocument.Parse(content);
+            
+                // URL sayısını belirleme - hem namespace'li hem de namespace'siz URL'leri sayma
+                var sitemapNs = XNamespace.Get("http://www.sitemaps.org/schemas/sitemap/0.9");
+                var urlsWithNamespace = xmlDoc.Descendants(sitemapNs + "url").Count();
+                var urlsWithoutNamespace = xmlDoc.Descendants("url").Count();
+            
+                status.IsAccessible = true;
+                status.ResponseTime = (long)(DateTime.UtcNow - startTime).TotalMilliseconds;
+                status.FileSize = System.Text.Encoding.UTF8.GetByteCount(content);
+                status.UrlCount = urlsWithNamespace > 0 ? urlsWithNamespace : urlsWithoutNamespace; // Birini kullan
+            
+                // LastModified kısmı için de benzer bir yaklaşım kullanın
+                var lastmodWithNs = xmlDoc.Descendants(sitemapNs + "lastmod").FirstOrDefault()?.Value;
+                var lastmodWithoutNs = xmlDoc.Descendants("lastmod").FirstOrDefault()?.Value;
+            
+                status.LastModified = lastmodWithNs != null 
+                    ? DateTime.Parse(lastmodWithNs) 
+                    : (lastmodWithoutNs != null ? DateTime.Parse(lastmodWithoutNs) : null);
+            }
+            catch (Exception ex)
+            {
+                status.IsAccessible = false;
+                status.Errors.Add(ex.Message);
+            }
 
-        try
-        {
-            var content = await generator();
-            var xmlDoc = XDocument.Parse(content);
-
-            status.IsAccessible = true;
-            status.ResponseTime = (long)(DateTime.UtcNow - startTime).TotalMilliseconds;
-            status.FileSize = System.Text.Encoding.UTF8.GetByteCount(content);
-            status.UrlCount = xmlDoc.Descendants(XName.Get("url", "http://www.sitemaps.org/schemas/sitemap/0.9"))
-                .Count();
-            status.LastModified = xmlDoc
-                .Descendants(XName.Get("lastmod", "http://www.sitemaps.org/schemas/sitemap/0.9"))
-                .FirstOrDefault()?.Value != null
-                ? DateTime.Parse(xmlDoc.Descendants(XName.Get("lastmod", "http://www.sitemaps.org/schemas/sitemap/0.9"))
-                    .First().Value)
-                : null;
+            return status;
         }
-        catch (Exception ex)
-        {
-            status.IsAccessible = false;
-            status.Errors.Add(ex.Message);
-        }
-
-        return status;
     }
 
     private int CalculateHealthScore(List<SitemapStatus> statuses)

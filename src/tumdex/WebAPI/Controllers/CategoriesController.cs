@@ -100,7 +100,7 @@ namespace WebAPI.Controllers
         }
         
         [HttpGet("search")]
-        public async Task<IActionResult> Search([FromQuery] string searchTerm)
+        public async Task<IActionResult> Search([FromQuery] string? searchTerm)
         {
             var response = await Mediator.Send(new SearchCategoryQuery { SearchTerm = searchTerm });
             return Ok(response);

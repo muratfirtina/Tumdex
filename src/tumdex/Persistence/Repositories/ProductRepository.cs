@@ -79,7 +79,7 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
     }
 
     public async Task<(IPaginate<Product>, List<Category>, List<Brand>)> SearchProductsAsync(
-        string searchTerm,
+        string? searchTerm,
         int pageIndex,
         int pageSize)
     {
@@ -111,11 +111,51 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
             .AsQueryable()
             .WithFullDetails()
             .WithShowcaseImage()
-            .SearchByTerm(searchTerm)
-            .ApplyFilters(filters)
-            .ApplySort(sortOrder);
-
+            .SearchByTerm(searchTerm);
+    
+        // Kategori filtresi uygulanırken alt kategorileri de dahil et
+        if (filters != null && filters.ContainsKey("Category") && filters["Category"].Any())
+        {
+            var categoryIds = new List<string>(filters["Category"]);
+            var allCategoryIds = new List<string>(categoryIds);
+        
+            // Her seçili kategori için alt kategorileri ekle
+            foreach (var categoryId in categoryIds)
+            {
+                var subCategoryIds = await GetAllSubCategoryIds(categoryId);
+                allCategoryIds.AddRange(subCategoryIds);
+            }
+        
+            // Benzersiz kategori ID'lerini kullan
+            filters["Category"] = allCategoryIds.Distinct().ToList();
+        }
+    
+        query = query.ApplyFilters(filters).ApplySort(sortOrder);
+    
         return await query.ToPaginateAsync(pageRequest.PageIndex, pageRequest.PageSize);
+    }
+
+// Bir kategorinin tüm alt kategorilerini getiren yardımcı metod:
+    private async Task<List<string>> GetAllSubCategoryIds(string categoryId)
+    {
+        var result = new List<string>();
+    
+        // İlk seviye alt kategorileri al
+        var subCategories = await Context.Categories
+            .Where(c => c.ParentCategoryId == categoryId)
+            .Select(c => c.Id)
+            .ToListAsync();
+    
+        result.AddRange(subCategories);
+    
+        // Her bir alt kategori için rekursif olarak onun alt kategorilerini al
+        foreach (var subCategoryId in subCategories)
+        {
+            var nestedSubCategories = await GetAllSubCategoryIds(subCategoryId);
+            result.AddRange(nestedSubCategories);
+        }
+    
+        return result;
     }
 
     public async Task<List<FilterGroupDto>> GetAvailableFilters(string? searchTerm = null, string[]? categoryIds = null, string[]? brandIds = null)
@@ -208,6 +248,7 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
         .Select(f => new
         {
             FeatureName = f.Name,
+            FeatureKey = f.Name.Replace(" ", "_"), // Özellik adını key olarak kullan (boşlukları alt çizgiyle değiştir)
             Values = f.FeatureValues
                 .Where(fv => query.Any(p => p.ProductFeatureValues
                     .Any(pfv => pfv.FeatureValueId == fv.Id)))
@@ -224,6 +265,7 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
     {
         filterDefinitions.Add(new FilterGroupDto
         {
+            Key = feature.FeatureKey, // Özellik adını key olarak ata
             Name = feature.FeatureName,
             DisplayName = feature.FeatureName,
             Type = FilterType.Checkbox,

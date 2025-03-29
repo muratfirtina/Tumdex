@@ -12,7 +12,7 @@ namespace Application.Features.Brands.Queries.Search;
 
 public class SearchBrandQuery : IRequest<GetListResponse<BrandDto>>, ICachableRequest
 {
-    public string SearchTerm { get; set; }
+    public string? SearchTerm { get; set; }
     
     // More descriptive cache key with search term
     public string CacheKey => $"Brands-Search-{SearchTerm}";

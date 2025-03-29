@@ -41,7 +41,7 @@ public class GetAllOrdersQuery : IRequest<GetListResponse<GetAllOrdersQueryRespo
                 include: o => o
                     .Include(o => o.OrderItems)
                     .Include(o => o.User),
-                orderBy: o => o.OrderBy(o => o.CreatedDate),
+                orderBy: o => o.OrderByDescending(o => o.CreatedDate),
                 cancellationToken: cancellationToken);
             
             GetListResponse<GetAllOrdersQueryResponse> response = _mapper.Map<GetListResponse<GetAllOrdersQueryResponse>>(orders);

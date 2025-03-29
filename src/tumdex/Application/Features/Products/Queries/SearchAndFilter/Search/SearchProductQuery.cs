@@ -18,7 +18,7 @@ namespace Application.Features.Products.Queries.SearchAndFilter.Search;
 
 public class SearchProductQuery : IRequest<SearchResponse>, ICachableRequest
 {
-    public string SearchTerm { get; set; }
+    public string? SearchTerm { get; set; }
     public PageRequest PageRequest { get; set; }
     
     // More descriptive cache key with search term and pagination info

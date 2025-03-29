@@ -248,7 +248,7 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
         .Select(f => new
         {
             FeatureName = f.Name,
-            FeatureKey = f.Name.Replace(" ", "_"), // Özellik adını key olarak kullan (boşlukları alt çizgiyle değiştir)
+            FeatureKey = f.Name,
             Values = f.FeatureValues
                 .Where(fv => query.Any(p => p.ProductFeatureValues
                     .Any(pfv => pfv.FeatureValueId == fv.Id)))

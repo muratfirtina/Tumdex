@@ -126,7 +126,7 @@ public class AccountEmailService : BaseEmailService, IAccountEmailService
         try
         {
             var clientUrl = _configuration["AngularClientUrl"]?.TrimEnd('/') ?? "http://localhost:4200";
-            var resetLink = $"{clientUrl}/#/update-password/{userId}/{resetToken}";
+            var resetLink = $"{clientUrl}/update-password/{userId}/{resetToken}";
 
             var content = $@"
                 <div style='text-align: center;'>

@@ -1,9 +1,11 @@
 using Application.Abstraction.Services;
 using Application.Abstraction.Services.Email;
+using Application.Abstraction.Services.Messaging;
 using Application.Abstraction.Services.Tokens;
 using Application.Abstraction.Services.Utilities;
 using Application.Exceptions;
 using Application.Features.Users.Commands.CreateUser;
+using Application.Messages.EmailMessages;
 using Domain.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,8 +21,9 @@ public class RegistrationAndPasswordService : IRegistrationAndPasswordService
     private readonly IAccountEmailService _accountEmailService;
     private readonly ILogger<RegistrationAndPasswordService> _logger;
     private readonly ITokenService _tokenService;
+    private readonly IMessageBroker _messageBroker;
 
-    public RegistrationAndPasswordService(UserManager<AppUser> userManager, IBackgroundTaskQueue backgroundTaskQueue, IServiceScopeFactory serviceScopeFactory, IAccountEmailService accountEmailService, ILogger<RegistrationAndPasswordService> logger, ITokenService tokenService)
+    public RegistrationAndPasswordService(UserManager<AppUser> userManager, IBackgroundTaskQueue backgroundTaskQueue, IServiceScopeFactory serviceScopeFactory, IAccountEmailService accountEmailService, ILogger<RegistrationAndPasswordService> logger, ITokenService tokenService, IMessageBroker messageBroker)
     {
         _userManager = userManager;
         _backgroundTaskQueue = backgroundTaskQueue;
@@ -28,6 +31,7 @@ public class RegistrationAndPasswordService : IRegistrationAndPasswordService
         _accountEmailService = accountEmailService;
         _logger = logger;
         _tokenService = tokenService;
+        _messageBroker = messageBroker;
     }
 
     public async Task<(IdentityResult result, AppUser user)> RegisterUserAsync(CreateUserCommand model)
@@ -82,19 +86,24 @@ public class RegistrationAndPasswordService : IRegistrationAndPasswordService
             // Generate token for password reset
             string resetToken = await _tokenService.GenerateSecureTokenAsync(user.Id, user.Email, "PasswordReset");
 
-            // Queue password reset email in background
-            _backgroundTaskQueue.QueueBackgroundWorkItem(async cancellationToken =>
+            // Mesaj kuyruğuna gönder, arka plan görevi yerine
+            try
             {
-                try
+                var passwordResetMessage = new SendPasswordResetEmailMessage
                 {
-                    await _accountEmailService.SendPasswordResetEmailAsync(user.Email, user.Id, resetToken);
-                    _logger.LogInformation("Password reset email sent to {Email}", user.Email);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to send password reset email to {Email}", user.Email);
-                }
-            });
+                    Email = user.Email,
+                    UserId = user.Id,
+                    ResetToken = resetToken
+                };
+            
+                await _messageBroker.SendAsync(passwordResetMessage, "email-password-reset-queue");
+                _logger.LogInformation("Password reset request queued for {Email}", user.Email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to queue password reset email for {Email}", user.Email);
+                throw;
+            }
         }
         else
         {

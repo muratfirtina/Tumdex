@@ -59,6 +59,7 @@ public static class MessageBrokerConfiguration
         
         configurator.AddConsumer<SendActivationCodeConsumer>();
         configurator.AddConsumer<SendActivationEmailConsumer>();
+        configurator.AddConsumer<SendPasswordResetEmailConsumer>();
     }
 
     private static void ConfigureDevelopmentEnvironment(
@@ -171,6 +172,15 @@ public static class MessageBrokerConfiguration
             e.ConfigureConsumer<SendActivationEmailConsumer>(context);
             ConfigureEndpoint(e);
             
+            // x-expires değerini doğrudan ayarla (milisaniye cinsinden)
+            e.SetQueueArgument("x-expires", 600000); // 10 dakika
+        });
+        
+        cfg.ReceiveEndpoint("email-password-reset-queue", e =>
+        {
+            e.ConfigureConsumer<SendPasswordResetEmailConsumer>(context);
+            ConfigureEndpoint(e);
+    
             // x-expires değerini doğrudan ayarla (milisaniye cinsinden)
             e.SetQueueArgument("x-expires", 600000); // 10 dakika
         });

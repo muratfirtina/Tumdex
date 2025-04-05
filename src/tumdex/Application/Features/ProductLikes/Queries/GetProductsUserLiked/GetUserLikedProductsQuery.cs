@@ -66,8 +66,8 @@ public class GetUserLikedProductsQuery : IRequest<GetListResponse<GetUserLikedPr
                 }
 
                 product.ShowcaseImage.Url = product.ShowcaseImage.FileName == "ecommerce-default-product.png"
-                    ? $"{baseUrl}{product.ShowcaseImage.EntityType}/{product.ShowcaseImage.FileName}"
-                    : $"{baseUrl}{product.ShowcaseImage.EntityType}/{product.ShowcaseImage.Path}/{product.ShowcaseImage.FileName}";
+                    ? $"{baseUrl}/{product.ShowcaseImage.EntityType}/{product.ShowcaseImage.FileName}"
+                    : $"{baseUrl}/{product.ShowcaseImage.EntityType}/{product.ShowcaseImage.Path}/{product.ShowcaseImage.FileName}";
             }
         }
     }

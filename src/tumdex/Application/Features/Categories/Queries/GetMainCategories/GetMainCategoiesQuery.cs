@@ -51,6 +51,7 @@ public class GetMainCategoiesQuery : IRequest<GetListResponse<GetMainCategoriesR
                         .Include(x => x.Products)
                         .Include(x => x.SubCategories)
                         .ThenInclude(sc => sc.Products), // Alt kategorilerin ürünlerini include ediyoruz
+                    orderBy: x => x.OrderBy(c => c.Name),
                     cancellationToken: cancellationToken);
 
                 GetListResponse<GetMainCategoriesResponse> response =
@@ -63,6 +64,7 @@ public class GetMainCategoiesQuery : IRequest<GetListResponse<GetMainCategoriesR
                 IPaginate<Category> categories = await _categoryRepository.GetListAsync(
                     index: request.PageRequest.PageIndex,
                     size: request.PageRequest.PageSize,
+                    orderBy: x => x.OrderBy(c => c.Name),
                     predicate: x => x.ParentCategoryId == null,
                     include: x => x
                         .Include(x => x.CategoryImageFiles)

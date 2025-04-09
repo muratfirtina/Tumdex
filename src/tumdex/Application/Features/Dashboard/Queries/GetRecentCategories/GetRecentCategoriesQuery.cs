@@ -1,7 +1,9 @@
 using Application.Features.Dashboard.Dtos;
+using Application.Extensions.ImageFileExtensions;
 using Application.Repositories;
+using Application.Storage;
 using AutoMapper;
-using Domain.Entities;
+using Domain;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,33 +17,45 @@ public class GetRecentCategoriesQuery : IRequest<GetRecentCategoriesResponse>
     {
         private readonly ICategoryRepository _categoryRepository;
         private readonly IMapper _mapper;
+        private readonly IStorageService _storageService;
 
-        public GetRecentCategoriesQueryHandler(ICategoryRepository categoryRepository, IMapper mapper)
+        public GetRecentCategoriesQueryHandler(
+            ICategoryRepository categoryRepository, 
+            IMapper mapper,
+            IStorageService storageService)
         {
             _categoryRepository = categoryRepository;
             _mapper = mapper;
+            _storageService = storageService;
         }
 
         public async Task<GetRecentCategoriesResponse> Handle(GetRecentCategoriesQuery request, CancellationToken cancellationToken)
         {
-            // Kategorileri son eklenme tarihine göre sırala
-            var include = (IQueryable<Category> query) => query.Include(c => c.CategoryImageFiles);
-
             var recentCategories = await _categoryRepository.GetAllAsync(
                 orderBy: query => query.OrderByDescending(c => c.CreatedDate),
-                include: include,
                 index: 0,
                 size: request.Count,
                 enableTracking: false,
                 cancellationToken: cancellationToken);
 
-            // AutoMapper ile DTO'lara dönüştür
-            var result = recentCategories.Select(c => new RecentItemDto
+            // Uygun şekilde dönüştür ve URL oluştur
+            var result = recentCategories.Select(c => 
             {
-                Id = c.Id,
-                Name = c.Name,
-                CreatedDate = c.CreatedDate,
-                Image = c.CategoryImageFiles.FirstOrDefault()?.Path
+                var imageFile = c.CategoryImageFiles.FirstOrDefault();
+                
+                var dto = new RecentItemDto
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    CreatedDate = c.CreatedDate
+                };
+                
+                if (imageFile != null)
+                {
+                    dto.Image = imageFile.ToBaseDto(_storageService);
+                }
+                
+                return dto;
             }).ToList();
 
             return new GetRecentCategoriesResponse { Categories = result };

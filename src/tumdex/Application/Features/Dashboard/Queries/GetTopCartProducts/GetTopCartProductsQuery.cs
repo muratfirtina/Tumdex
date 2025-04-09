@@ -1,7 +1,10 @@
 using System.Linq.Expressions;
 using Application.Features.Dashboard.Dtos;
+using Application.Extensions.ImageFileExtensions;
 using Application.Repositories;
+using Application.Storage;
 using AutoMapper;
+using Domain;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,15 +20,18 @@ public class GetTopCartProductsQuery : IRequest<GetTopCartProductsResponse>
         private readonly ICartItemRepository _cartItemRepository;
         private readonly IProductRepository _productRepository;
         private readonly IMapper _mapper;
+        private readonly IStorageService _storageService;
 
         public GetTopCartProductsQueryHandler(
             ICartItemRepository cartItemRepository,
             IProductRepository productRepository,
-            IMapper mapper)
+            IMapper mapper,
+            IStorageService storageService)
         {
             _cartItemRepository = cartItemRepository;
             _productRepository = productRepository;
             _mapper = mapper;
+            _storageService = storageService;
         }
 
         public async Task<GetTopCartProductsResponse> Handle(GetTopCartProductsQuery request, CancellationToken cancellationToken)
@@ -46,7 +52,7 @@ public class GetTopCartProductsQuery : IRequest<GetTopCartProductsResponse>
             // Ürünleri ve ilgili verileri yükle
             Expression<Func<Product, bool>> predicate = p => productIds.Contains(p.Id);
             var include = (IQueryable<Product> query) => query
-                .Include(p => p.ProductImageFiles.Where(pif => pif.Showcase))
+                .Include(p => p.ProductImageFiles)
                 .Include(p => p.Brand);
                 
             var products = await _productRepository.GetAllAsync(
@@ -61,18 +67,25 @@ public class GetTopCartProductsQuery : IRequest<GetTopCartProductsResponse>
                 var product = products.FirstOrDefault(p => p.Id == top.ProductId);
                 if (product == null) return null;
                 
-                return new TopProductDto
+                var showcaseImage = product.ProductImageFiles
+                    .FirstOrDefault(pif => pif.Showcase) ?? 
+                    product.ProductImageFiles.FirstOrDefault();
+                
+                var dto = new TopProductDto
                 {
                     Id = product.Id,
                     Name = product.Name,
                     Count = top.Count,
-                    Image = product.ProductImageFiles
-                        .Where(pif => pif.Showcase)
-                        .Select(pif => pif.Path)
-                        .FirstOrDefault(),
                     Price = product.Price ?? 0,
                     BrandName = product.Brand?.Name
                 };
+                
+                if (showcaseImage != null)
+                {
+                    dto.Image = showcaseImage.ToBaseDto(_storageService);
+                }
+                
+                return dto;
             })
             .Where(p => p != null)
             .ToList();

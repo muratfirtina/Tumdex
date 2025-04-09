@@ -1,3 +1,4 @@
+using Application.Dtos.Image;
 using Application.Features.Brands.Dtos;
 using Application.Features.Carousels.Dtos;
 using Application.Features.Categories.Dtos;
@@ -10,11 +11,31 @@ namespace Application.Extensions.ImageFileExtensions;
 
 public static class ImageFileExtensions
 {
+    public static ImageFileDto ToBaseDto(
+        this ImageFile imageFile, 
+        IStorageService storageService,
+        string? preferredStorage = null)
+    {
+        if (imageFile == null) return null;
+
+        return new ImageFileDto
+        {
+            Id = imageFile.Id,
+            Path = imageFile.Path,
+            FileName = imageFile.Name,
+            Storage = imageFile.Storage,
+            EntityType = imageFile.EntityType,
+            Url = $"{storageService.GetStorageUrl(preferredStorage)}/{imageFile.EntityType}/{imageFile.Path}/{imageFile.Name}"
+        };
+    }
+
     public static ProductImageFileDto ToDto(
         this ProductImageFile imageFile, 
         IStorageService storageService,
         string? preferredStorage = null)
     {
+        if (imageFile == null) return null;
+
         return new ProductImageFileDto
         {
             Id = imageFile.Id,

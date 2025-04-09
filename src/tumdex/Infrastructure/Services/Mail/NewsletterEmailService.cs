@@ -87,9 +87,9 @@ public class NewsletterEmailService : BaseEmailService, INewsletterEmailService
                     {(!string.IsNullOrEmpty(product.Title) ? $"<h4 style='color: #666; margin: 3px 0; font-size: 14px;'>{product.Title}</h4>" : "")}
                     {(!string.IsNullOrEmpty(additionalInfo) ? $"<p style='color: #059669; margin: 3px 0; font-size: 12px;'>{additionalInfo}</p>" : "")}
                     {(product.Brand != null ? $"<p style='color: #0d6efd; margin: 3px 0; font-size: 12px;'>{product.Brand.Name}</p>" : "")}
-                    <p style='color: #059669; font-size: 16px; font-weight: bold; margin: 5px 0;'>
+                    <!-- <p style='color: #059669; font-size: 16px; font-weight: bold; margin: 5px 0;'>
                         ₺{product.Price:N2}
-                    </p>
+                    </p> -->
                     <a href='{productUrl}' 
                        style='display: inline-block; background-color: #0d6efd; color: white; text-decoration: none; 
                               padding: 8px 15px; border-radius: 5px; margin-top: 5px; font-size: 12px;'>

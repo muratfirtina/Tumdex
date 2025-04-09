@@ -1,6 +1,9 @@
 using Application.Features.Dashboard.Dtos;
+using Application.Extensions.ImageFileExtensions;
 using Application.Repositories;
+using Application.Storage;
 using AutoMapper;
+using Domain;
 using Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -15,33 +18,45 @@ public class GetRecentBrandsQuery : IRequest<GetRecentBrandsResponse>
     {
         private readonly IBrandRepository _brandRepository;
         private readonly IMapper _mapper;
+        private readonly IStorageService _storageService;
 
-        public GetRecentBrandsQueryHandler(IBrandRepository brandRepository, IMapper mapper)
+        public GetRecentBrandsQueryHandler(
+            IBrandRepository brandRepository, 
+            IMapper mapper,
+            IStorageService storageService)
         {
             _brandRepository = brandRepository;
             _mapper = mapper;
+            _storageService = storageService;
         }
 
         public async Task<GetRecentBrandsResponse> Handle(GetRecentBrandsQuery request, CancellationToken cancellationToken)
         {
-            // Markaları son eklenme tarihine göre sırala
-            var include = (IQueryable<Brand> query) => query.Include(b => b.BrandImageFiles);
-
             var recentBrands = await _brandRepository.GetAllAsync(
                 orderBy: query => query.OrderByDescending(b => b.CreatedDate),
-                include: include,
                 index: 0,
                 size: request.Count,
                 enableTracking: false,
                 cancellationToken: cancellationToken);
 
-            // AutoMapper ile DTO'lara dönüştür
-            var result = recentBrands.Select(b => new RecentItemDto
+            // Uygun şekilde dönüştür ve URL oluştur
+            var result = recentBrands.Select(b => 
             {
-                Id = b.Id,
-                Name = b.Name,
-                CreatedDate = b.CreatedDate,
-                Image = b.BrandImageFiles.FirstOrDefault()?.Path
+                var imageFile = b.BrandImageFiles.FirstOrDefault();
+                
+                var dto = new RecentItemDto
+                {
+                    Id = b.Id,
+                    Name = b.Name,
+                    CreatedDate = b.CreatedDate
+                };
+                
+                if (imageFile != null)
+                {
+                    dto.Image = imageFile.ToBaseDto(_storageService);
+                }
+                
+                return dto;
             }).ToList();
 
             return new GetRecentBrandsResponse { Brands = result };

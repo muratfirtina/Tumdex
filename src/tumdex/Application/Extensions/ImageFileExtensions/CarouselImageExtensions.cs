@@ -21,6 +21,7 @@ public static class CarouselImageExtensions
             FileName = imageFile.Name,
             Storage = imageFile.Storage,
             EntityType = imageFile.EntityType,
+            Alt = imageFile.Alt,
             Url = $"{storageService.GetStorageUrl(preferredStorage)}/{imageFile.EntityType}/{imageFile.Path}/{imageFile.Name}"
         };
     }

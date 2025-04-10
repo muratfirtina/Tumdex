@@ -6,7 +6,8 @@ using Domain.Entities;
 using Domain.Identity;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore.DynamicLinq;
+using Microsoft.EntityFrameworkCore;
+
 
 namespace Application.Features.Dashboard.Queries.GetDashboardStatistics;
 

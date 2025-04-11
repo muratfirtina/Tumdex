@@ -14,6 +14,11 @@ public class LoginUserRequest: IRequest<LoginUserResponse>
     public string? IpAddress { get; set; }
     public string? UserAgent { get; set; }
     public string? DeviceFingerprint { get; set; }
+    
+    // Yeni eklenen özellikler
+    public int FailedAttempts { get; set; } = 0;
+    public bool IsLockedOut { get; set; } = false;
+    public int? LockoutTimeRemaining { get; set; } = null;
 
     public class LoginUserCommandHandler : IRequestHandler<LoginUserRequest, LoginUserResponse>
     {
@@ -32,54 +37,60 @@ public class LoginUserRequest: IRequest<LoginUserResponse>
         }
 
         public async Task<LoginUserResponse> Handle(LoginUserRequest request, CancellationToken cancellationToken)
+{
+    try
+    {
+        // Validate request
+        if (string.IsNullOrWhiteSpace(request.UsernameOrEmail))
+            throw new ArgumentException("Username or E-mail required.");
+        
+        if (string.IsNullOrWhiteSpace(request.Password))
+            throw new ArgumentException("Password required.");
+        
+        // Call auth service with client information
+        var (token, error) = await _authService.LoginAsync(
+            request.UsernameOrEmail, 
+            request.Password, 
+            900, // 15 minutes
+            request.IpAddress,
+            request.UserAgent);
+        
+        // Hata durumu varsa error response döndür
+        if (error != null)
+        {
+            return error;
+        }
+        
+        // Başarılı login sonrası Redis'teki token iptal kaydını temizle
+        if (token != null && !string.IsNullOrEmpty(token.UserId))
         {
             try
             {
-                // Validate request
-                if (string.IsNullOrWhiteSpace(request.UsernameOrEmail))
-                    throw new ArgumentException("Username or E-mail required.");
-                
-                if (string.IsNullOrWhiteSpace(request.Password))
-                    throw new ArgumentException("Password required.");
-                
-                // Call auth service with client information
-                var token = await _authService.LoginAsync(
-                    request.UsernameOrEmail, 
-                    request.Password, 
-                    900, // 15 minutes
-                    request.IpAddress,
-                    request.UserAgent);
-                
-                // Başarılı login sonrası Redis'teki token iptal kaydını temizle
-                if (token != null && !string.IsNullOrEmpty(token.UserId))
-                {
-                    try
-                    {
-                        // Kullanıcıya ait eski token iptal kaydını sil
-                        await _cache.RemoveAsync($"UserTokensRevoked:{token.UserId}");
-                        _logger.LogInformation("Kullanıcı başarıyla giriş yaptı, token iptal kaydı temizlendi: {UserId}", token.UserId);
-                    }
-                    catch (Exception ex)
-                    {
-                        // Redis hatası login işlemini etkilememeli, sadece log
-                        _logger.LogWarning(ex, "Kullanıcı giriş yaptı ancak Redis temizleme hatası: {UserId}", token.UserId);
-                    }
-                }
-                
-                // Return successful response with token
-                return new LoginUserSuccessResponse { 
-                    Token = token,
-                    UserName = request.UsernameOrEmail
-                };
+                // Kullanıcıya ait eski token iptal kaydını sil
+                await _cache.RemoveAsync($"UserTokensRevoked:{token.UserId}");
+                _logger.LogInformation("Kullanıcı başarıyla giriş yaptı, token iptal kaydı temizlendi: {UserId}", token.UserId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Login failed for user: {Username} from IP: {IpAddress}", 
-                    request.UsernameOrEmail, request.IpAddress);
-                
-                // Rethrow to be handled by the controller
-                throw;
+                // Redis hatası login işlemini etkilememeli, sadece log
+                _logger.LogWarning(ex, "Kullanıcı giriş yaptı ancak Redis temizleme hatası: {UserId}", token.UserId);
             }
         }
+        
+        // Return successful response with token
+        return new LoginUserSuccessResponse { 
+            Token = token,
+            UserName = request.UsernameOrEmail
+        };
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Login failed for user: {Username} from IP: {IpAddress}", 
+            request.UsernameOrEmail, request.IpAddress);
+        
+        // Rethrow to be handled by the controller
+        throw;
+    }
+}
     }
 }

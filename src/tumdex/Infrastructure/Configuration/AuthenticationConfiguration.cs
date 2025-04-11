@@ -159,6 +159,9 @@ public static class AuthenticationConfiguration
                     // Başarılı token doğrulaması için
                     OnTokenValidated = context =>
                     {
+                        var logger = context.HttpContext.RequestServices
+                            .GetRequiredService<ILogger<JwtBearerEvents>>();
+            
                         // İsteğe bağlı: Token içindeki IP ve UserAgent ile mevcut istek karşılaştırması
                         var userIdClaim = context.Principal?.FindFirst(ClaimTypes.NameIdentifier);
                         var ipClaim = context.Principal?.FindFirst("ip_address");
@@ -169,19 +172,20 @@ public static class AuthenticationConfiguration
                             var requestIp = context.HttpContext.Connection.RemoteIpAddress?.ToString();
                             var requestAgent = context.HttpContext.Request.Headers["User-Agent"].ToString();
 
-                            // IP ve User-Agent karşılaştırması (güvenlik politikanıza göre)
+                            // IP karşılaştırması - sadece log, doğrulama hatası oluşturma
                             if (ipClaim != null && ipClaim.Value != requestIp)
                             {
                                 logger.LogWarning(
                                     "Token farklı IP'den kullanıldı: Token={TokenIp}, Request={RequestIp}",
                                     ipClaim.Value, requestIp);
-                                // Güvenlik politikanıza göre doğrulamayı başarısız yapabilirsiniz
+                                // Token'ı reddetmiyoruz, sadece logluyoruz
                                 // context.Fail("IP address mismatch");
                             }
 
                             if (userAgentClaim != null && userAgentClaim.Value != requestAgent)
                             {
                                 logger.LogWarning("Token farklı User-Agent ile kullanıldı");
+                                // Burada da token'ı reddetmiyoruz
                                 // context.Fail("User-Agent mismatch");
                             }
                         }

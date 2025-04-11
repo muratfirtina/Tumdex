@@ -656,6 +656,10 @@ public class TokenHandler : ITokenHandler
             new("created_date", DateTime.UtcNow.ToString("o")),
             // SessionId ekle
             new("session_id", user.SessionId ?? Guid.NewGuid().ToString())
+
+            // IP adresi claim'ini kaldırdık - bu proxy, load balancer vs. 
+            // durumlarında sorun çıkarabilir
+            // new("ip_address", ipAddress),
         };
 
         // Kullanıcının rollerini taleplere ekle

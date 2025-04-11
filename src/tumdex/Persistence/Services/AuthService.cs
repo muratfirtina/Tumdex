@@ -1,23 +1,14 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Claims;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
-using Application.Abstraction.Helpers;
 using Application.Abstraction.Services;
 using Application.Abstraction.Services.Authentication;
 using Application.Abstraction.Services.Email;
 using Application.Abstraction.Services.Tokens;
 using Application.Abstraction.Services.Utilities;
 using Application.Dtos.Token;
-using Application.Exceptions;
-using Application.Features.Users.Commands.CreateUser;
+using Application.Enums;
+using Application.Features.Users.Commands.LoginUser;
 using Domain.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,7 +16,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Persistence.Services;
 
-public class AuthService : IAuthService, IInternalAuthentication
+public class AuthService : IAuthService
 {
     private readonly UserManager<AppUser> _userManager;
     private readonly ITokenHandler _tokenHandler;
@@ -94,8 +85,8 @@ public class AuthService : IAuthService, IInternalAuthentication
     #region Authentication Methods
 
     // Implements the overload with IP address and user agent
-    public async Task<Token> LoginAsync(string userNameOrEmail, string password, int accessTokenLifetime,
-        string? ipAddress, string? userAgent)
+    public async Task<(Token? token, LoginUserErrorResponse? error)> LoginAsync(string userNameOrEmail, string password,
+        int accessTokenLifetime, string? ipAddress, string? userAgent)
     {
         // Check IP-based rate limiting first
         if (!string.IsNullOrEmpty(ipAddress))
@@ -107,8 +98,15 @@ public class AuthService : IAuthService, IInternalAuthentication
             {
                 _logger.LogWarning("Login attempt rate limit exceeded for IP: {IpAddress}", ipAddress);
 
-                throw new AuthenticationErrorException(
-                    $"Çok fazla giriş denemesi. Lütfen {retryAfter?.TotalMinutes:0} dakika sonra tekrar deneyin.");
+                return (null, new LoginUserErrorResponse
+                {
+                    Message =
+                        $"Too many login attempts. Please try again after {retryAfter?.TotalMinutes:0} minutes.",
+                    FailedAttempts = 0,
+                    IsLockedOut = true,
+                    LockoutSeconds = (int)retryAfter?.TotalSeconds,
+                    ErrorType = LoginErrorType.RateLimitExceeded
+                });
             }
         }
 
@@ -126,7 +124,28 @@ public class AuthService : IAuthService, IInternalAuthentication
             // Add slight delay to prevent username enumeration timing attacks
             await Task.Delay(TimeSpan.FromMilliseconds(new Random().Next(200, 500)));
 
-            throw new AuthenticationErrorException("Geçersiz kullanıcı adı/e-posta veya şifre");
+            return (null, new LoginUserErrorResponse
+            {
+                Message = "Invalid user name/e-mail or password",
+                FailedAttempts = 0, // Kullanıcı bulunamadığı için 0
+                IsLockedOut = false,
+                ErrorType = LoginErrorType.UserNotFound
+            });
+        }
+
+        // Check if user account is active
+        if (!user.IsActive)
+        {
+            _logger.LogWarning("Attempted login to disabled account: {Username} from IP: {IpAddress}",
+                user.UserName, ipAddress);
+
+            return (null, new LoginUserErrorResponse
+            {
+                Message = "This account is currently deactivated. Please contact the administrator.",
+                FailedAttempts = 0,
+                IsLockedOut = true,
+                ErrorType = LoginErrorType.AccountDisabled
+            })!;
         }
 
         // Check for user account lockout (using ASP.NET Identity)
@@ -136,12 +155,25 @@ public class AuthService : IAuthService, IInternalAuthentication
                 user.UserName, ipAddress);
 
             var lockoutEnd = await _userManager.GetLockoutEndDateAsync(user);
-            var timeRemaining = lockoutEnd.HasValue
-                ? (lockoutEnd.Value - DateTimeOffset.UtcNow).TotalMinutes
-                : _lockoutMinutes;
 
-            throw new AuthenticationErrorException($"Hesabınız {timeRemaining:0} dakika süreyle kilitlendi. " +
-                                                   "Daha sonra tekrar deneyin veya şifrenizi sıfırlayın.");
+            int lockoutSeconds = 0;
+            if (lockoutEnd.HasValue)
+            {
+                var timeSpan = lockoutEnd.Value - DateTimeOffset.UtcNow;
+                lockoutSeconds = Math.Max(0, (int)timeSpan.TotalSeconds);
+            }
+
+            int failedAttempts = await _userManager.GetAccessFailedCountAsync(user);
+
+            return (null, new LoginUserErrorResponse
+            {
+                Message =
+                    $"Your account has been locked for {Math.Ceiling(lockoutSeconds / 60.0):0} minutes. Please try again later or reset your password.",
+                FailedAttempts = failedAttempts,
+                IsLockedOut = true,
+                LockoutSeconds = lockoutSeconds,
+                ErrorType = LoginErrorType.AccountLocked
+            });
         }
 
         // Check for suspicious login patterns
@@ -152,20 +184,42 @@ public class AuthService : IAuthService, IInternalAuthentication
 
         if (!result.Succeeded)
         {
+            // Get updated failed attempt count from Identity
+            int failedAttempts = await _userManager.GetAccessFailedCountAsync(user);
+
             // Handle failed login attempt
             await HandleFailedLoginAttemptAsync(user, ipAddress, userAgent);
 
             // Check if this failure resulted in an account lockout
             if (result.IsLockedOut)
             {
-                _logger.LogWarning("Account locked after failed login: {Username} from IP: {IpAddress}",
-                    user.UserName, ipAddress);
+                var lockoutEnd = await _userManager.GetLockoutEndDateAsync(user);
+                int lockoutSeconds = 0;
 
-                throw new AuthenticationErrorException($"Hesabınız {_lockoutMinutes} dakika süreyle kilitlendi. " +
-                                                       "Daha sonra tekrar deneyin veya şifrenizi sıfırlayın.");
+                if (lockoutEnd.HasValue)
+                {
+                    var timeSpan = lockoutEnd.Value - DateTimeOffset.UtcNow;
+                    lockoutSeconds = Math.Max(0, (int)timeSpan.TotalSeconds);
+                }
+
+                return (null, new LoginUserErrorResponse
+                {
+                    Message =
+                        $"Your account has been locked for {Math.Ceiling(lockoutSeconds / 60.0):0} minutes. Please try again later or reset your password.",
+                    FailedAttempts = failedAttempts,
+                    IsLockedOut = true,
+                    LockoutSeconds = lockoutSeconds,
+                    ErrorType = LoginErrorType.AccountLocked
+                });
             }
 
-            throw new AuthenticationErrorException("Geçersiz kullanıcı adı/e-posta veya şifre");
+            return (null, new LoginUserErrorResponse
+            {
+                Message = "Invalid user name/e-mail or password",
+                FailedAttempts = failedAttempts,
+                IsLockedOut = false,
+                ErrorType = LoginErrorType.InvalidCredentials
+            });
         }
 
         // Handle successful login
@@ -216,8 +270,8 @@ public class AuthService : IAuthService, IInternalAuthentication
                 cookieOptions);
         }
 
-        // Convert TokenDto to Token and return
-        return tokenDto.ToToken();
+        // Convert TokenDto to Token and return with no error
+        return (tokenDto.ToToken(), null);
     }
 
     private async Task CheckForSuspiciousActivityAsync(AppUser user, string? ipAddress, string? userAgent)
@@ -264,35 +318,61 @@ public class AuthService : IAuthService, IInternalAuthentication
         _logger.LogWarning("Failed login attempt for user: {Username} from IP: {IpAddress}",
             user.UserName, ipAddress);
 
-        _metricsService.IncrementCounter("login_attempts", "failed");
+        // Null kontrolü ekleyerek metrics hatasını önlüyoruz
+        if (_metricsService != null)
+        {
+            try
+            {
+                _metricsService.IncrementCounter("login_attempts", "failed");
+            }
+            catch (Exception ex)
+            {
+                // Metrics hatası login işlemini engellememeli, sadece logluyoruz
+                _logger.LogError(ex, "Error incrementing login_attempts counter: {Message}", ex.Message);
+            }
+        }
 
         // Increment the failed login counter in ASP.NET Identity
-        await _userManager.AccessFailedAsync(user);
+        //await _userManager.AccessFailedAsync(user);
 
         // Track per-IP failed attempts in Redis for rate limiting
         if (!string.IsNullOrEmpty(ipAddress))
         {
             string failedAttemptsKey = $"failed_login_{ipAddress}";
 
-            // Increment the failed attempts counter
-            await _cacheService.IncrementAsync(failedAttemptsKey, 1, TimeSpan.FromMinutes(60));
-
-            // Get the current count
-            int failedAttempts = await _cacheService.GetCounterAsync(failedAttemptsKey);
-
-            // If we exceed a threshold, send an alert
-            if (failedAttempts >= 10)
+            try
             {
-                await _alertService.SendAlertAsync(
-                    Application.Enums.AlertType.Security,
-                    $"Multiple failed login attempts for IP {ipAddress}",
-                    new Dictionary<string, string>
+                // Increment the failed attempts counter
+                await _cacheService.IncrementAsync(failedAttemptsKey, 1, TimeSpan.FromMinutes(60));
+
+                // Get the current count
+                int failedAttempts = await _cacheService.GetCounterAsync(failedAttemptsKey);
+
+                // If we exceed a threshold, send an alert
+                if (failedAttempts >= 10)
+                {
+                    try
                     {
-                        ["ipAddress"] = ipAddress,
-                        ["userAgent"] = userAgent ?? "Unknown",
-                        ["attemptCount"] = failedAttempts.ToString(),
-                        ["username"] = user.UserName
-                    });
+                        await _alertService.SendAlertAsync(
+                            Application.Enums.AlertType.Security,
+                            $"Multiple failed login attempts for IP {ipAddress}",
+                            new Dictionary<string, string>
+                            {
+                                ["ipAddress"] = ipAddress,
+                                ["userAgent"] = userAgent ?? "Unknown",
+                                ["attemptCount"] = failedAttempts.ToString(),
+                                ["username"] = user.UserName
+                            });
+                    }
+                    catch (Exception alertEx)
+                    {
+                        _logger.LogError(alertEx, "Error sending security alert");
+                    }
+                }
+            }
+            catch (Exception cacheEx)
+            {
+                _logger.LogError(cacheEx, "Error updating failed login cache");
             }
         }
     }
@@ -321,7 +401,7 @@ public class AuthService : IAuthService, IInternalAuthentication
     }
 
     // Simplified overload for when IP and user agent aren't specified
-    public async Task<Token> LoginAsync(string userNameOrEmail, string password,
+    public async Task<(Token? token, LoginUserErrorResponse? error)> LoginAsync(string userNameOrEmail, string password,
         int accessTokenLifetime = DEFAULT_ACCESS_TOKEN_LIFETIME)
     {
         // Get current context information
@@ -357,14 +437,12 @@ public class AuthService : IAuthService, IInternalAuthentication
 
         return user;
     }
-
-    // Simple refresh token method
-    public async Task<Token> RefreshTokenLoginAsync(string refreshToken)
+    
+    /*public async Task<Token> RefreshTokenLoginAsync(string refreshToken)
     {
         return await RefreshTokenLoginAsync(refreshToken, null, null);
     }
-
-    // Extended refresh token method with IP address and user agent
+    
     public async Task<Token> RefreshTokenLoginAsync(string refreshToken, string? ipAddress, string? userAgent)
     {
         // Get IP address and UserAgent if not provided but HttpContext is available
@@ -402,7 +480,7 @@ public class AuthService : IAuthService, IInternalAuthentication
 
         // Convert TokenDto to Token and return
         return tokenDto.ToToken();
-    }
+    }*/
 
     #endregion
 

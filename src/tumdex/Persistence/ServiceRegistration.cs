@@ -71,7 +71,6 @@ public static class ServiceRegistration
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IInternalAuthentication, AuthService>();
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<IAuthorizationEndpointService, AuthorizationEndpointService>();
         services.AddScoped<ICarouselRepository, CarouselRepository>();

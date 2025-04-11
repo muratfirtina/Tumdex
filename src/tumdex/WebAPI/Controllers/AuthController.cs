@@ -1,5 +1,6 @@
 using System;
    using System.Security.Claims;
+   using System.Text.RegularExpressions;
    using System.Threading.Tasks;
    using Application.Consts;
    using Application.CustomAttributes;
@@ -35,39 +36,36 @@ using System;
                    // Set client information
                    request.IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
                    request.UserAgent = Request.Headers["User-Agent"].ToString();
-   
+
                    // Forward-For header takes precedence if available
                    if (Request.Headers.ContainsKey("X-Forwarded-For"))
                    {
                        request.IpAddress = Request.Headers["X-Forwarded-For"].ToString().Split(',')[0].Trim();
                    }
-   
+
                    // Process the request through MediatR
                    var result = await Mediator.Send(request);
-                   return Ok(result);
-               }
-               catch (AuthenticationErrorException ex)
-               {
-                   _logger.LogWarning("Authentication error: {Message}", ex.Message);
-   
-                   if (ex.Message.Contains("kilitlendi"))
+        
+                   // Yanıt tipine göre işlem yap
+                   if (result is LoginUserSuccessResponse successResponse)
                    {
-                       // This is an account lockout
-                       return StatusCode(StatusCodes.Status401Unauthorized, 
-                           new { error = ex.Message });
+                       return Ok(successResponse);
                    }
-                   else if (ex.Message.Contains("Çok fazla giriş denemesi"))
+                   else if (result is LoginUserErrorResponse errorResponse)
                    {
-                       // This is a rate limit
-                       return StatusCode(StatusCodes.Status429TooManyRequests, 
-                           new { error = ex.Message, retryAfter = 300 });
+                       if (errorResponse.IsLockedOut)
+                       {
+                           return StatusCode(StatusCodes.Status401Unauthorized, errorResponse);
+                       }
+                       else
+                       {
+                           return StatusCode(StatusCodes.Status401Unauthorized, errorResponse);
+                       }
                    }
-                   else
-                   {
-                       // Standard authentication error
-                       return StatusCode(StatusCodes.Status401Unauthorized, 
-                           new { error = "Invalid username/email or password" });
-                   }
+        
+                   // Başka bir yanıt tipi olursa (normalde olmaz)
+                   return StatusCode(StatusCodes.Status500InternalServerError, 
+                       new { error = "Unknown response type" });
                }
                catch (ArgumentException ex)
                {

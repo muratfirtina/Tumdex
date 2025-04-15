@@ -13,7 +13,7 @@ using Azure.Security.KeyVault.Secrets;
 using Infrastructure.Configuration;
 using Infrastructure.Messaging;
 using Infrastructure.Services;
-using Infrastructure.Services.Cache; // InMemoryCacheService tanımlıysa using ekle
+using Infrastructure.Services.Cache;
 using Infrastructure.Services.Configurations;
 using Infrastructure.Services.Mail;
 using Infrastructure.Services.Seo;
@@ -22,10 +22,10 @@ using Infrastructure.Services.Storage.Google;
 using Infrastructure.Services.Storage.Local;
 using Infrastructure.Services.Token;
 using Infrastructure.Services.Security.KeyVault;
-using Microsoft.Extensions.Caching.Distributed; // KeyVaultInitializationService için using eklendi
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions; // RemoveAll için
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Persistence.Models;
@@ -65,7 +65,6 @@ public static class InfrastructureServiceRegistration
         return services;
     }
 
-    // ... (RegisterStorageServices, RegisterApplicationServices aynı kalır) ...
     private static void RegisterStorageServices(IServiceCollection services)
     {
         services.AddScoped<ILocalStorage, LocalStorage>();
@@ -81,10 +80,9 @@ public static class InfrastructureServiceRegistration
         services.AddScoped<ILogService, LogService>();
         services.AddScoped<ICompanyAssetService, CompanyAssetService>();
     }
-    // --- Key Vault Servis Kaydı Güncellendi ---
+
     private static void ConfigureKeyVaultServices(IServiceCollection services, IConfiguration configuration)
     {
-        // DÜZELTME: Logger'ı factory ile alırken statik olmayan bir tip kullan
         var logger = services.BuildServiceProvider().GetService<ILogger<object>>();
 
         var keyVaultUri = configuration["AZURE_KEYVAULT_URI"];
@@ -100,18 +98,17 @@ public static class InfrastructureServiceRegistration
                     clientLogger.LogInformation("Azure Key Vault için SecretClient oluşturuluyor: {KeyVaultUri}", keyVaultUri);
                     try
                     {
-                         return new SecretClient(new Uri(keyVaultUri), credential);
+                        return new SecretClient(new Uri(keyVaultUri), credential);
                     }
                     catch (Exception clientEx)
                     {
-                         clientLogger.LogError(clientEx, "SecretClient oluşturulurken veya Key Vault'a erişirken hata. URI: {KeyVaultUri}", keyVaultUri);
-                         return null; // Hata durumunda null döndür
+                        clientLogger.LogError(clientEx, "SecretClient oluşturulurken veya Key Vault'a erişirken hata. URI: {KeyVaultUri}", keyVaultUri);
+                        return null; // Hata durumunda null döndür
                     }
                 });
 
                 logger?.LogInformation("Azure Key Vault yapılandırıldı: {KeyVaultUri}", keyVaultUri);
-                // KeyVaultInitializationService gerçekten varsa kaydet
-                 services.AddSingleton<IKeyVaultInitializationService, KeyVaultInitializationService>();
+                services.AddSingleton<IKeyVaultInitializationService, KeyVaultInitializationService>();
             }
             catch (Exception ex)
             {
@@ -125,113 +122,186 @@ public static class InfrastructureServiceRegistration
             services.AddSingleton<SecretClient>(_ => null);
         }
     }
-    // --- Key Vault Servis Kaydı Güncellemesi Sonu ---
 
-    // --- Redis Cache Servis Kaydı Güncellendi ---
+    // Eski yapıdan alınmış ve geliştirilmiş Redis yapılandırması
     private static void ConfigureCacheServices(IServiceCollection services, IConfiguration configuration)
     {
-        var logger = services.BuildServiceProvider().GetService<ILogger<object>>(); // Statik olmayan tip kullan
+        var logger = services.BuildServiceProvider().GetService<ILogger<object>>();
+        logger?.LogInformation("Redis yapılandırması başlatılıyor...");
+
+        var isDevelopment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
         bool useRedis = configuration.GetValue<bool>("CacheSettings:UseRedis", true);
-        string? redisHost = configuration.GetValue<string>("Redis:Host");
-        string? redisPort = configuration.GetValue<string>("Redis:Port");
-        string? redisPassword = configuration.GetValue<string>("Redis:Password");
 
-        if (useRedis && !string.IsNullOrEmpty(redisHost) && !string.IsNullOrEmpty(redisPort))
+        // Redis kullanımı kapatılmışsa
+        if (!useRedis)
         {
-            var redisConfiguration = new ConfigurationOptions { /* ... yapılandırma ... */ };
-            redisConfiguration.EndPoints.Add($"{redisHost}:{redisPort}");
-            redisConfiguration.Password = redisPassword;
-            redisConfiguration.AbortOnConnectFail = false;
-            redisConfiguration.ConnectTimeout = 5000;
-            redisConfiguration.SyncTimeout = 5000;
-            redisConfiguration.AllowAdmin = true;
-            redisConfiguration.ClientName = "Tumdex_Api";
-            
+            logger?.LogInformation("Yapılandırmada Redis kullanımı (CacheSettings:UseRedis) devre dışı bırakılmış. In-Memory Cache kullanılacak.");
+            services.AddDistributedMemoryCache();
+            return;
+        }
 
-            try
+        string redisHost;
+        string redisPort;
+        string redisPassword;
+
+        try
+        {
+            // İlk olarak yapılandırmadan okumayı dene
+            redisHost = configuration["Redis:Host"];
+            redisPort = configuration["Redis:Port"];
+            redisPassword = configuration["Redis:Password"];
+
+            // Yapılandırmadan okunan değerler çevre değişkenleri içeriyorsa
+            if (string.IsNullOrEmpty(redisHost) || redisHost.Contains("${") || 
+                string.IsNullOrEmpty(redisPort) || redisPort.Contains("${"))
             {
-                var multiplexer = ConnectionMultiplexer.Connect(redisConfiguration);
-                services.AddSingleton<IConnectionMultiplexer>(multiplexer);
-                services.AddStackExchangeRedisCache(redisOptions => { redisOptions.ConfigurationOptions = redisConfiguration; });
-                services.AddSingleton<ICacheService, RedisCacheService>();
-                logger?.LogInformation("Redis Cache Service (RedisCacheService) başarıyla yapılandırıldı.");
-                services.AddSingleton<SlidingWindowRateLimiter>(sp => new SlidingWindowRateLimiter(multiplexer, sp.GetRequiredService<ILogger<SlidingWindowRateLimiter>>(), configuration));
-                return;
+                logger?.LogInformation("Redis yapılandırması çevre değişkenleri içeriyor veya boş, Key Vault kullanılacak...");
+                
+                // Key Vault'tan okuma
+                redisHost = isDevelopment ? configuration["Redis:Host"] : configuration.GetSecretFromKeyVault("RedisHost");
+                redisPort = isDevelopment ? configuration["Redis:Port"] : configuration.GetSecretFromKeyVault("RedisPort");
+                redisPassword = isDevelopment ? configuration["Redis:Password"] : configuration.GetSecretFromKeyVault("RedisPassword");
             }
-            catch (Exception ex)
+
+            // Değerler hala geçersizse fallback değerleri kullan
+            if (string.IsNullOrEmpty(redisHost))
             {
-                logger?.LogError(ex, "Redis bağlantısı veya yapılandırması başarısız oldu. Fallback olarak In-Memory Cache kullanılacak.");
-                // DÜZELTME: Servisleri doğru şekilde kaldır
-                services.RemoveAll<IConnectionMultiplexer>();
-                services.RemoveAll<ICacheService>(); // Hem Redis hem InMemory ICacheService'i kaldırabilir, dikkat! Önce ICacheService eklenmediyse sorun olmaz.
-                services.RemoveAll<SlidingWindowRateLimiter>();
-                // IDistributedCache'in Redis implementasyonunu kaldır
-                services.RemoveAll<IDistributedCache>();
+                logger?.LogWarning("Redis Host değeri bulunamadı, varsayılan değer 'localhost' kullanılacak.");
+                redisHost = "localhost";
             }
+
+            if (string.IsNullOrEmpty(redisPort))
+            {
+                logger?.LogWarning("Redis Port değeri bulunamadı, varsayılan değer '6379' kullanılacak.");
+                redisPort = "6379";
+            }
+
+            logger?.LogInformation("Redis yapılandırması: Host={RedisHost}, Port={RedisPort}", redisHost, redisPort);
+
+            var redisConfiguration = new ConfigurationOptions
+            {
+                AbortOnConnectFail = false,
+                ConnectTimeout = 5000,
+                SyncTimeout = 5000,
+                AllowAdmin = true,
+                ClientName = "Tumdex_Api"
+            };
+
+            // Endpoint'i ekle
+            redisConfiguration.EndPoints.Add($"{redisHost}:{redisPort}");
+
+            // Password varsa ekle
+            if (!string.IsNullOrEmpty(redisPassword))
+            {
+                redisConfiguration.Password = redisPassword;
+            }
+
+            // Bağlantıyı test et
+            var multiplexer = ConnectionMultiplexer.Connect(redisConfiguration);
+            services.AddSingleton<IConnectionMultiplexer>(multiplexer);
+
+            services.AddStackExchangeRedisCache(redisOptions =>
+            {
+                redisOptions.ConfigurationOptions = redisConfiguration;
+                redisOptions.InstanceName = "Tumdex_";
+            });
+
+            services.AddSingleton<ICacheService, RedisCacheService>();
+            logger?.LogInformation("Redis Cache Service başarıyla yapılandırıldı.");
+
+            // SlidingWindowRateLimiter'ı kaydet
+            services.AddSingleton<SlidingWindowRateLimiter>(sp =>
+            {
+                var limiterLogger = sp.GetRequiredService<ILogger<SlidingWindowRateLimiter>>();
+                return new SlidingWindowRateLimiter(multiplexer, limiterLogger, configuration);
+            });
         }
-         else if (!useRedis) {
-             logger?.LogInformation("Yapılandırmada Redis kullanımı (CacheSettings:UseRedis) devre dışı bırakılmış. In-Memory Cache kullanılacak.");
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Redis bağlantısı veya yapılandırması başarısız oldu. Fallback olarak In-Memory Cache kullanılacak.");
+            
+            // Servisleri temizle
+            services.RemoveAll<IConnectionMultiplexer>();
+            services.RemoveAll<ICacheService>();
+            services.RemoveAll<SlidingWindowRateLimiter>();
+            services.RemoveAll<IDistributedCache>();
+            
+            // In-Memory Cache'e geç
+            services.AddDistributedMemoryCache();
+            logger?.LogInformation("Fallback olarak In-Memory Cache (IDistributedCache) yapılandırıldı.");
         }
-        else {
-             logger?.LogWarning("Redis Host veya Port yapılandırılmamış. Fallback olarak In-Memory Cache kullanılacak.");
-        }
-        
-        logger?.LogInformation("Fallback olarak In-Memory Cache (IDistributedCache) yapılandırıldı.");
-        services.AddDistributedMemoryCache();
     }
-    // --- Redis Cache Servis Kaydı Güncellemesi Sonu ---
 
     private static void ConfigureHealthChecks(IServiceCollection services, IConfiguration configuration)
     {
-        var logger = services.BuildServiceProvider().GetService<ILogger<object>>(); // Statik olmayan tip kullan
+        var logger = services.BuildServiceProvider().GetService<ILogger<object>>();
         var healthChecksBuilder = services.AddHealthChecks();
 
-        // PostgreSQL (Aynı kalabilir)
-        var dbConnectionString = configuration.GetConnectionString("TumdexDb");
-        if (!string.IsNullOrEmpty(dbConnectionString)) {
-             healthChecksBuilder.AddNpgSql(dbConnectionString, name: "postgresql", failureStatus: HealthStatus.Degraded, tags: new[] { "database", "postgresql", "ready" });
-        } else {
-             logger?.LogError("Database connection string 'TumdexDb' not found for health checks.");
-        }
-
-        // Redis (Aynı kalabilir)
-        bool useRedis = configuration.GetValue<bool>("CacheSettings:UseRedis", true);
-        string? redisHost = configuration.GetValue<string>("Redis:Host");
-        string? redisPort = configuration.GetValue<string>("Redis:Port");
-        if(useRedis && !string.IsNullOrEmpty(redisHost) && !string.IsNullOrEmpty(redisPort))
+        try
         {
-            string? redisPassword = configuration.GetValue<string>("Redis:Password");
-            string redisConnectionString = $"{redisHost}:{redisPort}";
-            if (!string.IsNullOrEmpty(redisPassword)) { redisConnectionString += $",password={redisPassword}"; }
-            healthChecksBuilder.AddRedis(redisConnectionString, name: "redis", failureStatus: HealthStatus.Degraded, tags: new[] { "cache", "redis", "ready" });
-        } else {
-            logger?.LogWarning("Redis health check skipped: Redis is disabled or configuration is missing.");
-        }
-
-        // RabbitMQ (Aynı kalabilir, NuGet paketi eklenmeli)
-        string? rabbitMqHost = configuration.GetValue<string>("RabbitMQ:Host");
-        if(!string.IsNullOrEmpty(rabbitMqHost))
-        {
-            try {
-                 var rabbitMqPort = configuration.GetValue<string>("RabbitMQ:Port", "5672");
-                 var rabbitMqUser = configuration.GetValue<string>("RabbitMQ:Username");
-                 var rabbitMqPass = configuration.GetValue<string>("RabbitMQ:Password");
-                 var rabbitMqVHost = configuration.GetValue<string>("RabbitMQ:VirtualHost", "/");
-                 var uriBuilder = new UriBuilder("amqp", rabbitMqHost, int.Parse(rabbitMqPort), rabbitMqVHost.TrimStart('/'));
-                 if(!string.IsNullOrEmpty(rabbitMqUser)) uriBuilder.UserName = Uri.EscapeDataString(rabbitMqUser);
-                 if(!string.IsNullOrEmpty(rabbitMqPass)) uriBuilder.Password = Uri.EscapeDataString(rabbitMqPass);
-
-                 
-                    healthChecksBuilder.AddCheck<RabbitMQHealthCheck>("RabbitMQ",
-                     failureStatus: HealthStatus.Unhealthy,
-                     tags: new[] { "rabbitmq", "messagebroker" });
-
-
-            } catch (Exception ex) {
-                 logger?.LogError(ex, "RabbitMQ health check configuration failed.");
+            // PostgreSQL sağlık kontrolü
+            var dbConnectionString = configuration.GetConnectionString("TumdexDb");
+            if (!string.IsNullOrEmpty(dbConnectionString))
+            {
+                healthChecksBuilder.AddNpgSql(
+                    dbConnectionString,
+                    name: "postgresql",
+                    failureStatus: HealthStatus.Degraded,
+                    tags: new[] { "database", "postgresql", "ready" });
+                
+                logger?.LogInformation("PostgreSQL sağlık kontrolü yapılandırıldı.");
             }
-        } else {
-             logger?.LogWarning("RabbitMQ health check skipped: RabbitMQ configuration is missing.");
+            else
+            {
+                logger?.LogError("Database connection string 'TumdexDb' sağlık kontrolleri için bulunamadı.");
+            }
+
+            // Redis sağlık kontrolü
+            var isDevelopment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
+            var redisHost = isDevelopment ? configuration["Redis:Host"] : configuration.GetSecretFromKeyVault("RedisHost");
+            var redisPort = isDevelopment ? configuration["Redis:Port"] : configuration.GetSecretFromKeyVault("RedisPort");
+            var redisPassword = isDevelopment ? configuration["Redis:Password"] : configuration.GetSecretFromKeyVault("RedisPassword");
+
+            if (!string.IsNullOrEmpty(redisHost) && !string.IsNullOrEmpty(redisPort))
+            {
+                string redisConnectionString = $"{redisHost}:{redisPort}";
+                if (!string.IsNullOrEmpty(redisPassword))
+                {
+                    redisConnectionString += $",password={redisPassword}";
+                }
+
+                healthChecksBuilder.AddRedis(
+                    redisConnectionString,
+                    name: "redis",
+                    failureStatus: HealthStatus.Degraded,
+                    tags: new[] { "redis", "cache", "ready" });
+                
+                logger?.LogInformation("Redis sağlık kontrolü yapılandırıldı.");
+            }
+            else
+            {
+                logger?.LogWarning("Redis sağlık kontrolü atlandı: Redis yapılandırması eksik.");
+            }
+
+            // RabbitMQ sağlık kontrolü
+            try
+            {
+                // RabbitMQ sağlık kontrolü için özel sınıf kullan
+                healthChecksBuilder.AddCheck<RabbitMQHealthCheck>(
+                    "RabbitMQ",
+                    failureStatus: HealthStatus.Unhealthy,
+                    tags: new[] { "rabbitmq", "messagebroker", "ready" });
+                
+                logger?.LogInformation("RabbitMQ sağlık kontrolü yapılandırıldı.");
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "RabbitMQ sağlık kontrolü yapılandırması başarısız oldu.");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Sağlık kontrolleri yapılandırılırken genel bir hata oluştu.");
         }
     }
 }

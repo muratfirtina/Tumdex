@@ -21,12 +21,12 @@ public class CurrentUserService : ICurrentUserService
     public async Task<string> GetCurrentUserIdAsync()
     {
         var user = await GetCurrentUserAsync();
-        return user.Id;
+        return user?.Id ?? "anonymous"; // Kullanıcı null ise "anonymous" dön
     }
 
     public async Task<string> GetCurrentUserNameAsync()
     {
         var user = await GetCurrentUserAsync();
-        return user.UserName;
+        return user?.UserName ?? "anonymous"; // Kullanıcı null ise "anonymous" dön
     }
 }

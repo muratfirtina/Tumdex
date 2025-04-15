@@ -7,7 +7,7 @@ using Infrastructure;
 using Infrastructure.BackgroundJobs;
 using Infrastructure.Configuration;
 using Infrastructure.Middleware.Security;
-using Infrastructure.Services.Security;
+using Infrastructure.Services.Security; // SecurityServiceRegistration için
 using Infrastructure.Services.Seo;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -18,8 +18,8 @@ using Persistence.Context;
 using Persistence.DbConfiguration;
 using Persistence.Services;
 using Prometheus;
-using Serilog;
-using SignalR;
+using Serilog; // Serilog için using
+using SignalR; // SignalR namespace'i using direktiflerinde olmalı
 using WebAPI.Controllers;
 using WebAPI.Extensions;
 
@@ -29,246 +29,205 @@ var builder = WebApplication.CreateBuilder(args);
 try
 {
     DotEnv.Load();
-    
-    // Environment variables'ları Configuration'a ekle
     builder.Configuration.AddEnvironmentVariables();
-    // 1. Temel Yapılandırmalar
     builder.AddKeyVaultConfiguration();
-    builder.AddLoggingConfiguration();
+    builder.AddLoggingConfiguration(); // Serilog yapılandırması burada
 
-    // 2. Servis Katmanları
     ConfigureServiceLayers(builder);
-
-    // 3. Middleware ve Güvenlik
-    ConfigureSecurityAndAuth(builder);
-    
-    // 4. Diğer Servisler
+    ConfigureSecurityAndAuth(builder); // CORS tanımı burada
     ConfigureAdditionalServices(builder);
 
     var app = builder.Build();
-    
-    var initService = app.Services.GetRequiredService<IKeyVaultInitializationService>();
-    await initService.InitializeAsync();
+
+    // --- Uygulama Başlangıç Konfigürasyonu ---
     await ConfigureApplication(app);
-    
-    // Newsletter scheduler'ı başlat
-    Log.Information("Initializing newsletter scheduler");
-    try
-    {
-        using var scope = app.Services.CreateScope();
-        var newsletterScheduler = scope.ServiceProvider.GetRequiredService<MonthlyNewsletterScheduler>();
-        await newsletterScheduler.ScheduleNewsletterJobs();
-        Log.Information("Newsletter scheduler initialized successfully");
-    }
-    catch (Exception ex)
-    {
-        Log.Error(ex, "An error occurred while initializing newsletter scheduler");
-    }
-    
+    // --- Uygulama Başlangıç Konfigürasyonu Sonu ---
+
+
     await app.RunAsync();
 }
 catch (Exception ex)
 {
-    Log.Fatal(ex, "Application terminated unexpectedly");
-    throw;
+    // Uygulama başlangıcında kritik hata
+    // Loglama henüz tam yapılandırılmamış olabilir, Console.WriteLine güvenli
+    Console.WriteLine($"Uygulama başlatılamadı: {ex}");
+    // Serilog yapılandırıldıysa logla
+    Log.Fatal(ex, "Uygulama başlatılırken beklenmedik bir hata oluştu.");
+    // throw; // Geliştirme ortamında hatayı görmek için fırlatılabilir
+    // Environment.Exit(1); // Uygulamayı hemen kapatabilir
 }
 finally
 {
-    Log.CloseAndFlush();
+    Log.CloseAndFlush(); // Serilog buffer'ını temizle
 }
 
-// Service Layer Configuration Methods
+//-----------------------------------------------------
+// Yardımcı Yapılandırma Metotları
+//-----------------------------------------------------
+
 void ConfigureServiceLayers(WebApplicationBuilder builder)
 {
-    // 1. Temel servisler (logging, configuration)
     builder.Services.AddControllers();
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();
     builder.Services.AddHttpClient();
-    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddHttpContextAccessor(); // IHttpContextAccessor'ı kaydet
 
-    // 2. Infrastructure Layer (Key Vault ve temel servisler)
-    builder.Services.AddInfrastructureServices(builder.Configuration);
-    
-    // 3. Security Layer (JWT ve authentication)
-    builder.Services.AddSecurityServices(builder.Configuration);
-
-    // 4. Application Layer
-    builder.Services.AddApplicationServices();
-
-    // 5. Persistence Layer
-    var loggerFactory = builder.Services.BuildServiceProvider()
-        .GetRequiredService<ILoggerFactory>();
-    var logger = loggerFactory.CreateLogger("DatabaseConfiguration");
-    
-    builder.Services.AddPersistenceServices(
-        DatabaseConfiguration.GetConnectionString(builder.Configuration, logger),
+    builder.Services.AddInfrastructureServices(builder.Configuration); // Key Vault, Cache, Storage, Token vb.
+    builder.Services.AddSecurityServices(builder.Configuration); // Antiforgery, Monitoring, Communication vb.
+    builder.Services.AddApplicationServices(); // MediatR, AutoMapper, Business Rules
+    builder.Services.AddPersistenceServices( // DbContext, Repositories, Identity Core
+        DatabaseConfiguration.GetConnectionString(builder.Configuration, null), // Logger'ı sonra alabiliriz
         builder.Environment.IsDevelopment());
+    builder.Services.AddSignalRServices(); // SignalR Core ve Hub Servisleri
 
-    // 6. SignalR Services
-    builder.Services.AddSignalRServices();
-    builder.Services.AddDistributedMemoryCache(); 
-    builder.Logging.ClearProviders();
-    builder.Logging.AddConsole();
-    builder.Logging.SetMinimumLevel(LogLevel.Debug);
+    // Prometheus controller için
     builder.Services.AddControllers()
         .AddApplicationPart(typeof(MetricsController).Assembly);
 }
 
-// Security and Authentication Configuration
 void ConfigureSecurityAndAuth(WebApplicationBuilder builder)
 {
-    // CORS Configuration
+    // CORS Politikası Tanımı
     builder.Services.AddCors(options =>
     {
         options.AddDefaultPolicy(policy =>
         {
-            policy.WithOrigins(builder.Configuration.GetSection("WebAPIConfiguration:AllowedOrigins").Get<string[]>())
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .WithExposedHeaders(
-                    "Content-Security-Policy",
-                    "X-Content-Type-Options",
-                    "X-Frame-Options",
-                    "X-XSS-Protection",
-                    "Strict-Transport-Security",
-                    "Referrer-Policy",
-                    "Permissions-Policy"
-                )
-                .AllowCredentials();
+            var allowedOrigins = builder.Configuration.GetSection("WebAPIConfiguration:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+            if (builder.Environment.IsDevelopment())
+            {
+                // Distinct() ile tekrarlanan eklemeleri önle
+                allowedOrigins = allowedOrigins.Append("http://localhost:4200").Distinct().ToArray();
+                allowedOrigins = allowedOrigins.Append("https://localhost:4200").Distinct().ToArray();
+            }
+            Console.WriteLine($"CORS İzin Verilen Origin'ler: {string.Join(", ", allowedOrigins)}");
+
+            policy.WithOrigins(allowedOrigins)
+                  .WithHeaders( // İzin verilen başlıklar
+                      "Content-Type", "Authorization", "X-Requested-With",
+                      "x-signalr-user-agent", "X-CSRF-TOKEN" // Gerekliyse ekle
+                   )
+                  .AllowAnyMethod() // Veya .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                  .WithExposedHeaders( // Tarayıcının okuyabileceği başlıklar
+                      "Content-Security-Policy", "X-Content-Type-Options", "X-Frame-Options",
+                      "X-XSS-Protection", "Strict-Transport-Security", "Referrer-Policy",
+                      "Permissions-Policy" // Örnek, ihtiyaç varsa ekle
+                  )
+                  .AllowCredentials(); // SignalR ve token tabanlı auth için gerekli
         });
     });
 
-    // Message Broker Configuration
-    builder.Services.AddMessageBrokerServices(builder.Configuration);
-
-    // Authentication Configuration
-    builder.Services.AddAuthenticationServices(builder.Configuration);
+    builder.Services.AddMessageBrokerServices(builder.Configuration); // RabbitMQ vb.
+    builder.Services.AddAuthenticationServices(builder.Configuration); // JWT ve Identity yapılandırması
 }
 
-// Additional Services Configuration
 void ConfigureAdditionalServices(WebApplicationBuilder builder)
 {
-    // File Provider Configuration
-    var provider = new FileExtensionContentTypeProvider();
-    provider.Mappings[".avif"] = "image/avif";
-
-    // Prometheus Metrics - Yapılandırmadan port okunuyor
+    // Prometheus Metrics - Port yapılandırmadan okunuyor
     var metricsPort = builder.Configuration.GetValue<int>("Monitoring:Metrics:Port", 9101);
     builder.Services.AddMetricServer(options => { options.Port = (ushort)metricsPort; });
 }
 
-// Application Configuration
+// --- Middleware Pipeline Yapılandırması ---
 async Task ConfigureApplication(WebApplication app)
 {
-    // Environment specific configuration
+    // Ortama özel yapılandırma
     if (app.Environment.IsDevelopment())
     {
-        app.UseSwagger();
+        app.UseDeveloperExceptionPage(); // Detaylı hata sayfası
+        app.UseSwagger(); // Swagger middleware'leri
         app.UseSwaggerUI();
     }
-    app.UseHsts();
+    else
+    {
+        app.UseExceptionHandler("/Error"); // Üretim için genel hata sayfası
+        app.UseHsts(); // HTTPS Zorlama başlığı
+    }
+
+    // Middleware Sırası ÖNEMLİDİR!
+
+    // 1. HTTPS Yönlendirmesi (Genellikle en başta)
     app.UseHttpsRedirection();
-    app.UseExceptionHandler("/Error");
-    
-    // Global exception handler
-    app.UseExceptionHandler(errorApp =>
-    {
-        errorApp.Run(async context =>
-        {
-            context.Response.StatusCode = 500;
-            context.Response.ContentType = "application/json";
-            
-            var exceptionHandlerPathFeature = 
-                context.Features.Get<IExceptionHandlerPathFeature>();
 
-            var error = new
-            {
-                StatusCode = 500,
-                Message = "An internal server error occurred."
-            };
+    // 2. Serilog Request Logging (Mümkün olduğunca başta)
+    app.UseSerilogRequestLogging(); // Gelen istekleri loglar
+    app.AddUserNameLogging(); // Kullanıcı adını log context'ine ekler (Auth'dan sonra daha mantıklı olabilir)
 
-            await context.Response.WriteAsJsonAsync(error);
-            
-            // Log the actual error
-            var logger = context.RequestServices
-                .GetRequiredService<ILogger<Program>>();
-            
-            logger.LogError(exceptionHandlerPathFeature?.Error, 
-                "An unhandled exception occurred.");
-        });
-    });
+    // 3. Statik Dosyalar
+    var provider = new FileExtensionContentTypeProvider();
+    provider.Mappings[".avif"] = "image/avif";
+    provider.Mappings[".webp"] = "image/webp";
+    provider.Mappings[".svg"] = "image/svg+xml";
+    app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = provider });
 
-    // Security Middleware
-    app.UseSecurityMiddleware(app.Configuration);
+    // 4. Routing
+    app.UseRouting(); // Endpoint eşleştirmesi için gerekli
 
-    // Basic Middleware
-    app.UseMetricServer();
-    app.UseCors();
-    
-    app.UseMiddleware<ImageOptimizationMiddleware>();
-    app.UseMiddleware<TokenValidationMiddleware>();
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        ContentTypeProvider = new FileExtensionContentTypeProvider
-        {
-            Mappings = { [".avif"] = "image/avif" ,
-                [".webp"] = "image/webp" ,
-                [".svg"] = "image/svg+xml" ,
-                [".heic"] = "image/heic",
-                [".jpg"] = "image/jpeg",
-                [".jpeg"] = "image/jpeg",
-                [".png"] = "image/png"
-            }
-        }
-        
-    });
-    
-    
+    // 5. CORS (Routing'den SONRA, Auth ve Endpoint'lerden ÖNCE)
+    app.UseCors(); // Tanımlanan CORS politikasını uygular
 
-    // Authentication & Authorization
+    // 6. Authentication & Authorization (CORS'tan SONRA, Endpoint'lerden ÖNCE)
     app.UseAuthentication();
     app.UseAuthorization();
 
-    // Request Logging
-    app.UseCustomRequestLogging();
+    // 7. Özel Güvenlik ve Diğer Middleware'ler
+    app.UseSecurityMiddleware(app.Configuration); // DDoS, RateLimit, SecurityHeaders(CORS hariç) vb. içerir
+    app.UseMiddleware<TokenValidationMiddleware>(); // Özel token doğrulama
+    app.UseMiddleware<ImageOptimizationMiddleware>(); // Resim optimizasyonu
 
-    // API Routes
+    // 8. Prometheus Metrics Server
+    app.UseMetricServer(); // /metrics endpoint'ini ekler
+
+    // 9. Endpoints (En sonda)
     app.MapControllers();
-    app.MapHubs();
+    app.MapHubs(); // SignalR Hub'ları (HubRegistration içindeki)
+    ConfigureHealthChecks(app); // Sağlık kontrolü endpoint'leri
 
-    // Health Checks
-    ConfigureHealthChecks(app);
-
-    // Database Migration
-    await using (var scope = app.Services.CreateAsyncScope())
-    {
-        try
-        {
-            var context = scope.ServiceProvider.GetRequiredService<TumdexDbContext>();
-            await context.Database.MigrateAsync();
-            await RoleAndUserSeeder.SeedAsync(scope.ServiceProvider);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "An error occurred during database initialization");
-            throw;
-        }
-    }
+    // 10. Uygulama Başlangıç İşlemleri
+    await InitializeDatabaseAndSeedData(app);
+    await app.InitializeNewsletterScheduler(); // Newsletter
 }
 
-// Health Checks Configuration
+// Health Checks Endpoint Yapılandırması
 void ConfigureHealthChecks(WebApplication app)
 {
     app.MapHealthChecks("/health/ready", new HealthCheckOptions
     {
+        // Sadece 'ready' tag'ine sahip check'leri çalıştırır (DB, Cache vb.)
         Predicate = check => check.Tags.Contains("ready"),
         ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
     });
-
     app.MapHealthChecks("/health/live", new HealthCheckOptions
     {
+        // Sadece uygulamanın canlı olup olmadığını kontrol eder (herhangi bir check çalıştırmaz)
         Predicate = _ => false,
         ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
     });
+    // app.MapHealthChecksUI(); // UI için (opsiyonel)
+}
+
+// Veritabanı Başlatma ve Seed Metodu
+async Task InitializeDatabaseAndSeedData(WebApplication app)
+{
+    // Scope oluşturarak scoped servisleri (DbContext, UserManager vb.) al
+    await using var scope = app.Services.CreateAsyncScope();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    try
+    {
+        var context = scope.ServiceProvider.GetRequiredService<TumdexDbContext>();
+        logger.LogInformation("Veritabanı migration'ları uygulanıyor...");
+        await context.Database.MigrateAsync();
+        logger.LogInformation("Veritabanı migration'ları başarıyla uygulandı.");
+
+        logger.LogInformation("Başlangıç rolleri ve kullanıcıları seed ediliyor...");
+        await RoleAndUserSeeder.SeedAsync(scope.ServiceProvider);
+        logger.LogInformation("Başlangıç rolleri ve kullanıcıları başarıyla seed edildi.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Veritabanı başlatma (migration veya seeding) sırasında bir hata oluştu.");
+        // Uygulamanın bu durumda devam etmesi riskli olabilir.
+        // Geliştirme ortamında hatayı fırlatmak daha iyi olabilir:
+        if (app.Environment.IsDevelopment()) throw;
+    }
 }

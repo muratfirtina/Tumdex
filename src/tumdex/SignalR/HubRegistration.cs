@@ -10,5 +10,7 @@ public static class HubRegistration
     {
         webApplication.MapHub<OrderHub>("/order-hub")
             .RequireAuthorization(new AuthorizeAttribute { AuthenticationSchemes = "Admin" });
+            
+        webApplication.MapHub<VisitorTrackingHub>("/visitor-tracking-hub");
     }
 }

@@ -151,7 +151,10 @@ public class UserService : IUserService
             }
         }
 
-        throw new Exception("User not found.");
+        // Kimliği doğrulanmamış kullanıcılar için null dönebilirsiniz
+        return null;
+        // Veya istisna fırlatmak yerine:
+        // throw new UnauthorizedAccessException("Kullanıcı kimliği doğrulanmamış.");
     }
 
     public async Task<bool> IsAdminAsync()

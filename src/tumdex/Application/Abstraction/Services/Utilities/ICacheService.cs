@@ -10,4 +10,5 @@ public interface ICacheService
     Task<T> GetOrCreateAsync<T>(string key, Func<Task<T>> factory, TimeSpan? expiry = null);
     Task<bool> IncrementAsync(string key, int value = 1, TimeSpan? expiry = null);
     Task<int> GetCounterAsync(string key);
+    Task<List<string>> GetKeysAsync(string pattern);
 }

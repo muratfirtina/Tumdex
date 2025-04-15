@@ -10,6 +10,8 @@ public static class ServiceRegistration
     public static void AddSignalRServices(this IServiceCollection services)
     {
         services.AddTransient<IOrderHubService, OrderHubService>();
+        services.AddTransient<IVisitorTrackingHubService, VisitorTrackingHubService>();
+        
         services.AddSignalR(options =>
             {
                 options.EnableDetailedErrors = true;

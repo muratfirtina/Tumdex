@@ -1,166 +1,171 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text.Json;
-using Domain.Identity;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Caching.Distributed;
+using Domain.Identity; // AppUser için using
+using Microsoft.AspNetCore.Http; // HttpContext için
+using Microsoft.AspNetCore.Identity; // UserManager için
+using Microsoft.Extensions.Caching.Distributed; // IDistributedCache için
+using Microsoft.Extensions.Logging; // ILogger için
 
-namespace WebAPI.Extensions
+namespace WebAPI.Extensions; // Namespace'i projenize göre ayarlayın
+
+public class TokenValidationMiddleware
 {
-    public class TokenValidationMiddleware
+    private readonly RequestDelegate _next;
+    private readonly ILogger<TokenValidationMiddleware> _logger;
+    private readonly IDistributedCache _cache;
+
+    public TokenValidationMiddleware(
+        RequestDelegate next,
+        ILogger<TokenValidationMiddleware> logger,
+        IDistributedCache cache)
     {
-        private readonly RequestDelegate _next;
-        private readonly ILogger<TokenValidationMiddleware> _logger;
-        private readonly IDistributedCache _cache;
+        _next = next ?? throw new ArgumentNullException(nameof(next));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+    }
 
-        public TokenValidationMiddleware(
-            RequestDelegate next,
-            ILogger<TokenValidationMiddleware> logger,
-            IDistributedCache cache)
+    public async Task InvokeAsync(HttpContext context, UserManager<AppUser> userManager)
+    {
+        if (ShouldSkipValidation(context.Request.Path))
         {
-            _next = next ?? throw new ArgumentNullException(nameof(next));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _cache = cache ?? throw new ArgumentNullException(nameof(cache));
-        }
-
-        public async Task InvokeAsync(HttpContext context, UserManager<AppUser> userManager)
-        {
-            // Bazı endpoint'leri kontrol dışı bırakmak için
-            if (ShouldSkipValidation(context.Request.Path))
-            {
-                await _next(context);
-                return;
-            }
-
-            // Authorization header'ı kontrol et
-            var authHeader = context.Request.Headers["Authorization"].ToString();
-
-            if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer "))
-            {
-                var token = authHeader.Substring("Bearer ".Length).Trim();
-
-                try
-                {
-                    // Token'ın iptal edilip edilmediğini kontrol et
-                    var (isRevoked, userId, reason) = await CheckIfTokenIsRevokedAsync(token, userManager);
-
-                    if (isRevoked)
-                    {
-                        _logger.LogWarning("İptal edilmiş token kullanım girişimi: {Path} - UserId: {UserId}, Reason: {Reason}",
-                            context.Request.Path, userId, reason);
-
-                        // 401 Unauthorized yanıtı
-                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                        context.Response.ContentType = "application/json";
-
-                        await context.Response.WriteAsync(JsonSerializer.Serialize(new
-                        {
-                            error = "Token has been revoked",
-                            message = reason
-                        }));
-                        return;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Token iptal kontrolü sırasında hata: {Path}", context.Request.Path);
-                }
-            }
-
-            // Sonraki middleware'a geç
             await _next(context);
+            return;
         }
 
-        private bool ShouldSkipValidation(PathString path)
+        var authHeader = context.Request.Headers["Authorization"].ToString();
+        if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer "))
         {
-            // Token doğrulamasından muaf tutulacak path'ler
-            var skipPaths = new[]
-            {
-                "/api/auth/login",
-                "/api/auth/register",
-                "/api/auth/refresh",
-                "/api/auth/password-reset",
-                "/api/health",
-                "/api/swagger"
-            };
+            var token = authHeader.Substring("Bearer ".Length).Trim();
+            bool respondWith401 = false;
+            string revocationReason = "Geçersiz token."; // Varsayılan mesaj
 
-            foreach (var skipPath in skipPaths)
-            {
-                if (path.StartsWithSegments(skipPath, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private async Task<(bool isRevoked, string userId, string reason)> CheckIfTokenIsRevokedAsync(string token, UserManager<AppUser> userManager)
-        {
             try
             {
-                // JWT token'dan gerekli bilgileri çıkar
-                var tokenHandler = new JwtSecurityTokenHandler();
-                var jwtToken = tokenHandler.ReadJwtToken(token);
+                var (isRevoked, userId, reason) = await CheckIfTokenIsRevokedAsync(token, userManager);
 
-                // User ID çıkar
-                var userIdClaim = jwtToken.Claims.FirstOrDefault(c =>
-                    c.Type == ClaimTypes.NameIdentifier ||
-                    c.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier");
-
-                if (userIdClaim == null)
+                if (isRevoked)
                 {
-                    return (false, string.Empty, string.Empty);
+                    respondWith401 = true;
+                    revocationReason = reason; // Gerçek nedeni ata
+                    _logger.LogWarning("İptal edilmiş token kullanım girişimi: {Path} - UserId: {UserId}, Reason: {Reason}",
+                        context.Request.Path, userId ?? "Bilinmiyor", reason);
                 }
-
-                var userId = userIdClaim.Value;
-
-                // Token'dan session ID'yi çıkar
-                var sessionIdClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "session_id");
-
-                if (sessionIdClaim == null)
-                {
-                    // Eski tokenlar için, eski kontrolü uygula
-                    string revokeKey = $"UserTokensRevoked:{userId}";
-                    string? revokedTimeString = await _cache.GetStringAsync(revokeKey);
-
-                    if (!string.IsNullOrEmpty(revokedTimeString))
-                    {
-                        return (true, userId, "Bu kullanıcının tüm tokenları iptal edildi");
-                    }
-
-                    return (false, userId, string.Empty);
-                }
-
-                var tokenSessionId = sessionIdClaim.Value;
-
-                // Kullanıcının güncel session ID'sini al
-                var user = await userManager.FindByIdAsync(userId);
-
-                if (user == null)
-                {
-                    return (true, userId, "Kullanıcı bulunamadı");
-                }
-
-                // Önce cache'ten kontrol et (performans için)
-                string currentSessionId = await _cache.GetStringAsync($"UserSession:{userId}") ?? user.SessionId ?? "";
-
-                // Session ID eşleşmiyorsa, token iptal edilmiş demektir
-                if (tokenSessionId != currentSessionId)
-                {
-                    _logger.LogWarning("Token farklı session ID'ye sahip. TokenID: {TokenID}, CurrentID: {CurrentID}",
-                        tokenSessionId, currentSessionId);
-
-                    return (true, userId, "Bu kullanıcının tüm tokenları iptal edildi");
-                }
-
-                return (false, userId, string.Empty);
             }
-            catch (Exception ex)
+            catch (Exception ex) // CheckIfTokenIsRevokedAsync içindeki beklenmedik hatalar
             {
-                _logger.LogError(ex, "Token iptal kontrolü sırasında hata");
-                return (false, string.Empty, "Token kontrol hatası");
+                 _logger.LogError(ex, "Token iptal kontrolü sırasında beklenmedik hata: {Path}. Token geçersiz sayılacak.", context.Request.Path);
+                 respondWith401 = true;
+                 revocationReason = "Token doğrulama hatası.";
             }
+
+            if (respondWith401)
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsync(JsonSerializer.Serialize(new
+                {
+                    error = "Token has been revoked or validation failed",
+                    message = revocationReason
+                }));
+                return;
+            }
+        }
+
+        await _next(context);
+    }
+
+    private bool ShouldSkipValidation(PathString path)
+    {
+        // Token doğrulamasından muaf tutulacak path segmentleri
+        var skipPaths = new[]
+        {
+            "/api/auth",         // Tüm auth endpoint'leri (login, register, refresh, password-reset)
+            "/api/token",        // Tüm token endpoint'leri (activation, verify etc.)
+            "/api/users/update-forgot-password", // Şifre güncelleme
+            "/health",           // Health check endpoint'leri (genellikle /health ile başlar)
+            "/swagger",          // Swagger UI
+            "/order-hub",        // SignalR Hub endpoint'leri
+            "/visitor-tracking-hub"
+        };
+
+        // Tam eşleşme veya segment başlangıcı kontrolü
+        return skipPaths.Any(skipPath => path.StartsWithSegments(skipPath, StringComparison.OrdinalIgnoreCase));
+    }
+
+
+    private async Task<(bool isRevoked, string? userId, string reason)> CheckIfTokenIsRevokedAsync(string token, UserManager<AppUser> userManager)
+    {
+        string? currentUserId = null;
+        try
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            if (!tokenHandler.CanReadToken(token))
+            {
+                 _logger.LogWarning("Okunamaz veya geçersiz JWT formatı.");
+                 return (true, null, "Geçersiz token formatı.");
+            }
+            var jwtToken = tokenHandler.ReadJwtToken(token);
+
+            var userIdClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+            currentUserId = userIdClaim?.Value;
+
+            if (string.IsNullOrEmpty(currentUserId))
+            {
+                _logger.LogWarning("Token içinde geçerli bir kullanıcı kimliği (NameIdentifier) bulunamadı.");
+                return (true, null, "Token kullanıcı kimliği içermiyor.");
+            }
+
+            var user = await userManager.FindByIdAsync(currentUserId);
+            if (user == null)
+            {
+                 _logger.LogWarning("Token'daki kullanıcı kimliği ({UserId}) veritabanında bulunamadı.", currentUserId);
+                return (true, currentUserId, "Kullanıcı bulunamadı.");
+            }
+             // Kullanıcı aktif değilse token'ı geçersiz say
+             if(!user.IsActive) {
+                  _logger.LogWarning("Token sahibi kullanıcı ({UserId}) aktif değil.", currentUserId);
+                  return (true, currentUserId, "Kullanıcı hesabı aktif değil.");
+             }
+
+            var tokenSessionIdClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "session_id");
+            if (tokenSessionIdClaim != null)
+            {
+                var tokenSessionId = tokenSessionIdClaim.Value;
+                 string? currentSessionId = await _cache.GetStringAsync($"UserSession:{currentUserId}") ?? user.SessionId;
+
+                 if (string.IsNullOrEmpty(currentSessionId)) {
+                      _logger.LogWarning("Kullanıcının ({UserId}) güncel session ID'si bulunamadı.", currentUserId);
+                      // Session ID yoksa ne yapılacağına karar verilmeli. Güvenlik için iptal edilebilir.
+                      return (true, currentUserId, "Kullanıcı oturum bilgisi bulunamadı.");
+                 }
+                 else if (tokenSessionId != currentSessionId)
+                {
+                     _logger.LogWarning("Token session ID ({TokenSessionId}) kullanıcının güncel session ID'si ({CurrentSessionId}) ile eşleşmiyor. UserId: {UserId}",
+                        tokenSessionId, currentSessionId, currentUserId);
+                    return (true, currentUserId, "Oturum başka bir yerden sonlandırıldı veya token eski.");
+                }
+                 return (false, currentUserId, string.Empty);
+            }
+
+            // Session ID yoksa eski mekanizma (artık önerilmez ama varsa diye)
+            _logger.LogDebug("Token'da session_id claim'i bulunamadı, eski iptal mekanizması kontrol ediliyor (varsa). UserId: {UserId}", currentUserId);
+            string revokeKey = $"UserTokensRevoked:{currentUserId}";
+            string? revokedTimeString = await _cache.GetStringAsync(revokeKey);
+
+            if (!string.IsNullOrEmpty(revokedTimeString))
+            {
+                 // Güvenlik için, session_id yoksa ve eski iptal kaydı varsa token'ı iptal et
+                 _logger.LogWarning("Eski token iptal kaydı bulundu (session_id olmayan token için). UserId: {UserId}", currentUserId);
+                 return (true, currentUserId, "Bu kullanıcının tüm tokenları (eski mekanizma) iptal edildi.");
+            }
+
+            return (false, currentUserId, string.Empty);
+        }
+        catch (Exception ex) // SecurityTokenException vb. de buraya düşebilir
+        {
+            _logger.LogError(ex, "Token iptal kontrolü sırasında beklenmeyen hata. UserId: {UserId}", currentUserId ?? "Bilinmiyor");
+            return (true, currentUserId, "Token doğrulama sırasında bir hata oluştu.");
         }
     }
 }

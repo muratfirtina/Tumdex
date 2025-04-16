@@ -11,6 +11,7 @@ using Infrastructure.Services.Security; // SecurityServiceRegistration için
 using Infrastructure.Services.Seo;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Persistence;
@@ -145,6 +146,18 @@ async Task ConfigureApplication(WebApplication app)
     }
 
     // Middleware Sırası ÖNEMLİDİR!
+    // ÖNEMLİ: ForwardedHeaders Middleware'ini HTTPS Redirection'dan önce ekleyin
+    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+        // Eğer güvenlik sebebiyle bilinen proxy ağlarını kısıtlamak istiyorsanız:
+        // Known Proxies ve Networks kısıtlamalarını kaldır
+        KnownNetworks = { },
+        KnownProxies = { },
+        // Bu doğru IP alımı için kritik olabilir, 
+        // ForwardLimit sıfır olursa X-Forwarded-For başlığı tamamen yok sayılır
+        ForwardLimit = null // Tüm başlık zincirini kabul et (en güvenlisi olmayabilir)
+    });
 
     // 1. HTTPS Yönlendirmesi (Genellikle en başta)
     app.UseHttpsRedirection();

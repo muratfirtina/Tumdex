@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using SignalR.Extensions;
 
 namespace SignalR.Hubs
 {
@@ -38,7 +39,18 @@ namespace SignalR.Hubs
                 var httpContext = Context.GetHttpContext();
                 var isAuthenticated = Context.User?.Identity?.IsAuthenticated ?? false;
                 var username = isAuthenticated ? Context.User?.Identity?.Name : "Anonim";
-                var ipAddress = httpContext?.Connection.RemoteIpAddress?.ToString() ?? "Bilinmiyor";
+                
+                // Extension metodunu kullanarak IP adresini al
+                string ipAddress = "Bilinmiyor";
+                if (httpContext != null)
+                {
+                    // Extension metodunu kullan
+                    ipAddress = httpContext.GetRealIpAddress();
+                    
+                    // Debug: Tüm header bilgilerini logla (sorun gidermek için)
+                    _logger.LogDebug("HTTP Headers: {@Headers}", httpContext.Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString()));
+                }
+                
                 var userAgent = httpContext?.Request.Headers["User-Agent"].ToString() ?? "Bilinmiyor";
 
                 var visitorId = Context.ConnectionId;

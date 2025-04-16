@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using SignalR.Extensions;
 
 namespace SignalR.Hubs;
 
@@ -29,7 +30,13 @@ public class OrderHub : Hub
         {
             await base.OnConnectedAsync(); // İlk önce base'i çağırıyoruz
 
-            var username = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
+            var httpContext = _httpContextAccessor.HttpContext;
+            var username = httpContext?.User?.Identity?.Name;
+        
+            // IP adresini extension metodu kullanarak al
+            var ipAddress = httpContext?.GetRealIpAddress() ?? "Bilinmiyor";
+            _logger.LogInformation("OrderHub bağlantısı: User={Username}, IP={IpAddress}", username, ipAddress);
+        
             if (!string.IsNullOrEmpty(username))
             {
                 bool isAdmin = await _userService.IsAdminAsync();

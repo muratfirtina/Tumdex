@@ -17,7 +17,7 @@ public class UpdateFeatureValueCommand : IRequest<UpdatedFeatureValueResponse>,I
     public string FeatureId { get; set; }
     public string CacheKey => "";
     public bool BypassCache => false;
-    public string? CacheGroupKey => CacheGroups.GetAll;
+    public string? CacheGroupKey => $"{CacheGroups.Features},{CacheGroups.FeatureValues},{CacheGroups.GetAll}";
 
     public class UpdateFeatureValueCommandHandler : IRequestHandler<UpdateFeatureValueCommand, UpdatedFeatureValueResponse>
     {

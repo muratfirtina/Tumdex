@@ -62,10 +62,12 @@ public class FeatureValueBusinessRules : BaseBusinessRules
             throw new BusinessException(FeatureValuesBusinessMessages.FeatureValueNameShouldNotBeNullOrEmpty);
         if (string.IsNullOrEmpty(name))
             throw new BusinessException(FeatureValuesBusinessMessages.FeatureValueNameShouldNotBeNullOrEmpty);
-        if (name.Contains(" "))
+    
+        // Boşlukla başlayıp başlamadığını kontrol et
+        if (name.StartsWith(" "))
             throw new BusinessException(FeatureValuesBusinessMessages.FeatureValueNameShouldNotBeNullOrEmpty);
+    
         return Task.CompletedTask;
-        throw new BusinessException(FeatureValuesBusinessMessages.FeatureValueNameShouldNotBeNullOrEmpty);
     }
     
     

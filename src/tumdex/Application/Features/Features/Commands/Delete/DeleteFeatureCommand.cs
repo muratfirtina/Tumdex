@@ -14,7 +14,7 @@ public class DeleteFeatureCommand : IRequest<DeletedFeatureResponse>, ICacheRemo
     public string Id { get; set; }
     public string CacheKey => "";
     public bool BypassCache => false;
-    public string? CacheGroupKey => CacheGroups.GetAll;
+    public string? CacheGroupKey => $"{CacheGroups.Features},{CacheGroups.FeatureValues},{CacheGroups.GetAll}";
     
     public class DeleteFeatureCommandHandler : IRequestHandler<DeleteFeatureCommand, DeletedFeatureResponse>
     {

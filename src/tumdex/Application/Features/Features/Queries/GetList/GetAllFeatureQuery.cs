@@ -17,7 +17,7 @@ public class GetAllFeatureQuery : IRequest<GetListResponse<GetAllFeatureQueryRes
     public PageRequest PageRequest { get; set; }
     public string CacheKey => $"GetListFeatureQuery({PageRequest.PageIndex},{PageRequest.PageSize})";
     public bool BypassCache { get; }
-    public string? CacheGroupKey => CacheGroups.GetAll;
+    public string? CacheGroupKey => CacheGroups.Features;
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(30);
     
     public class GetAllFeatureQueryHandler : IRequestHandler<GetAllFeatureQuery, GetListResponse<GetAllFeatureQueryResponse>>

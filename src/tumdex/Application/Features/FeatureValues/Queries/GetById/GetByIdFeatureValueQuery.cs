@@ -14,7 +14,7 @@ public class GetByIdFeatureValueQuery : IRequest<GetByIdFeatureValueResponse>,IC
     public string Id { get; set; }
     public string CacheKey => $"GetByIdFeatureValueQuery({Id})";
     public bool BypassCache { get; }
-    public string? CacheGroupKey => CacheGroups.GetAll;
+    public string? CacheGroupKey => CacheGroups.FeatureValues;
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(30);
     
     public class GetByIdFeatureValueQueryHandler : IRequestHandler<GetByIdFeatureValueQuery, GetByIdFeatureValueResponse>

@@ -19,7 +19,7 @@ public class GetListFeatureValueByDynamicQuery : IRequest<GetListResponse<GetLis
     public DynamicQuery DynamicQuery { get; set; }
     public string CacheKey => $"GetListFeatureValueByDynamicQuery({PageRequest.PageIndex},{PageRequest.PageSize})";
     public bool BypassCache { get; }
-    public string? CacheGroupKey => CacheGroups.GetAll;
+    public string? CacheGroupKey => CacheGroups.FeatureValues;
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(30);
     
     

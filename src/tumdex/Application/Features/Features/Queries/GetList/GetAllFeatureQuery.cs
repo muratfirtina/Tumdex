@@ -15,10 +15,10 @@ namespace Application.Features.Features.Queries.GetList;
 public class GetAllFeatureQuery : IRequest<GetListResponse<GetAllFeatureQueryResponse>>,ICachableRequest
 {
     public PageRequest PageRequest { get; set; }
-    public string CacheKey => $"GetListFeatureQuery({PageRequest.PageIndex},{PageRequest.PageSize})";
-    public bool BypassCache { get; }
+    public string CacheKey => $"Features-Page{PageRequest.PageIndex}-Size{PageRequest.PageSize}";
+    public bool BypassCache => false;
     public string? CacheGroupKey => CacheGroups.Features;
-    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(30);
+    public TimeSpan? SlidingExpiration => TimeSpan.FromHours(2);
     
     public class GetAllFeatureQueryHandler : IRequestHandler<GetAllFeatureQuery, GetListResponse<GetAllFeatureQueryResponse>>
     {

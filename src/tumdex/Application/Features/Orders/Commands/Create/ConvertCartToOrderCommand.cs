@@ -20,14 +20,15 @@ using Microsoft.Extensions.Logging;
 
 namespace Application.Features.Orders.Commands.Create;
 
-public class ConvertCartToOrderCommand : IRequest<ConvertCartToOrderCommandResponse>
+public class ConvertCartToOrderCommand : IRequest<ConvertCartToOrderCommandResponse>, ICacheRemoverRequest
 {
     public string? AddressId { get; set; }
     public string? PhoneNumberId { get; set; }
     public string? Description { get; set; }
     public string CacheKey => "";
     public bool BypassCache => false;
-    public string? CacheGroupKey => CacheGroups.CartsAndOrders;
+    // Hem kullanıcının sepetini/siparişlerini hem de genel admin sipariş listesini temizle.
+    public string? CacheGroupKey => $"{CacheGroups.UserCarts},{CacheGroups.UserOrders},{CacheGroups.Orders}";
 
     public class
         ConvertCartToOrderCommandHandler : IRequestHandler<ConvertCartToOrderCommand, ConvertCartToOrderCommandResponse>

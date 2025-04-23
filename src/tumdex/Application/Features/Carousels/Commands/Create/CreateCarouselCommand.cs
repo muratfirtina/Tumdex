@@ -16,8 +16,8 @@ public class CreateCarouselCommand : IRequest<CreatedCarouselResponse>,ICacheRem
     public int? Order { get; set; }
     
     public string CacheKey => "";
-    public bool BypassCache { get; }
-    public string? CacheGroupKey => "Carousels";
+    public bool BypassCache => false;
+    public string? CacheGroupKey => CacheGroups.Carousels;
     
     public List<IFormFile>? CarouselImageFiles { get; set; }
     

@@ -20,6 +20,7 @@ public class GetByIdProductResponse : IResponse , IHasRelatedProducts , IHasProd
     public int? Tax { get; set; }
     public string VaryantGroupID { get; set; }
     public string? Sku { get; set; }
+    public int LikeCount { get; set; }
     public ICollection<ProductImageFileDto>? ProductImageFiles { get; set; }
     public ICollection<ProductFeatureValueDto>? ProductFeatureValues { get; set; }
     public List<RelatedProductDto> RelatedProducts { get; set; }

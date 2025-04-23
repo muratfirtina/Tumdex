@@ -13,99 +13,116 @@ using Domain;
 using Domain.Entities;
 using MediatR;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace Application.Features.Products.Queries.SearchAndFilter.Filter;
-
-public class FilterProductWithPaginationQuery : IRequest<GetListResponse<FilterProductQueryResponse>>, ICachableRequest
-{
-    public string? SearchTerm { get; set; }
-    public PageRequest PageRequest { get; set; }
-    public Dictionary<string, List<string>>? Filters { get; set; }
-    public string SortOrder { get; set; } = "default";
-    
-    // Updated cache key with serialized filters
-    public string CacheKey => $"Products-Filtered-{SearchTerm ?? "all"}-Page{PageRequest.PageIndex}-Size{PageRequest.PageSize}-Sort{SortOrder}-{SerializeFilters()}";
-    public bool BypassCache => false;
-    public string? CacheGroupKey => CacheGroups.GetAll;
-    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(2);
-
-    // Helper method to serialize filters for cache key
-    private string SerializeFilters()
-    {
-        if (Filters == null || !Filters.Any())
-            return "nofilters";
-
-        var orderedFilters = new Dictionary<string, List<string>>();
-        foreach (var key in Filters.Keys.OrderBy(k => k))
-        {
-            orderedFilters[key] = Filters[key].OrderBy(v => v).ToList();
-        }
-        
-        return JsonSerializer.Serialize(orderedFilters);
-    }
-
-    public class FilterProductQueryHandler : IRequestHandler<FilterProductWithPaginationQuery, GetListResponse<FilterProductQueryResponse>>
-    {
-        private readonly IProductRepository _productRepository;
-        private readonly IStorageService _storageService;
-        private readonly IMapper _mapper;
-
-        public FilterProductQueryHandler(IProductRepository productRepository, IStorageService storageService, IMapper mapper)
-        {
-            _productRepository = productRepository;
-            _storageService = storageService;
-            _mapper = mapper;
-        }  
-
-        public async Task<GetListResponse<FilterProductQueryResponse>> Handle(FilterProductWithPaginationQuery request, CancellationToken cancellationToken)
-        {
-            IPaginate<Product> products = await _productRepository.FilterProductsAsync(
-                request.SearchTerm, 
-                request.Filters, 
-                request.PageRequest,
-                request.SortOrder
-            );
-            GetListResponse<FilterProductQueryResponse> response = _mapper.Map<GetListResponse<FilterProductQueryResponse>>(products);
-            
-            foreach (var productDto in response.Items)
-            {
-                var product = products.Items.First(p => p.Id == productDto.Id);
-                var showcaseImage = product.ProductImageFiles?.FirstOrDefault(pif => pif.Showcase);
-                if (showcaseImage != null)
-                {
-                    productDto.ShowcaseImage = showcaseImage.ToDto(_storageService);
-                }
-            }
-            
-            return response;
-        }
-    }
-}
 
 public class FilterProductQuery : IRequest<GetListResponse<FilterProductQueryResponse>>, ICachableRequest
 {
     public string? SearchTerm { get; set; }
+    public PageRequest? PageRequest { get; set; } // Nullable yapıldı - sayfalama isteğe bağlı
     public Dictionary<string, List<string>>? Filters { get; set; }
     public string SortOrder { get; set; } = "default";
-    
-    // More descriptive cache key with search term and sort order
-    public string CacheKey => $"Products-Filter-{SearchTerm ?? "all"}-Sort{SortOrder}-{SerializeFilters()}";
-    public bool BypassCache => false;
-    public string? CacheGroupKey => CacheGroups.GetAll;
-    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(2);
-    
-    // Helper method to serialize filters for cache key
+
+    // ICachableRequest implementation
     private string SerializeFilters()
     {
-        if (Filters == null || !Filters.Any())
-            return "nofilters";
-
-        var orderedFilters = new Dictionary<string, List<string>>();
-        foreach (var key in Filters.Keys.OrderBy(k => k))
+        if (Filters == null || !Filters.Any()) return "nofilters";
+        // Deterministik hale getirmek için sıralama
+        var orderedFilters = new SortedDictionary<string, List<string>>(Filters);
+        foreach (var key in orderedFilters.Keys) orderedFilters[key].Sort();
+        try
         {
-            orderedFilters[key] = Filters[key].OrderBy(v => v).ToList();
+            return JsonSerializer.Serialize(orderedFilters);
         }
-        
-        return JsonSerializer.Serialize(orderedFilters);
+        catch
+        {
+            return "filter-serialization-error";
+        }
+    }
+
+    public string CacheKey => PageRequest == null
+        ? $"Products-Filter-{SearchTerm?.Trim().ToLower() ?? "all"}-NoPagination-Sort{SortOrder}-{SerializeFilters()}"
+        : $"Products-Filter-{SearchTerm?.Trim().ToLower() ?? "all"}-Page{PageRequest.PageIndex}-Size{PageRequest.PageSize}-Sort{SortOrder}-{SerializeFilters()}";
+
+    public bool BypassCache => false;
+    public string? CacheGroupKey => CacheGroups.Products;
+    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(10);
+
+    // --- Handler ---
+    public class FilterProductQueryHandler : IRequestHandler<FilterProductQuery, GetListResponse<FilterProductQueryResponse>>
+    {
+        private readonly IProductRepository _productRepository;
+        private readonly IStorageService _storageService;
+        private readonly IMapper _mapper;
+        private readonly ILogger<FilterProductQueryHandler> _logger;
+
+        public FilterProductQueryHandler(
+            IProductRepository productRepository,
+            IStorageService storageService,
+            IMapper mapper,
+            ILogger<FilterProductQueryHandler> logger)
+        {
+            _productRepository = productRepository;
+            _storageService = storageService;
+            _mapper = mapper;
+            _logger = logger;
+        }
+
+        public async Task<GetListResponse<FilterProductQueryResponse>> Handle(FilterProductQuery request,
+            CancellationToken cancellationToken)
+        {
+            if (request.PageRequest == null)
+            {
+                _logger.LogInformation(
+                    "Executing FilterProductQuery without pagination. Search: '{SearchTerm}', Sort: {Sort}, Filters: {Filters}",
+                    request.SearchTerm ?? "N/A", request.SortOrder, request.SerializeFilters());
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "Executing FilterProductQuery with pagination. Search: '{SearchTerm}', Page: {Page}, Size: {Size}, Sort: {Sort}, Filters: {Filters}",
+                    request.SearchTerm ?? "N/A", request.PageRequest.PageIndex, request.PageRequest.PageSize,
+                    request.SortOrder, request.SerializeFilters());
+            }
+
+            // Sayfalama olmadan mevcut metodu kullan
+            IPaginate<Product> products = await _productRepository.FilterProductsAsync(
+                request.SearchTerm,
+                request.Filters,
+                request.PageRequest, // Direkt null geçebiliriz
+                request.SortOrder
+            );
+
+            if (products == null || products.Items == null)
+            {
+                _logger.LogWarning("Product filtering returned null or empty items.");
+                return new GetListResponse<FilterProductQueryResponse>
+                    { Items = new List<FilterProductQueryResponse>() };
+            }
+
+            GetListResponse<FilterProductQueryResponse> response =
+                _mapper.Map<GetListResponse<FilterProductQueryResponse>>(products);
+
+            if (response.Items != null && response.Items.Any())
+            {
+                foreach (var productDto in response.Items)
+                {
+                    var productEntity = products.Items.FirstOrDefault(p => p.Id == productDto.Id);
+                    if (productEntity?.ProductImageFiles != null)
+                    {
+                        var showcaseImage = productEntity.ProductImageFiles.FirstOrDefault(pif => pif.Showcase);
+                        if (showcaseImage != null)
+                        {
+                            productDto.ShowcaseImage = showcaseImage.ToDto(_storageService);
+                        }
+                    }
+                }
+            }
+
+            _logger.LogInformation("Returning {Count} filtered products. Total items: {TotalCount}",
+                response.Items?.Count ?? 0, response.Count);
+            return response;
+        }
     }
 }

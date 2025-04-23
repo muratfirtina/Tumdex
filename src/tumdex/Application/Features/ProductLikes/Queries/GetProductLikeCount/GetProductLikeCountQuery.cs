@@ -11,8 +11,8 @@ public class GetProductLikeCountQuery : IRequest<GetProductLikeCountQueryRespons
     
     public string CacheKey => $"ProductLikeCount-{ProductId}";
     public bool BypassCache => false;
-    public string? CacheGroupKey => CacheGroups.GetAll;
-    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(10);
+    public string? CacheGroupKey => CacheGroups.Products; // Like sayısı Products grubuna ait.
+    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(15);
     
     public class GetProductLikeCountQueryHandler : IRequestHandler<GetProductLikeCountQuery, GetProductLikeCountQueryResponse>
     {

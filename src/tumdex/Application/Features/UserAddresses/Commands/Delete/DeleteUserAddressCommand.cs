@@ -8,12 +8,9 @@ namespace Application.Features.UserAddresses.Commands.Delete;
 public class DeleteUserAddressCommand:IRequest<bool>,ICacheRemoverRequest
 {
     public string Id { get; set; }
-    public string CacheKey => "";
+    public string CacheKey => $"UserAddress-{Id}"; // Spesifik adres cache'i (genellikle ID ile sorgulanmaz)
     public bool BypassCache => false;
-    public string? CacheGroupKey => CacheGroups.UserAddress;
-    
-
-
+    public string? CacheGroupKey => CacheGroups.UserAddresses;
     public class DelereUserAddressCommandHandler : IRequestHandler<DeleteUserAddressCommand, bool>
     {
         private readonly IUserAddressRepository _addressRepository;

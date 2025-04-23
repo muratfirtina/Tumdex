@@ -73,6 +73,8 @@ public class MappingProfiles : Profile
                 => dest.ShowcaseImage, opt 
                 => opt.MapFrom(src => 
                 src.ProductImageFiles.FirstOrDefault(pif => pif.Showcase)))
+            .ForMember(dest => dest.LikeCount, opt 
+                => opt.MapFrom(src => src.ProductLikes != null ? src.ProductLikes.Count : 0))
             .ReverseMap();
         
         CreateMap<Product, GetListProductByDynamicDto>()
@@ -91,6 +93,7 @@ public class MappingProfiles : Profile
         CreateMap<Product, GetByIdProductResponse>()
             .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category != null ? src.Category.Name : null))
             .ForMember(dest => dest.BrandName, opt => opt.MapFrom(src => src.Brand != null ? src.Brand.Name : null))
+            .ForMember(dest => dest.LikeCount, opt => opt.MapFrom(src => src.ProductLikes != null ? src.ProductLikes.Count : 0))
             .ForMember(dest => dest.ProductFeatureValues, opt => opt.MapFrom(src => src.ProductFeatureValues
                 .Where(pfv => pfv.FeatureValue != null && pfv.FeatureValue.Feature != null)
                 .Select(pfv => new ProductFeatureValueDto
@@ -170,6 +173,7 @@ public class MappingProfiles : Profile
         CreateMap<Product, GetMostLikedProductQueryResponse>()
             .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name))
             .ForMember(dest => dest.BrandName, opt => opt.MapFrom(src => src.Brand.Name))
+            .ForMember(dest => dest.LikeCount, opt => opt.MapFrom(src => src.ProductLikes != null ? src.ProductLikes.Count : 0))
             .ForMember(dest => dest.ShowcaseImage, opt => opt.MapFrom(src => 
                 src.ProductImageFiles.FirstOrDefault(pif => pif.Showcase)));
 
@@ -194,6 +198,7 @@ public class MappingProfiles : Profile
         CreateMap<Product, GetMostViewedProductQueryResponse>()
             .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name))
             .ForMember(dest => dest.BrandName, opt => opt.MapFrom(src => src.Brand.Name))
+            .ForMember(dest => dest.ViewCount, opt => opt.MapFrom(src => src.ProductViews != null ? src.ProductViews.Count : 0))
             .ForMember(dest => dest.ShowcaseImage, opt => opt.MapFrom(src =>
             src.ProductImageFiles.FirstOrDefault(pif => pif.Showcase)));
             

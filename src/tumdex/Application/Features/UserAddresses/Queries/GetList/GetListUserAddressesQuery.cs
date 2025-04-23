@@ -10,10 +10,10 @@ namespace Application.Features.UserAddresses.Queries.GetList;
 
 public class GetListUserAddressesQuery : IRequest<GetListResponse<GetListUserAdressesQueryResponse>>,ICachableRequest
 { 
-    public string CacheKey => "GetListUserAddressesQuery()";
-    public bool BypassCache { get; }
-    public string? CacheGroupKey => CacheGroups.UserAddress;
-    public TimeSpan? SlidingExpiration { get; }
+    public string CacheKey => "UserAddresses"; // Generator kullanıcı ID ekler
+    public bool BypassCache => false;
+    public string? CacheGroupKey => CacheGroups.UserAddresses;
+    public TimeSpan? SlidingExpiration => TimeSpan.FromHours(1);
 
     public class GetListUserAddressesQueryHandler : IRequestHandler<GetListUserAddressesQuery, GetListResponse<GetListUserAdressesQueryResponse>>
     {

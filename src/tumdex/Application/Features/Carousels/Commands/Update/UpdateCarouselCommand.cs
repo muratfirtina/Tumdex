@@ -2,6 +2,7 @@ using Application.Features.Carousels.Dtos;
 using Application.Repositories;
 using Application.Storage;
 using AutoMapper;
+using Core.Application.Pipelines.Caching;
 using Domain;
 using Domain.Entities;
 using MediatR;
@@ -10,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Application.Features.Carousels.Commands.Update;
 
-public class UpdateCarouselCommand : IRequest<UpdatedCarouselResponse>
+public class UpdateCarouselCommand : IRequest<UpdatedCarouselResponse>, ICacheRemoverRequest
 {
     public string Id { get; set; }
     public string? Name { get; set; }
@@ -19,6 +20,9 @@ public class UpdateCarouselCommand : IRequest<UpdatedCarouselResponse>
     public List<CarouselImageFileDto>? CarouselImageFiles { get; set; }
     public List<IFormFile>? NewCarouselImages { get; set; }
     public List<string>? ExistingImageIds { get; set; }
+    public string CacheKey => $"Carousel-{Id}"; // Spesifik carousel cache'i (varsa)
+    public bool BypassCache => false;
+    public string? CacheGroupKey => CacheGroups.Carousels;
     
     public class UpdateCarouselCommandHandler : IRequestHandler<UpdateCarouselCommand, UpdatedCarouselResponse>
     {

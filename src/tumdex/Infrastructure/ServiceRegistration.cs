@@ -12,16 +12,20 @@ using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 using Infrastructure.Configuration;
 using Infrastructure.Messaging;
+using Infrastructure.Middleware.Monitoring;
 using Infrastructure.Services;
 using Infrastructure.Services.Cache;
 using Infrastructure.Services.Configurations;
 using Infrastructure.Services.Mail;
+using Infrastructure.Services.Monitoring;
+using Infrastructure.Services.Monitoring.Models;
 using Infrastructure.Services.Seo;
 using Infrastructure.Services.Storage;
 using Infrastructure.Services.Storage.Google;
 using Infrastructure.Services.Storage.Local;
 using Infrastructure.Services.Token;
 using Infrastructure.Services.Security.KeyVault;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,8 +34,9 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Persistence.Models;
 using Persistence.Services;
-using RabbitMQ.Client;
 using StackExchange.Redis;
+using UAParser;
+
 // using HealthChecks.RabbitMQ; // NuGet paketini ekledikten sonra bu using'i ekle
 
 namespace Infrastructure;
@@ -47,6 +52,7 @@ public static class InfrastructureServiceRegistration
         ConfigureKeyVaultServices(services, configuration);
         ConfigureCacheServices(services, configuration); // Redis veya Fallback Cache'i kaydeder
         ConfigureHealthChecks(services, configuration);
+        
         services.Configure<OutboxSettings>(configuration.GetSection("OutboxSettings"));
         services.Configure<StorageSettings>(configuration.GetSection("Storage"));
 
@@ -58,6 +64,7 @@ public static class InfrastructureServiceRegistration
 
         RegisterApplicationServices(services);
         services.AddEmailServices(configuration);
+        AddAnalyticsServices(services, configuration); 
         services.AddScoped<IImageSeoService, ImageSeoService>();
         services.AddScoped<ISitemapService, SitemapService>();
         services.AddScoped<IMessageBroker, RabbitMqMessageBroker>();
@@ -79,6 +86,17 @@ public static class InfrastructureServiceRegistration
         services.AddScoped<IApplicationService, ApplicationService>();
         services.AddScoped<ILogService, LogService>();
         services.AddScoped<ICompanyAssetService, CompanyAssetService>();
+    }
+
+    private static void AddAnalyticsServices(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddSingleton<Parser>(Parser.GetDefault());
+        services.Configure<GoogleAnalyticsSettings>(configuration.GetSection("GoogleAnalytics"));
+        services.AddScoped<IGoogleAnalyticsService, GoogleAnalyticsService>();
+    }
+    public static void AddVisitorTrackingMiddleware(this IApplicationBuilder app)
+    {
+        app.UseMiddleware<VisitorTrackingMiddleware>();
     }
 
     private static void ConfigureKeyVaultServices(IServiceCollection services, IConfiguration configuration)

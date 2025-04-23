@@ -10,11 +10,11 @@ namespace SignalR.HubService
 {
     public class VisitorTrackingHubService : IVisitorTrackingHubService
     {
-        private readonly IHubContext<VisitorTrackingHub> _visitorTrackingHubContext;
+        private readonly IHubContext<EnhancedVisitorTrackingHub> _visitorTrackingHubContext;
         private readonly ILogger<VisitorTrackingHubService> _logger;
 
         public VisitorTrackingHubService(
-            IHubContext<VisitorTrackingHub> visitorTrackingHubContext,
+            IHubContext<EnhancedVisitorTrackingHub> visitorTrackingHubContext,
             ILogger<VisitorTrackingHubService> logger)
         {
             _visitorTrackingHubContext = visitorTrackingHubContext ?? throw new ArgumentNullException(nameof(visitorTrackingHubContext));

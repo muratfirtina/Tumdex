@@ -9,9 +9,9 @@ public class DeletePhoneNumberCommand : IRequest<DeletedPhoneNumberCommandRespon
 {
     public string Id { get; set; }
 
-    public string CacheKey => "";
+    public string CacheKey => $"PhoneNumber-{Id}"; // Nadiren ID ile sorgulanır ama ekleyelim.
     public bool BypassCache => false;
-    public string CacheGroupKey => CacheGroups.PhoneNumbers;
+    public string? CacheGroupKey => CacheGroups.UserPhoneNumbers;
 
     public class DeletePhoneNumberCommandHandler : IRequestHandler<DeletePhoneNumberCommand, DeletedPhoneNumberCommandResponse>
     {

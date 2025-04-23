@@ -12,10 +12,10 @@ namespace Application.Features.FeatureValues.Queries.GetById;
 public class GetByIdFeatureValueQuery : IRequest<GetByIdFeatureValueResponse>,ICachableRequest
 {
     public string Id { get; set; }
-    public string CacheKey => $"GetByIdFeatureValueQuery({Id})";
-    public bool BypassCache { get; }
+    public string CacheKey => $"FeatureValue-{Id}";
+    public bool BypassCache => false;
     public string? CacheGroupKey => CacheGroups.FeatureValues;
-    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(30);
+    public TimeSpan? SlidingExpiration => TimeSpan.FromHours(1);
     
     public class GetByIdFeatureValueQueryHandler : IRequestHandler<GetByIdFeatureValueQuery, GetByIdFeatureValueResponse>
     {

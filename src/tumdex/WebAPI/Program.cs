@@ -6,7 +6,9 @@ using HealthChecks.UI.Client;
 using Infrastructure;
 using Infrastructure.BackgroundJobs;
 using Infrastructure.Configuration;
+using Infrastructure.Middleware.Monitoring;
 using Infrastructure.Middleware.Security;
+using Infrastructure.Services.Monitoring.Models;
 using Infrastructure.Services.Security; // SecurityServiceRegistration için
 using Infrastructure.Services.Seo;
 using Microsoft.AspNetCore.Diagnostics;
@@ -127,6 +129,7 @@ void ConfigureAdditionalServices(WebApplicationBuilder builder)
     // Prometheus Metrics - Port yapılandırmadan okunuyor
     var metricsPort = builder.Configuration.GetValue<int>("Monitoring:Metrics:Port", 9101);
     builder.Services.AddMetricServer(options => { options.Port = (ushort)metricsPort; });
+    builder.Services.Configure<GoogleAnalyticsSettings>(builder.Configuration.GetSection("GoogleAnalytics"));
 }
 
 // --- Middleware Pipeline Yapılandırması ---
@@ -190,7 +193,7 @@ async Task ConfigureApplication(WebApplication app)
 
     // 8. Prometheus Metrics Server
     app.UseMetricServer(); // /metrics endpoint'ini ekler
-
+    app.UseVisitorTracking();
     // 9. Endpoints (En sonda)
     app.MapControllers();
     app.MapHubs(); // SignalR Hub'ları (HubRegistration içindeki)

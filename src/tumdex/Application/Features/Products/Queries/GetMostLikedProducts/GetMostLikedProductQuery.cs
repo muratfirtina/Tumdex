@@ -11,62 +11,77 @@ using Domain;
 using Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Application.Features.Products.Queries.GetMostLikedProducts;
 
 public class GetMostLikedProductQuery : IRequest<GetListResponse<GetMostLikedProductQueryResponse>>, ICachableRequest
 {
-    public int Count { get; set; } = 10;
-    public string CacheKey => "MostLikedProducts";
+    public int Count { get; set; } = 20;
+
+    // ICachableRequest implementation
+    public string CacheKey => $"MostLikedProducts-Count{Count}";
     public bool BypassCache => false;
-    public string? CacheGroupKey => CacheGroups.GetAll;
-    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(20);
-    
+    public string? CacheGroupKey => CacheGroups.Products; // Ürün listesi
+    public TimeSpan? SlidingExpiration => TimeSpan.FromHours(1); // 1 saat cache
+
+    // --- Handler ---
     public class GetMostLikedProductQueryHandler : IRequestHandler<GetMostLikedProductQuery, GetListResponse<GetMostLikedProductQueryResponse>>
     {
         private readonly IProductRepository _productRepository;
         private readonly IStorageService _storageService;
         private readonly IMapper _mapper;
+        private readonly ILogger<GetMostLikedProductQueryHandler> _logger; // Logger eklendi
 
-        public GetMostLikedProductQueryHandler(IProductRepository productRepository, IStorageService storageService, IMapper mapper)
+        public GetMostLikedProductQueryHandler(
+            IProductRepository productRepository,
+            IStorageService storageService,
+            IMapper mapper,
+            ILogger<GetMostLikedProductQueryHandler> logger) // Logger eklendi
         {
             _productRepository = productRepository;
             _storageService = storageService;
             _mapper = mapper;
+            _logger = logger; // Atandı
         }
 
         public async Task<GetListResponse<GetMostLikedProductQueryResponse>> Handle(
-            GetMostLikedProductQuery request, 
+            GetMostLikedProductQuery request,
             CancellationToken cancellationToken)
         {
-            // GetAllAsync kullanarak tüm ürünleri çek ve sorguyu optimize et
-            var products = await _productRepository.GetAllAsync(
-                predicate: x => x.ProductLikes.Count > 0,
-                include: x => x
-                    .Include(x => x.Category)
-                    .Include(x => x.Brand)
-                    .Include(x => x.ProductImageFiles.Where(pif => pif.Showcase))
-                    .Include(x => x.ProductFeatureValues)
-                    .ThenInclude(x => x.FeatureValue)
-                    .ThenInclude(x => x.Feature),
-                orderBy: x => (IOrderedQueryable<Product>)x.OrderByDescending(p => p.ProductLikes.Count).Take(request.Count), // Direkt sorguda sıralama
-                cancellationToken: cancellationToken);
-    
-            // Mapper ile response'u oluştur
-            var response = _mapper.Map<GetListResponse<GetMostLikedProductQueryResponse>>(products);
+            _logger.LogInformation("Fetching {Count} most liked products.", request.Count);
 
-            // Showcase image'ları dönüştür
-            foreach (var productResponse in response.Items)
+            var products = await _productRepository.GetMostLikedProductsAsync(request.Count);
+
+            if (products == null || !products.Any())
             {
-                var product = products.First(p => p.Id == productResponse.Id);
-                var showcaseImage = product.ProductImageFiles.FirstOrDefault(pif => pif.Showcase);
-        
-                if (showcaseImage != null)
-                {
-                    productResponse.ShowcaseImage = showcaseImage.ToDto(_storageService);
-                }
+                _logger.LogInformation("No liked products found.");
+                return new GetListResponse<GetMostLikedProductQueryResponse> { Items = new List<GetMostLikedProductQueryResponse>() };
             }
 
+            // List<Product> -> List<DTO>
+            var productDtos = _mapper.Map<List<GetMostLikedProductQueryResponse>>(products);
+
+            // Resim ve LikeCount ayarla
+             foreach (var productDto in productDtos)
+             {
+                 var productEntity = products.FirstOrDefault(p => p.Id == productDto.Id);
+                 if (productEntity != null)
+                 {
+                     var showcaseImage = productEntity.ProductImageFiles?.FirstOrDefault(); // Showcase filtrelendi
+                     if (showcaseImage != null) productDto.ShowcaseImage = showcaseImage.ToDto(_storageService);
+                     productDto.LikeCount = productEntity.ProductLikes?.Count ?? 0; // Zaten 0'dan büyük olacak (Where filtresi)
+                 }
+             }
+
+            // GetListResponse oluştur
+            var response = new GetListResponse<GetMostLikedProductQueryResponse>
+            {
+                 Items = productDtos,
+                 Count = productDtos.Count
+            };
+
+            _logger.LogInformation("Returning {Count} most liked products.", response.Count);
             return response;
         }
     }

@@ -1,4 +1,3 @@
-using Application.Consts;
 using Application.Features.Products.Dtos;
 using Application.Features.Products.Rules;
 using Application.Repositories;
@@ -6,28 +5,21 @@ using Application.Storage;
 using AutoMapper;
 using Core.Application.Pipelines.Caching;
 using Core.Persistence.Repositories.Operation;
-using Domain;
 using Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Cryptography;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Application.Features.Products.Commands.Create;
 
-public class CreateMultipleProductsCommand : IRequest<List<CreatedProductResponse>>, ICacheRemoverRequest
+public class CreateMultipleProductsCommand : IRequest<List<CreatedProductResponse>>, ICacheRemoverRequest // ITransactionalRequest eklenebilir
 {
     public List<CreateMultipleProductDto> Products { get; set; }
-
     public string CacheKey => "";
     public bool BypassCache => false;
-    public string? CacheGroupKey => CacheGroups.GetAll;
-
-    public class CreateMultipleProductsCommandHandler 
+    public string? CacheGroupKey => CacheGroups.ProductRelated;
+    
+    public class CreateMultipleProductsCommandHandler
         : IRequestHandler<CreateMultipleProductsCommand, List<CreatedProductResponse>>
     {
         private readonly IProductRepository _productRepository;
@@ -35,6 +27,8 @@ public class CreateMultipleProductsCommand : IRequest<List<CreatedProductRespons
         private readonly ProductBusinessRules _productBusinessRules;
         private readonly IStorageService _storageService;
         private readonly ICategoryRepository _categoryRepository;
+        private readonly IFeatureValueRepository _featureValueRepository;
+        private readonly IBrandRepository _brandRepository;
         private readonly ILogger<CreateMultipleProductsCommandHandler> _logger;
 
         public CreateMultipleProductsCommandHandler(
@@ -43,6 +37,8 @@ public class CreateMultipleProductsCommand : IRequest<List<CreatedProductRespons
             ProductBusinessRules productBusinessRules,
             IStorageService storageService,
             ICategoryRepository categoryRepository,
+            IFeatureValueRepository featureValueRepository,
+            IBrandRepository brandRepository,
             ILogger<CreateMultipleProductsCommandHandler> logger)
         {
             _productRepository = productRepository;
@@ -50,6 +46,8 @@ public class CreateMultipleProductsCommand : IRequest<List<CreatedProductRespons
             _productBusinessRules = productBusinessRules;
             _storageService = storageService;
             _categoryRepository = categoryRepository;
+            _featureValueRepository = featureValueRepository;
+            _brandRepository = brandRepository;
             _logger = logger;
         }
 
@@ -57,124 +55,130 @@ public class CreateMultipleProductsCommand : IRequest<List<CreatedProductRespons
             CreateMultipleProductsCommand request,
             CancellationToken cancellationToken)
         {
-            try
+            if (request.Products == null || !request.Products.Any())
             {
-                _logger.LogInformation("Starting to create {Count} products", request.Products.Count);
-                var responses = new List<CreatedProductResponse>();
-
-                // 1. Kategori varlık kontrolü (Transaction dışında)
-                var categoryIds = request.Products.Select(p => p.CategoryId).Distinct().ToList();
-                var categories = await _categoryRepository.GetListAsync(c => categoryIds.Contains(c.Id));
-                
-                if (categories.Count != categoryIds.Count)
-                {
-                    var missingCategories = categoryIds.Except(categories.Items.Select(c => c.Id)).ToList();
-                    throw new Exception($"Categories not found: {string.Join(", ", missingCategories)}");
-                }
-                
-                // VaryantGroupID'leri saklamak için bir sözlük
-                var varyantGroupCache = new Dictionary<string, string>();
-
-                foreach (var productDto in request.Products)
-                {
-                    try
-                    {
-                        // 2. Product mapping ve hazırlık
-                        var product = _mapper.Map<Product>(productDto);
-                        
-                        // 3. Normalizasyon işlemleri
-                        var normalizeName = NameOperation.CharacterRegulatory(productDto.Name);
-                        var normalizeSku = NameOperation.CharacterRegulatory(productDto.Sku);
-                        
-                        // 4. Varyant grup ID ataması - YENİ KOD
-                        if (!string.IsNullOrEmpty(productDto.VaryantGroupID))
-                        {
-                            // Eğer üründe zaten bir varyant grup ID varsa, onu kullan
-                            product.VaryantGroupID = productDto.VaryantGroupID;
-                        }
-                        else 
-                        {
-                            // Aynı isimli ürünler için önbelleğe bakma
-                            if (varyantGroupCache.TryGetValue(normalizeName, out var cachedGroupId))
-                            {
-                                // Aynı isimli ürün için daha önce oluşturulan grup ID'yi kullan
-                                product.VaryantGroupID = cachedGroupId;
-                            }
-                            else
-                            {
-                                // 8 haneli rastgele sayı oluştur
-                                var randomCode = GenerateRandomCode(8);
-                                product.VaryantGroupID = $"{normalizeName}-{randomCode}";
-                                
-                                // Önbelleğe ekle
-                                varyantGroupCache[normalizeName] = product.VaryantGroupID;
-                            }
-                        }
-
-                        // 5. Feature value'ları oluşturma
-                        if (productDto.FeatureValueIds != null)
-                        {
-                            product.ProductFeatureValues = productDto.FeatureValueIds
-                                .Select(fvId => new ProductFeatureValue(product.Id, fvId))
-                                .ToList();
-                        }
-
-                        // 6. Product kaydetme (Transaction içinde)
-                        await _productRepository.AddAsync(product);
-
-                        // 7. Image upload ve kayıt (Transaction içinde)
-                        if (productDto.ProductImages != null && productDto.ProductImages.Any())
-                        {
-                            var uploadedFiles = await _storageService.UploadAsync(
-                                "products", 
-                                product.Id, 
-                                productDto.ProductImages);
-
-                            product.ProductImageFiles = uploadedFiles.Select((file, index) => 
-                                new ProductImageFile(file.fileName, file.entityType, file.path, file.storageType)
-                                {
-                                    Showcase = index == productDto.ShowcaseImageIndex,
-                                    Format = file.format
-                                }).ToList();
-
-                            await _productBusinessRules.EnsureOnlyOneShowcaseImage(product.ProductImageFiles);
-                            await _productRepository.UpdateAsync(product);
-                        }
-
-                        var response = _mapper.Map<CreatedProductResponse>(product);
-                        responses.Add(response);
-                        
-                        _logger.LogInformation("Product created successfully: {ProductId}", product.Id);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error creating product: {ProductName}", productDto.Name);
-                        throw;
-                    }
-                }
-
-                return responses;
+                _logger.LogWarning("CreateMultipleProductsCommand called with no products.");
+                return new List<CreatedProductResponse>();
             }
-            catch (Exception ex)
+
+            _logger.LogInformation("Starting bulk product creation for {Count} products.", request.Products.Count);
+            var responses = new List<CreatedProductResponse>();
+            var varyantGroupCache = new Dictionary<string, string>(); // Varyant grupları için cache
+
+            // --- Ön Kontroller (Transaction Dışı) ---
+            var categoryIds = request.Products.Select(p => p.CategoryId).Distinct().ToList();
+            var brandIds = request.Products.Select(p => p.BrandId).Distinct().ToList();
+            var featureValueIds = request.Products.Where(p => p.FeatureValueIds != null).SelectMany(p => p.FeatureValueIds).Distinct().ToList();
+
+            await _productBusinessRules.CategoriesShouldExistWhenSelected(categoryIds, cancellationToken);
+            await _productBusinessRules.BrandsShouldExistWhenSelected(brandIds, cancellationToken);
+            if (featureValueIds.Any())
+                await _productBusinessRules.FeatureValuesShouldExistWhenSelected(featureValueIds, cancellationToken);
+            _logger.LogInformation("Pre-checks passed for categories, brands, and feature values.");
+            // --- Ön Kontroller Bitti ---
+
+
+            foreach (var productDto in request.Products)
             {
-                _logger.LogError(ex, "Error in bulk product creation");
-                throw;
+                try
+                {
+                    // Business Rules (Her ürün için) - Örneğin SKU benzersizliği kontrol edilebilir.
+                    //await _productBusinessRules.ProductSkuShouldBeUnique(productDto.Sku, null, cancellationToken); // null ID -> create kontrolü
+
+                    var product = _mapper.Map<Product>(productDto);
+
+                    // Varyant Grup ID
+                    var normalizeName = NameOperation.CharacterRegulatory(productDto.Name);
+                    if (!string.IsNullOrEmpty(productDto.VaryantGroupID))
+                    {
+                        product.VaryantGroupID = productDto.VaryantGroupID;
+                    }
+                    else
+                    {
+                        if (varyantGroupCache.TryGetValue(normalizeName, out var cachedGroupId))
+                        {
+                            product.VaryantGroupID = cachedGroupId;
+                        }
+                        else
+                        {
+                            var randomCode = GenerateRandomCode(8);
+                            product.VaryantGroupID = $"{normalizeName}-{randomCode}";
+                            varyantGroupCache[normalizeName] = product.VaryantGroupID;
+                        }
+                    }
+                     _logger.LogDebug("Assigned VaryantGroupID: {VaryantGroupId} for product SKU: {Sku}", product.VaryantGroupID, product.Sku);
+
+                    // Feature Values İlişkisi
+                    if (productDto.FeatureValueIds != null && productDto.FeatureValueIds.Any())
+                    {
+                        product.ProductFeatureValues = productDto.FeatureValueIds
+                            .Select(fvId => new ProductFeatureValue { ProductId = product.Id, FeatureValueId = fvId })
+                            .ToList();
+                         _logger.LogDebug("Assigned {Count} feature values for product SKU: {Sku}", product.ProductFeatureValues.Count, product.Sku);
+                    }
+
+                    // Ürün Ekleme (Context'e)
+                    await _productRepository.AddAsync(product); // SaveChanges transaction sonunda olacak
+                    _logger.LogInformation("Product entity added to context. SKU: {Sku}, Temp ID: {TempId}", product.Sku, product.Id);
+
+
+                    // Resim Yükleme ve İlişkilendirme
+                    if (productDto.ProductImages != null && productDto.ProductImages.Any())
+                    {
+                        _logger.LogInformation("Uploading {Count} images for product SKU: {Sku}", productDto.ProductImages.Count, product.Sku);
+                        var uploadedFiles = await _storageService.UploadAsync("products", product.Id, productDto.ProductImages);
+
+                        product.ProductImageFiles = uploadedFiles.Select((file, index) =>
+                            new ProductImageFile(file.fileName, file.entityType, file.path, file.storageType)
+                            {
+                                Showcase = index == productDto.ShowcaseImageIndex,
+                                Format = file.format
+                            }).ToList();
+
+                         // Showcase kontrolü (birden fazla olamaz)
+                         await _productBusinessRules.EnsureOnlyOneShowcaseImage(product.ProductImageFiles);
+                         // AddAsync sonrası product nesnesine resimler eklendiği için EF Core takip eder.
+                         // Explicit UpdateAsync çağırmaya gerek olmayabilir, transaction sonundaki SaveChanges halleder.
+                         // Ancak emin olmak için UpdateAsync çağrılabilir (Performansa etkisi minimal).
+                         // await _productRepository.UpdateAsync(product); // Genellikle gereksiz
+
+                         _logger.LogDebug("Associated {Count} image files with product SKU: {Sku}", product.ProductImageFiles.Count, product.Sku);
+                    }
+
+                    // Response için map'leme (henüz ID final değil, ama DTO bunu handle etmeli)
+                    var responseDto = _mapper.Map<CreatedProductResponse>(product);
+                    responses.Add(responseDto);
+
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error creating product with SKU: {Sku}, Name: {ProductName}", productDto.Sku, productDto.Name);
+                    // Hata durumunda ne yapılmalı? İşlemi durdurup rollback mi, yoksa devam edip hatalıları loglamak mı?
+                    // TransactionalRequest varsa, tümü rollback olur. Yoksa, eklenenler kalır.
+                    // Bu durumda hata fırlatmak transaction'ı rollback ettirecektir.
+                    throw; // Hata durumunda işlemi durdur ve dışarıya bildir.
+                }
             }
+
+            // SaveChanges burada transaction ile otomatik çağrılır (eğer TransactionalBehaviour kullanılıyorsa).
+            _logger.LogInformation("Bulk product creation process completed. Successfully prepared {Count} products.", responses.Count);
+            return responses;
         }
-        
-        // 8 haneli rastgele sayı üreten metod
+
         private string GenerateRandomCode(int length)
         {
-            // Güvenli rastgele sayı üretici
-            using var rng = RandomNumberGenerator.Create();
-            var bytes = new byte[4];
-            rng.GetBytes(bytes);
-            
-            // 32-bit tamsayıya dönüştür (pozitif sayı için Math.Abs)
-            var value = Math.Abs(BitConverter.ToInt32(bytes, 0));
-            
-            // İstenen uzunlukta bir sayı olarak formatla
-            return (value % (int)Math.Pow(10, length)).ToString().PadLeft(length, '0');
+            const string chars = "0123456789"; // Sadece rakam
+            var randomBytes = new byte[length];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(randomBytes);
+            }
+            var result = new char[length];
+            for (int i = 0; i < length; i++)
+            {
+                result[i] = chars[randomBytes[i] % chars.Length];
+            }
+            return new string(result);
         }
     }
 }

@@ -102,9 +102,9 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
     }
 
     public async Task<IPaginate<Product>> FilterProductsAsync(
-        string searchTerm,
-        Dictionary<string, List<string>> filters,
-        PageRequest pageRequest,
+        string? searchTerm,
+        Dictionary<string, List<string>>? filters,
+        PageRequest? pageRequest, // Nullable olarak değiştirildi
         string sortOrder)
     {
         var query = Context.Products
@@ -112,26 +112,44 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
             .WithFullDetails()
             .WithShowcaseImage()
             .SearchByTerm(searchTerm);
-    
+
         // Kategori filtresi uygulanırken alt kategorileri de dahil et
         if (filters != null && filters.ContainsKey("Category") && filters["Category"].Any())
         {
             var categoryIds = new List<string>(filters["Category"]);
             var allCategoryIds = new List<string>(categoryIds);
-        
+    
             // Her seçili kategori için alt kategorileri ekle
             foreach (var categoryId in categoryIds)
             {
                 var subCategoryIds = await GetAllSubCategoryIds(categoryId);
                 allCategoryIds.AddRange(subCategoryIds);
             }
-        
+    
             // Benzersiz kategori ID'lerini kullan
             filters["Category"] = allCategoryIds.Distinct().ToList();
         }
-    
+
         query = query.ApplyFilters(filters).ApplySort(sortOrder);
+
+        // PageRequest null ise, tüm sonuçları getir (sayfalama olmadan)
+        if (pageRequest == null)
+        {
+            // ToPaginateAsync metodu yerine ToListAsync kullanarak veriyi çek
+            var allItems = await query.ToListAsync();
+        
+            // Manuel olarak IPaginate tipine dönüştür
+            return new Paginate<Product>
+            {
+                Items = allItems,
+                Index = 0,
+                Size = allItems.Count,
+                Count = allItems.Count,
+                Pages = 1
+            };
+        }
     
+        // Normal sayfalama işlemi
         return await query.ToPaginateAsync(pageRequest.PageIndex, pageRequest.PageSize);
     }
 
@@ -332,8 +350,35 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
             .Take(count)
             .ToListAsync();
     }
+    
+    public async Task<List<Product>> GetMostLikedProductsAsync(int count)
+    {
+        return await Context.Products
+            .AsNoTracking()
+            .Include(p => p.ProductLikes)
+            .Include(p => p.ProductImageFiles.Where(img => img.Showcase))
+            .Include(p => p.Brand)
+            .Include(p => p.Category)
+            .Where(p => p.ProductLikes.Any())
+            .OrderByDescending(p => p.ProductLikes.Count)
+            .Take(count)
+            .ToListAsync();
+    }
+    public async Task<List<Product>> GetMostViewedProductsAsync(int count)
+    {
+        return await Context.Products
+            .AsNoTracking()
+            .Include(p => p.ProductViews)
+            .Include(p => p.ProductImageFiles.Where(img => img.Showcase))
+            .Include(p => p.Brand)
+            .Include(p => p.Category)
+            .Where(p => p.ProductViews.Any())
+            .OrderByDescending(p => p.ProductViews.Count)
+            .Take(count)
+            .ToListAsync();
+    }
 
-    public async Task<List<Product>> GetRandomProducts(int count)
+    public async Task<List<Product>> GetRandomProductsAsync(int count)
     {
         return await Context.Products
             .AsNoTracking()

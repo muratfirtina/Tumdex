@@ -73,7 +73,7 @@ namespace WebAPI.Controllers
         [HttpGet("GetMainCategories")]
         public async Task<IActionResult> GetMainCategories([FromQuery] PageRequest pageRequest)
         {
-            GetListResponse<GetMainCategoriesResponse> response = await Mediator.Send(new GetMainCategoiesQuery { PageRequest = pageRequest });
+            GetListResponse<GetMainCategoriesResponse> response = await Mediator.Send(new GetMainCategoriesQuery { PageRequest = pageRequest });
             return Ok(response);
         }
         

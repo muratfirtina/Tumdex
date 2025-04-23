@@ -18,7 +18,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Application.Features.Orders.Commands.Update;
 
-public class UpdateOrderCommand : IRequest<bool>
+public class UpdateOrderCommand : IRequest<bool>,ICacheRemoverRequest
 {
     public string Id { get; set; }
     public OrderStatus? Status { get; set; }
@@ -26,9 +26,10 @@ public class UpdateOrderCommand : IRequest<bool>
     public string? AdminNote { get; set; }
     public List<OrderItemUpdateDto>? UpdatedItems { get; set; }
 
-    public string CacheKey => "";
+    public string CacheKey => $"Order-{Id}"; // Spesifik sipariş önbelleğini sil
     public bool BypassCache => false;
-    public string CacheGroupKey => CacheGroups.Orders;
+    // Hem ilgili kullanıcının siparişlerini hem de genel admin sipariş listesini temizle.
+    public string? CacheGroupKey => $"{CacheGroups.UserOrders},{CacheGroups.Orders}";
 
     public class UpdateOrderCommandHandler : IRequestHandler<UpdateOrderCommand, bool>
     {

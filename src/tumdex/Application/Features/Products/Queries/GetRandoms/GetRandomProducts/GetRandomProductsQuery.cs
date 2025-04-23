@@ -10,69 +10,95 @@ using Domain;
 using Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Application.Features.Products.Queries.GetRandoms.GetRandomProducts;
 
 public class GetRandomProductsQuery : IRequest<GetListResponse<GetRandomProductsQueryResponse>>, ICachableRequest
 {
-    public int Count { get; set; } = 20;
-    
-    public string CacheKey => "GetRandomProductsQuery";
-    public bool BypassCache => false;
-    public string? CacheGroupKey => CacheGroups.GetAll;
-    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(2);
+    public int Count { get; set; } = 20; // Varsayılan değer
 
+    // ICachableRequest implementation
+    public string CacheKey => $"RandomProducts-Count{Count}";
+    public bool BypassCache => false;
+    public string? CacheGroupKey => CacheGroups.Products; // Ürün listesi
+    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(30); // Rastgele liste 30 dk cache
+
+    // --- Handler ---
     public class GetRandomProductsQueryHandler : IRequestHandler<GetRandomProductsQuery, GetListResponse<GetRandomProductsQueryResponse>>
     {
         private readonly IProductRepository _productRepository;
         private readonly IStorageService _storageService;
         private readonly IMapper _mapper;
+        private readonly ILogger<GetRandomProductsQueryHandler> _logger; // Logger eklendi
 
         public GetRandomProductsQueryHandler(
             IProductRepository productRepository,
             IStorageService storageService,
-            IMapper mapper)
+            IMapper mapper,
+            ILogger<GetRandomProductsQueryHandler> logger) // Logger eklendi
         {
             _productRepository = productRepository;
             _storageService = storageService;
             _mapper = mapper;
+            _logger = logger; // Atandı
         }
 
         public async Task<GetListResponse<GetRandomProductsQueryResponse>> Handle(
             GetRandomProductsQuery request,
             CancellationToken cancellationToken)
         {
-            IPaginate<Product> products = await _productRepository.GetListAsync(
-                include: x => x
-                    .Include(x => x.Category)
-                    .Include(x => x.Brand)
-                    .Include(x => x.ProductImageFiles.Where(pif => pif.Showcase))
-                    .Include(x => x.ProductFeatureValues)
-                    .ThenInclude(x => x.FeatureValue)
-                    .ThenInclude(x => x.Feature),
-                cancellationToken: cancellationToken);
+            _logger.LogInformation("Fetching {Count} random products.", request.Count);
 
-            // Random seçim için ürünleri karıştır ve istenen sayıda al
-            var randomProducts = products.Items
+            // Tüm ürün ID'lerini al (veya daha optimize bir yöntem)
+            var allProductIds = await _productRepository.Query()
+                .Select(p => p.Id)
+                .ToListAsync(cancellationToken);
+
+            if (!allProductIds.Any())
+            {
+                 _logger.LogInformation("No products found in the database.");
+                 return new GetListResponse<GetRandomProductsQueryResponse> { Items = new List<GetRandomProductsQueryResponse>() };
+            }
+
+            // Rastgele ID seç
+            var randomProductIds = allProductIds
                 .OrderBy(x => Guid.NewGuid())
                 .Take(request.Count)
                 .ToList();
+             _logger.LogDebug("Selected {Count} random product IDs.", randomProductIds.Count);
 
-            // Base mapping
-            var response = _mapper.Map<GetListResponse<GetRandomProductsQueryResponse>>(randomProducts);
+            // Seçilen ürünlerin detaylarını getir
+            var randomProducts = await _productRepository.GetAllAsync(
+                predicate: p => randomProductIds.Contains(p.Id),
+                include: x => x.Include(p => p.Brand) // DTO'da varsa
+                              .Include(p => p.Category) // DTO'da varsa
+                              .Include(x => x.ProductImageFiles.Where(pif => pif.Showcase)), // Resim için
+                cancellationToken: cancellationToken);
 
-            // Her bir ürün için showcase image'ı dönüştür ve URL'ini set et
-            foreach (var productResponse in response.Items)
+            // List<Product> -> List<DTO>
+            var productDtos = _mapper.Map<List<GetRandomProductsQueryResponse>>(randomProducts);
+
+             // Resim ayarla
+             foreach (var productDto in productDtos)
+             {
+                 var productEntity = randomProducts.FirstOrDefault(p => p.Id == productDto.Id);
+                 if (productEntity?.ProductImageFiles != null)
+                 {
+                     var showcaseImage = productEntity.ProductImageFiles.FirstOrDefault(); // Showcase filtrelendi
+                     if (showcaseImage != null) productDto.ShowcaseImage = showcaseImage.ToDto(_storageService);
+                 }
+             }
+
+
+            // GetListResponse oluştur
+            var response = new GetListResponse<GetRandomProductsQueryResponse>
             {
-                var product = randomProducts.First(p => p.Id == productResponse.Id);
-                var showcaseImage = product.ProductImageFiles.FirstOrDefault(pif => pif.Showcase);
+                 Items = productDtos,
+                 Count = productDtos.Count
+            };
 
-                if (showcaseImage != null)
-                {
-                    productResponse.ShowcaseImage = showcaseImage.ToDto(_storageService);
-                }
-            }
-
+            _logger.LogInformation("Returning {Count} random products.", response.Count);
             return response;
         }
     }

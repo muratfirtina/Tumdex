@@ -22,9 +22,9 @@ namespace Application.Features.Features.Commands.Update
         public List<string>? CategoryIds { get; set; } = new();
         public List<string>? FeatureValueIds { get; set; } = new();
         public List<FeatureValueCreateDto>? FeatureValues { get; set; } = new();
-        public string CacheKey => "";
+        public string CacheKey => $"Feature-{Id}"; // Spesifik özellik önbelleğini sil
         public bool BypassCache => false;
-        public string? CacheGroupKey => $"{CacheGroups.Features},{CacheGroups.FeatureValues},{CacheGroups.GetAll}";
+        public string? CacheGroupKey => CacheGroups.ProductRelated;
     }
 
     public class UpdateFeatureCommandHandler : IRequestHandler<UpdateFeatureCommand, UpdatedFeatureResponse>

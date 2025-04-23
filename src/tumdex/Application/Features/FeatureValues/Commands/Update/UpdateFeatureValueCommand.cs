@@ -15,9 +15,9 @@ public class UpdateFeatureValueCommand : IRequest<UpdatedFeatureValueResponse>,I
     public string Id { get; set; }
     public string Name { get; set; }
     public string FeatureId { get; set; }
-    public string CacheKey => "";
+    public string CacheKey => $"FeatureValue-{Id}"; // Spesifik değer önbelleğini sil
     public bool BypassCache => false;
-    public string? CacheGroupKey => $"{CacheGroups.Features},{CacheGroups.FeatureValues},{CacheGroups.GetAll}";
+    public string? CacheGroupKey => CacheGroups.ProductRelated;
 
     public class UpdateFeatureValueCommandHandler : IRequestHandler<UpdateFeatureValueCommand, UpdatedFeatureValueResponse>
     {

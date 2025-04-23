@@ -7,4 +7,5 @@ public class CartUpdatedEvent
     public string CartId { get; set; }
     public string UserId { get; set; }
     public string CartItemId { get; set; } // Yeni eklendi
+    public bool IsChecked { get; set; } // Yeni eklendi
 }

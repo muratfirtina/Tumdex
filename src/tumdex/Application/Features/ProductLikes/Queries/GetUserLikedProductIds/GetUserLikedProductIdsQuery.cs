@@ -8,10 +8,11 @@ namespace Application.Features.ProductLikes.Queries.GetUserLikedProductIds;
 public class GetUserLikedProductIdsQuery : IRequest<GetUserLikedProductIdsResponse>, ICachableRequest
 {
     public string? SearchProductIds { get; set; }
-    public string CacheKey => "UserLikedProductIds";
+    private string SerializeSearchIds() => string.IsNullOrWhiteSpace(SearchProductIds) ? "all" : string.Join("-", SearchProductIds.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(id => id.Trim()).OrderBy(id => id));
+    public string CacheKey => $"UserLikedProductIds-Filter({SerializeSearchIds()})"; // Generator kullanıcı ID ekler
     public bool BypassCache => false;
-    public string? CacheGroupKey => CacheGroups.GetAll;
-    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(10);
+    public string? CacheGroupKey => CacheGroups.UserFavorites; // Kullanıcının favorileri grubu.
+    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(5);
     
     public class GetUserLikedProductIdsQueryHandler : IRequestHandler<GetUserLikedProductIdsQuery, GetUserLikedProductIdsResponse>
     {

@@ -17,7 +17,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
     private readonly ILogger<CachingBehavior<TRequest, TResponse>> _logger;
 
     public CachingBehavior(
-        IDistributedCache distributedCache, 
+        IDistributedCache distributedCache,
         IConfiguration configuration,
         ICacheKeyGenerator cacheKeyGenerator,
         ILogger<CachingBehavior<TRequest, TResponse>> logger)
@@ -33,118 +33,249 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
     {
         if (request.BypassCache)
         {
+             _logger.LogInformation("----- CachingBehavior ----- Skipping cache check (BypassCache=true). Request: {RequestName}", typeof(TRequest).Name);
             return await next();
         }
 
-        // Generate user-specific cache key
-        string cacheKey = await _cacheKeyGenerator.GenerateKeyAsync(request.CacheKey, request.CacheGroupKey);
-        _logger.LogDebug("Using cache key: {CacheKey}", cacheKey);
+         _logger.LogInformation("----- CachingBehavior ----- Request: {RequestName}, GroupKey: {CacheGroupKey}, CacheKey: {CacheKey}", typeof(TRequest).Name, request.CacheGroupKey, request.CacheKey);
 
-        byte[]? cachedResponse = await _cache.GetAsync(cacheKey, cancellationToken);
-        if (cachedResponse != null)
+        // Generate cache key (user-specific if necessary)
+        string cacheKey = await _cacheKeyGenerator.GenerateKeyAsync(request.CacheKey, request.CacheGroupKey);
+        _logger.LogDebug("Using cache key: {CacheKey} for request {RequestName}", cacheKey, typeof(TRequest).Name);
+
+        byte[]? cachedResponseBytes = null;
+        try
         {
-            _logger.LogDebug("Cache hit for key: {CacheKey}", cacheKey);
+             cachedResponseBytes = await _cache.GetAsync(cacheKey, cancellationToken);
+        }
+        catch (Exception ex) // Catch potential cache provider errors (e.g., Redis down)
+        {
+             _logger.LogError(ex, "Error retrieving data from cache for key: {CacheKey}. Proceeding without cache.", cacheKey);
+             // Proceed to get fresh data
+             return await GetResponseAndAddToCache(request, next, cacheKey, cancellationToken);
+        }
+
+
+        if (cachedResponseBytes != null && cachedResponseBytes.Length > 0) // Check for empty byte array
+        {
+            _logger.LogInformation("Cache hit for key: {CacheKey}", cacheKey);
             try
             {
-                var result = JsonSerializer.Deserialize<TResponse>(Encoding.Default.GetString(cachedResponse));
-                return result;
+                // Use UTF8 for deserialization
+                var cachedResponseString = Encoding.UTF8.GetString(cachedResponseBytes);
+                 // Add null/empty check for the string as well
+                if (string.IsNullOrWhiteSpace(cachedResponseString))
+                {
+                    _logger.LogWarning("Cached value for key {CacheKey} is empty or whitespace. Fetching fresh data.", cacheKey);
+                    // Treat as cache miss if data is invalid
+                    await _cache.RemoveAsync(cacheKey, cancellationToken); // Remove invalid entry
+                    return await GetResponseAndAddToCache(request, next, cacheKey, cancellationToken);
+                }
+                var result = JsonSerializer.Deserialize<TResponse>(cachedResponseString);
+
+                 if (result == null && typeof(TResponse).IsClass) // Handle potential null result if TResponse is a class
+                 {
+                    _logger.LogWarning("Deserialized cached value is null for key: {CacheKey}. Fetching fresh data.", cacheKey);
+                    await _cache.RemoveAsync(cacheKey, cancellationToken); // Remove invalid entry
+                    return await GetResponseAndAddToCache(request, next, cacheKey, cancellationToken);
+                 }
+
+                return result!; // Nullable handling depends on TResponse constraints
             }
-            catch (Exception ex)
+            catch (JsonException jsonEx)
             {
-                _logger.LogError(ex, "Error deserializing cached value for key: {CacheKey}", cacheKey);
+                _logger.LogError(jsonEx, "Error deserializing cached JSON value for key: {CacheKey}", cacheKey);
+                 // Remove corrupted cache entry
+                await _cache.RemoveAsync(cacheKey, cancellationToken);
                 return await GetResponseAndAddToCache(request, next, cacheKey, cancellationToken);
             }
+            catch (Exception ex) // Catch other potential deserialization errors
+            {
+                 _logger.LogError(ex, "Error processing cached value for key: {CacheKey}", cacheKey);
+                 // Remove potentially problematic cache entry
+                 await _cache.RemoveAsync(cacheKey, cancellationToken);
+                 return await GetResponseAndAddToCache(request, next, cacheKey, cancellationToken);
+            }
         }
-        
-        _logger.LogDebug("Cache miss for key: {CacheKey}", cacheKey);
+
+        _logger.LogInformation("Cache miss for key: {CacheKey}", cacheKey);
         return await GetResponseAndAddToCache(request, next, cacheKey, cancellationToken);
     }
 
     private async Task<TResponse> GetResponseAndAddToCache(
-        TRequest request, 
-        RequestHandlerDelegate<TResponse> next, 
+        TRequest request,
+        RequestHandlerDelegate<TResponse> next,
         string cacheKey,
         CancellationToken cancellationToken)
     {
+         _logger.LogDebug("Fetching fresh data for key: {CacheKey}", cacheKey);
         TResponse response = await next();
-        
-        TimeSpan slidingExpiration = request.SlidingExpiration ?? TimeSpan.FromMinutes(_cacheSettings.SlidingExpiration ?? 2);
-        DistributedCacheEntryOptions cacheEntryOptions = new() {SlidingExpiration = slidingExpiration};
-        
+
+        // Sliding expiration from request or settings
+        TimeSpan slidingExpiration = request.SlidingExpiration ?? TimeSpan.FromMinutes(_cacheSettings.SlidingExpiration ?? 5); // Default 5 mins
+        DistributedCacheEntryOptions cacheEntryOptions = new() { SlidingExpiration = slidingExpiration };
+
         try
         {
+             // Check if response is null before serialization (especially for reference types)
+             if (response == null && typeof(TResponse).IsClass)
+             {
+                _logger.LogWarning("Response to cache is null for key: {CacheKey}. Skipping caching.", cacheKey);
+                return response; // Return the null response without caching
+             }
+
+            // Use UTF8 for serialization
             byte[] serializeData = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(response));
+
+             // Prevent caching empty data
+             if (serializeData == null || serializeData.Length == 0)
+             {
+                 _logger.LogWarning("Serialized data is empty for key: {CacheKey}. Skipping caching.", cacheKey);
+                 return response;
+             }
+
             await _cache.SetAsync(cacheKey, serializeData, cacheEntryOptions, cancellationToken);
-            
-            if (request.CacheGroupKey != null)
+            _logger.LogInformation("Successfully cached response for key: {CacheKey} with expiration {Expiration}", cacheKey, slidingExpiration);
+
+            // Add key to group(s) if CacheGroupKey is specified
+            if (!string.IsNullOrWhiteSpace(request.CacheGroupKey))
             {
-                string groupCacheKey = await _cacheKeyGenerator.GenerateKeyAsync("", request.CacheGroupKey);
-                await AddCacheKeyToGroup(cacheKey, groupCacheKey, slidingExpiration, cancellationToken);
+                var groupKeys = request.CacheGroupKey.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                         .Select(k => k.Trim());
+
+                foreach (var groupKey in groupKeys)
+                {
+                     if (string.IsNullOrWhiteSpace(groupKey)) continue; // Skip empty group keys
+
+                    // Generate the key for the group itself (potentially user-specific)
+                    string groupCacheKey = await _cacheKeyGenerator.GenerateKeyAsync("", groupKey); // Base key is empty for group key
+                    await AddCacheKeyToGroup(cacheKey, groupCacheKey, slidingExpiration, cancellationToken);
+                }
             }
         }
-        catch (Exception ex)
+        catch (JsonException jsonEx)
         {
-            _logger.LogError(ex, "Error caching response for key: {CacheKey}", cacheKey);
+             _logger.LogError(jsonEx, "Error serializing response for caching. Key: {CacheKey}", cacheKey);
+             // Optionally, decide if you still want to return the response even if caching failed
         }
-        
+        catch (Exception ex) // Catch potential cache provider errors (e.g., Redis Set failed)
+        {
+            _logger.LogError(ex, "Error setting cache for key: {CacheKey}", cacheKey);
+            // Optionally, decide if you still want to return the response even if caching failed
+        }
+
         return response;
     }
-    
+
     private async Task AddCacheKeyToGroup(
-        string cacheKey, 
-        string groupCacheKey, 
-        TimeSpan slidingExpiration, 
+        string cacheKey,
+        string groupCacheKey,
+        TimeSpan slidingExpiration,
         CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(cacheKey))
+        {
+            _logger.LogWarning("Attempted to add null or empty cache key to group {GroupKey}.", groupCacheKey);
+            return;
+        }
+         if (string.IsNullOrWhiteSpace(groupCacheKey))
+        {
+            _logger.LogWarning("Attempted to add cache key {CacheKey} to a null or empty group key.", cacheKey);
+            return;
+        }
+
+
         try
         {
-            byte[]? cacheGroupCache = await _cache.GetAsync(key: groupCacheKey, cancellationToken);
+            _logger.LogDebug("Adding cache key {CacheKey} to group {GroupKey}", cacheKey, groupCacheKey);
+            byte[]? cacheGroupBytes = await _cache.GetAsync(groupCacheKey, cancellationToken);
             HashSet<string> cacheKeysInGroup;
-            
-            if (cacheGroupCache != null)
+
+            if (cacheGroupBytes != null && cacheGroupBytes.Length > 0)
             {
-                cacheKeysInGroup = JsonSerializer.Deserialize<HashSet<string>>(Encoding.Default.GetString(cacheGroupCache))!;
-                if (!cacheKeysInGroup.Contains(cacheKey))
-                    cacheKeysInGroup.Add(cacheKey);
+                 string groupJson = Encoding.UTF8.GetString(cacheGroupBytes); // Use UTF8
+                 try
+                 {
+                    cacheKeysInGroup = JsonSerializer.Deserialize<HashSet<string>>(groupJson) ?? new HashSet<string>();
+                 }
+                 catch (JsonException jsonEx)
+                 {
+                    _logger.LogError(jsonEx, "Error deserializing existing group data for group key: {GroupKey}. Initializing new group. Data: {GroupData}", groupCacheKey, groupJson);
+                    cacheKeysInGroup = new HashSet<string>(); // Corrupted data, start fresh
+                 }
             }
             else
             {
-                cacheKeysInGroup = new HashSet<string>(new[] { cacheKey });
+                cacheKeysInGroup = new HashSet<string>();
             }
-            
-            byte[] newCacheGroupCache = JsonSerializer.SerializeToUtf8Bytes(cacheKeysInGroup);
 
-            byte[]? cacheGroupCacheSlidingExpirationCache = await _cache.GetAsync(
-                key: $"{groupCacheKey}SlidingExpiration",
-                cancellationToken
-            );
-            
-            int? cacheGroupCacheSlidingExpirationValue = null;
-            if (cacheGroupCacheSlidingExpirationCache != null)
-                cacheGroupCacheSlidingExpirationValue = Convert.ToInt32(Encoding.Default.GetString(cacheGroupCacheSlidingExpirationCache));
-            
-            if (cacheGroupCacheSlidingExpirationValue == null || slidingExpiration.TotalSeconds > cacheGroupCacheSlidingExpirationValue)
-                cacheGroupCacheSlidingExpirationValue = Convert.ToInt32(slidingExpiration.TotalSeconds);
-            
-            byte[] serializeCachedGroupSlidingExpirationData = JsonSerializer.SerializeToUtf8Bytes(cacheGroupCacheSlidingExpirationValue);
+            // Add the new key if it's not already present
+            if (cacheKeysInGroup.Add(cacheKey)) // Add returns true if the item was added
+             {
+                _logger.LogTrace("Key {CacheKey} was added to the group set for {GroupKey}.", cacheKey, groupCacheKey);
+             }
+             else
+             {
+                _logger.LogTrace("Key {CacheKey} already exists in the group set for {GroupKey}.", cacheKey, groupCacheKey);
+                // No need to update if the key is already there, unless expiration needs extension (handled below)
+             }
 
-            DistributedCacheEntryOptions cacheOptions =
-                new() { SlidingExpiration = TimeSpan.FromSeconds(Convert.ToDouble(cacheGroupCacheSlidingExpirationValue)) };
 
-            await _cache.SetAsync(key: groupCacheKey, newCacheGroupCache, cacheOptions, cancellationToken);
-            
-            await _cache.SetAsync(
-                key: $"{groupCacheKey}SlidingExpiration",
-                serializeCachedGroupSlidingExpirationData,
-                cacheOptions,
-                cancellationToken
-            );
-            
-            _logger.LogDebug("Added cache key to group. Key: {CacheKey}, Group: {GroupKey}", cacheKey, groupCacheKey);
+            // --- Expiration Handling ---
+            // We want the group entry to expire based on the *longest* sliding expiration
+            // of any item added to it. We store this max expiration duration separately.
+            string groupExpirationKey = $"{groupCacheKey}SlidingExpiration";
+            double currentMaxExpirationSeconds = 0;
+
+            byte[]? expirationBytes = await _cache.GetAsync(groupExpirationKey, cancellationToken);
+            if (expirationBytes != null && expirationBytes.Length > 0)
+            {
+                string expirationString = Encoding.UTF8.GetString(expirationBytes); // Use UTF8
+                if (double.TryParse(expirationString, out double storedExpiration))
+                {
+                    currentMaxExpirationSeconds = storedExpiration;
+                }
+                else
+                {
+                    _logger.LogWarning("Could not parse stored expiration value '{ExpirationValue}' for group {GroupKey}. Resetting.", expirationString, groupCacheKey);
+                }
+            }
+
+
+            // Update max expiration if the current item's expiration is longer
+             double newItemExpirationSeconds = slidingExpiration.TotalSeconds;
+            if (newItemExpirationSeconds > currentMaxExpirationSeconds)
+            {
+                 currentMaxExpirationSeconds = newItemExpirationSeconds;
+                 _logger.LogDebug("Updating max sliding expiration for group {GroupKey} to {ExpirationSeconds} seconds.", groupCacheKey, currentMaxExpirationSeconds);
+                 byte[] serializedExpiration = Encoding.UTF8.GetBytes(currentMaxExpirationSeconds.ToString()); // Use UTF8
+                 var expirationEntryOptions = new DistributedCacheEntryOptions
+                 {
+                     SlidingExpiration = TimeSpan.FromSeconds(currentMaxExpirationSeconds)
+                 };
+                 await _cache.SetAsync(groupExpirationKey, serializedExpiration, expirationEntryOptions, cancellationToken);
+            }
+            else
+            {
+                 _logger.LogTrace("Current item expiration ({NewItemExpiration}s) is not longer than group max expiration ({GroupMaxExpiration}s) for {GroupKey}.", newItemExpirationSeconds, currentMaxExpirationSeconds, groupCacheKey);
+            }
+
+
+            // --- Update Group Data ---
+            // Always update the group data itself with the potentially updated expiration
+             byte[] newCacheGroupBytes = JsonSerializer.SerializeToUtf8Bytes(cacheKeysInGroup); // Use UTF8
+             var groupEntryOptions = new DistributedCacheEntryOptions
+             {
+                 SlidingExpiration = TimeSpan.FromSeconds(currentMaxExpirationSeconds) // Use the determined max expiration
+             };
+
+            await _cache.SetAsync(groupCacheKey, newCacheGroupBytes, groupEntryOptions, cancellationToken);
+            _logger.LogDebug("Updated cache group data for {GroupKey} with {KeyCount} keys and expiration {ExpirationSeconds}s.", groupCacheKey, cacheKeysInGroup.Count, currentMaxExpirationSeconds);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error adding cache key to group. Key: {CacheKey}, Group: {GroupKey}", cacheKey, groupCacheKey);
+            _logger.LogError(ex, "Error adding cache key {CacheKey} to group {GroupKey}", cacheKey, groupCacheKey);
+             // Decide how to handle: maybe remove the key from cache if adding to group failed?
         }
     }
 }

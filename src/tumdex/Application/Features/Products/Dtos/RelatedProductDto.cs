@@ -13,6 +13,7 @@ public class RelatedProductDto : IHasShowcaseImage
     public string? Sku { get; set; }
     public string? CategoryName { get; set; }
     public string? BrandName { get; set; }
+    public int LikeCount { get; set; }
     public List<ProductFeatureValueDto> ProductFeatureValues { get; set; }
     public ProductImageFileDto? ShowcaseImage { get; set; }
 }

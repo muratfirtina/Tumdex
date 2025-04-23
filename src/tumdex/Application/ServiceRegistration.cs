@@ -25,7 +25,7 @@ public static class ServiceRegistration
         services.AddSubClassesOfType(Assembly.GetExecutingAssembly(), typeof(BaseBusinessRules));
         
         // Add caching generator services
-        services.AddScoped<ICacheKeyGenerator, UserBasedCacheKeyGenerator>();
+        services.AddScoped<ICacheKeyGenerator, SmartCacheKeyGenerator>();
         
         return services;
     }

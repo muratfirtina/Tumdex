@@ -8,6 +8,7 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.AspNetCore.App" Version="2.2.8"/>
+        <PackageReference Include="UAParser.Core" Version="4.0.4" />
     </ItemGroup>
 
     <ItemGroup>

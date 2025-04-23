@@ -12,9 +12,9 @@ namespace Application.Features.FeatureValues.Commands.Delete;
 public class DeleteFeatureValueCommand : IRequest<DeletedFeatureValueResponse>,ICacheRemoverRequest
 {
     public string Id { get; set; }
-    public string CacheKey => "";
+    public string CacheKey => $"FeatureValue-{Id}"; // Spesifik değer önbelleğini sil
     public bool BypassCache => false;
-    public string? CacheGroupKey => $"{CacheGroups.Features},{CacheGroups.FeatureValues},{CacheGroups.GetAll}";
+    public string? CacheGroupKey => CacheGroups.ProductRelated;
     
     public class DeleteFeatureValueCommandHandler : IRequestHandler<DeleteFeatureValueCommand, DeletedFeatureValueResponse>
     {

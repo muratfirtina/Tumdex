@@ -18,9 +18,9 @@ public class GetUserLikedProductsQuery : IRequest<GetListResponse<GetUserLikedPr
 {
     public PageRequest PageRequest { get; set; }
     
-    public string CacheKey => $"GetUserLikedProductsQuery-{PageRequest.PageIndex}-{PageRequest.PageSize}";
+    public string CacheKey => $"UserLikedProducts-Page{PageRequest.PageIndex}-Size{PageRequest.PageSize}"; // Generator kullanıcı ID ekler
     public bool BypassCache => false;
-    public string? CacheGroupKey => CacheGroups.GetAll;
+    public string? CacheGroupKey => CacheGroups.UserFavorites; // Kullanıcının favorileri grubu.
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(10);
 
     public class GetUserLikedProductsQueryHandler : IRequestHandler<GetUserLikedProductsQuery, GetListResponse<GetUserLikedProductsQueryResponse>>

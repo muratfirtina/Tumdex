@@ -50,6 +50,7 @@ public class TumdexDbContext : IdentityDbContext<AppUser,AppRole,string>
     public DbSet<Country> Countries { get; set; }
     public DbSet<City> Cities { get; set; }
     public DbSet<District> Districts { get; set; }
+    public DbSet<VisitorTrackingEvent> VisitorTrackingEvents { get; set; }
     
     
     protected override void OnModelCreating(ModelBuilder builder)
@@ -84,6 +85,9 @@ public class TumdexDbContext : IdentityDbContext<AppUser,AppRole,string>
         builder.Entity<Country>().HasQueryFilter(c => !c.DeletedDate.HasValue);
         builder.Entity<City>().HasQueryFilter(c => !c.DeletedDate.HasValue);
         builder.Entity<District>().HasQueryFilter(d => !d.DeletedDate.HasValue);
+        builder.Entity<VisitorTrackingEvent>().HasQueryFilter(v => !v.DeletedDate.HasValue);
+        
+        
         
         builder.Entity<Country>(a =>
         {
@@ -271,9 +275,12 @@ public class TumdexDbContext : IdentityDbContext<AppUser,AppRole,string>
                 .OnDelete(DeleteBehavior.Cascade);
         });
         
+        builder.ConfigureTumdexDbContextForAnalytics();
         
         base.OnModelCreating(builder);
     }
+
+    
     
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {   

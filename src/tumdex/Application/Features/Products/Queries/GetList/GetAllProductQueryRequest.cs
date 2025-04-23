@@ -13,94 +13,123 @@ using Domain;
 using Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
+using Microsoft.Extensions.Logging;
 
 namespace Application.Features.Products.Queries.GetList;
 
 public class GetAllProductQuery : IRequest<GetListResponse<GetAllProductQueryResponse>>, ICachableRequest
 {
     public PageRequest PageRequest { get; set; }
-    public string CacheKey => "GetAllProductQuery";
+    public string CacheKey => $"Products-Page{PageRequest.PageIndex}-Size{PageRequest.PageSize}"; // Standart sayfalama key
     public bool BypassCache => false;
-    public string? CacheGroupKey => CacheGroups.GetAll;
-    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(2);
+    public string? CacheGroupKey => CacheGroups.Products; // Ürün grubuna ait
+    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(20); // Genel liste 20 dk cache
     
-
-    public class
-        GetAllProductQueryHandler : IRequestHandler<GetAllProductQuery, GetListResponse<GetAllProductQueryResponse>>
+    public class GetAllProductQueryHandler : IRequestHandler<GetAllProductQuery, GetListResponse<GetAllProductQueryResponse>>
     {
         private readonly IProductRepository _productRepository;
-        private readonly IProductLikeRepository _productLikeRepository;
+        private readonly IProductLikeRepository _productLikeRepository; // Kullanılmıyor gibi, LikeCount için gerekli
         private readonly IStorageService _storageService;
         private readonly IMapper _mapper;
+        private readonly ILogger<GetAllProductQueryHandler> _logger; // Logger eklendi
 
-        public GetAllProductQueryHandler(IProductRepository productRepository, IMapper mapper,
-            IStorageService storageService, IProductLikeRepository productLikeRepository)
+        public GetAllProductQueryHandler(
+            IProductRepository productRepository,
+            IMapper mapper,
+            IStorageService storageService,
+            IProductLikeRepository productLikeRepository, // Eklendi
+            ILogger<GetAllProductQueryHandler> logger) // Logger eklendi
         {
             _productRepository = productRepository;
             _mapper = mapper;
             _storageService = storageService;
-            _productLikeRepository = productLikeRepository;
+            _productLikeRepository = productLikeRepository; // Atandı
+            _logger = logger; // Atandı
         }
 
-        public async Task<GetListResponse<GetAllProductQueryResponse>> Handle(GetAllProductQuery request,
-            CancellationToken cancellationToken)
+        public async Task<GetListResponse<GetAllProductQueryResponse>> Handle(GetAllProductQuery request, CancellationToken cancellationToken)
         {
+            _logger.LogInformation("Executing GetAllProductQuery. PageIndex: {PageIndex}, PageSize: {PageSize}", request.PageRequest.PageIndex, request.PageRequest.PageSize);
+
+            // Include DTO'ya göre ayarlanmalı
+            Func<IQueryable<Product>, IIncludableQueryable<Product, object>> includeFunc = x => x
+                .Include(p => p.Category) // CategoryName
+                .Include(p => p.Brand) // BrandName
+                .Include(p => p.ProductLikes) // LikeCount
+                //.Include(x => x.ProductFeatureValues).ThenInclude(x => x.FeatureValue).ThenInclude(x => x.Feature) // DTO'da yoksa gereksiz
+                .Include(x => x.ProductImageFiles.Where(pif => pif.Showcase == true)); // Showcase resim
+
+            GetListResponse<GetAllProductQueryResponse> response;
+
             if (request.PageRequest.PageIndex == -1 && request.PageRequest.PageSize == -1)
             {
+                // Tümünü getir
+                _logger.LogDebug("Fetching all products.");
                 List<Product> products = await _productRepository.GetAllAsync(
-                    include: p => p
-                        .Include(p => p.Category)
-                        .Include(p => p.Brand)
-                        .Include(p => p.ProductLikes)
-                        .Include(x => x.ProductFeatureValues).ThenInclude(x => x.FeatureValue)
-                        .ThenInclude(x => x.Feature)
-                        .Include(x => x.ProductImageFiles.Where(pif => pif.Showcase == true)),
+                    include: includeFunc,
+                    orderBy: q => q.OrderBy(p => p.Name), // İsme göre sıralı
                     cancellationToken: cancellationToken);
 
-                GetListResponse<GetAllProductQueryResponse> response =
-                    _mapper.Map<GetListResponse<GetAllProductQueryResponse>>(products);
+                // List<Product> -> List<DTO>
+                var productDtos = _mapper.Map<List<GetAllProductQueryResponse>>(products);
 
-                foreach (var productDto in response.Items)
+                // Resim ve ek bilgi (LikeCount)
+                foreach (var productDto in productDtos)
                 {
-                    var product = products.First(p => p.Id == productDto.Id);
-                    var showcaseImage = product.ProductImageFiles?.FirstOrDefault(pif => pif.Showcase);
-                    if (showcaseImage != null)
+                    var productEntity = products.FirstOrDefault(p => p.Id == productDto.Id);
+                    if (productEntity != null)
                     {
-                        productDto.ShowcaseImage = showcaseImage.ToDto(_storageService);
+                        var showcaseImage = productEntity.ProductImageFiles?.FirstOrDefault(); // Showcase true filtrelendi
+                        if (showcaseImage != null) productDto.ShowcaseImage = showcaseImage.ToDto(_storageService);
+                        productDto.LikeCount = productEntity.ProductLikes?.Count ?? 0;
+                        // CategoryName, BrandName AutoMapper profilinden gelmeli.
                     }
                 }
 
-                return response;
+                // GetListResponse oluştur
+                response = new GetListResponse<GetAllProductQueryResponse>
+                {
+                    Items = productDtos,
+                    Count = productDtos.Count,
+                    Index = -1, Size = -1, Pages = productDtos.Any() ? 1 : 0, HasNext = false, HasPrevious = false
+                };
+                 _logger.LogInformation("Returned {Count} total products.", response.Count);
             }
             else
             {
-                IPaginate<Product> products = await _productRepository.GetListAsync(
+                 // Sayfalı getir
+                 _logger.LogDebug("Fetching paginated products. Page: {PageIndex}, Size: {PageSize}", request.PageRequest.PageIndex, request.PageRequest.PageSize);
+                IPaginate<Product> productsPaginated = await _productRepository.GetListAsync(
                     index: request.PageRequest.PageIndex,
                     size: request.PageRequest.PageSize,
-                    include: x => x.Include(x => x.Category)
-                        .Include(x => x.Brand)
-                        .Include(p => p.ProductLikes)
-                        .Include(x => x.ProductFeatureValues).ThenInclude(x => x.FeatureValue)
-                        .ThenInclude(x => x.Feature)
-                        .Include(x => x.ProductImageFiles.Where(pif => pif.Showcase == true)),
+                    include: includeFunc,
+                     orderBy: q => q.OrderBy(p => p.Name), // İsme göre sıralı
                     cancellationToken: cancellationToken
                 );
-                GetListResponse<GetAllProductQueryResponse> response =
-                    _mapper.Map<GetListResponse<GetAllProductQueryResponse>>(products);
 
-                foreach (var productDto in response.Items)
-                {
-                    var product = products.Items.First(p => p.Id == productDto.Id);
-                    var showcaseImage = product.ProductImageFiles?.FirstOrDefault(pif => pif.Showcase);
-                    if (showcaseImage != null)
+                // IPaginate -> GetListResponse
+                response = _mapper.Map<GetListResponse<GetAllProductQueryResponse>>(productsPaginated);
+
+                // Resim ve ek bilgi (LikeCount)
+                 if (response.Items != null && response.Items.Any()) // Null kontrolü
+                 {
+                    foreach (var productDto in response.Items)
                     {
-                        productDto.ShowcaseImage = showcaseImage.ToDto(_storageService);
+                        var productEntity = productsPaginated.Items.FirstOrDefault(p => p.Id == productDto.Id);
+                        if (productEntity != null)
+                        {
+                            var showcaseImage = productEntity.ProductImageFiles?.FirstOrDefault();
+                            if (showcaseImage != null) productDto.ShowcaseImage = showcaseImage.ToDto(_storageService);
+                            productDto.LikeCount = productEntity.ProductLikes?.Count ?? 0;
+                             // CategoryName, BrandName AutoMapper profilinden gelmeli.
+                        }
                     }
-                }
-                return response;
+                 }
+                  _logger.LogInformation("Returned {Count} products on page {PageIndex}. Total items: {TotalCount}", response.Items?.Count ?? 0, response.Index, response.Count);
             }
-        }
 
-        
+            return response;
+        }
     }
 }

@@ -14,9 +14,9 @@ public class UpdatePhoneNumberCommand : IRequest<UpdatedPhoneNumberCommandRespon
     public string Number { get; set; }
     public bool IsDefault { get; set; }
     
-    public string CacheKey => "";
+    public string CacheKey => $"PhoneNumber-{Id}";
     public bool BypassCache => false;
-    public string CacheGroupKey => CacheGroups.PhoneNumbers;
+    public string? CacheGroupKey => CacheGroups.UserPhoneNumbers;
 
 
     public class UpdatePhoneNumberCommandHandler : IRequestHandler<UpdatePhoneNumberCommand, UpdatedPhoneNumberCommandResponse>

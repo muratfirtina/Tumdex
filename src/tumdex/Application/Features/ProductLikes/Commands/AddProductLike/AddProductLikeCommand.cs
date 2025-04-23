@@ -9,9 +9,10 @@ public class AddProductLikeCommand : IRequest<AddProductLikeResponse>, ICacheRem
 {
     public string ProductId { get; set; }
 
-    public string CacheKey => "";
+    public string CacheKey => $"Product-{ProductId}";
     public bool BypassCache => false;
-    public string? CacheGroupKey => CacheGroups.GetAll;
+    // Kullanıcının favorilerini ve ürün listelerini (like sayısı) etkiler.
+    public string? CacheGroupKey => $"{CacheGroups.UserFavorites},{CacheGroups.Products}";
     
     public class AddProductLikeCommandHandler : IRequestHandler<AddProductLikeCommand, AddProductLikeResponse>
     {

@@ -21,7 +21,7 @@ public class CreateUserAddressCommand : IRequest<CreatedUserAddressCommandRespon
 
     public string CacheKey => "";
     public bool BypassCache => false;
-    public string CacheGroupKey => CacheGroups.UserAddress;
+    public string? CacheGroupKey => CacheGroups.UserAddresses;
     
     
     public class CreateUserAddressCommandHandler : IRequestHandler<CreateUserAddressCommand, CreatedUserAddressCommandResponse>

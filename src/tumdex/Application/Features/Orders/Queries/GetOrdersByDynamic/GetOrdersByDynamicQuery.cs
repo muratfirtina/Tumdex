@@ -16,15 +16,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Application.Features.Orders.Queries.GetOrdersByDynamic;
 
-public class GetOrdersByDynamicQuery : IRequest<GetListResponse<GetOrdersByDynamicQueryResponse>>
+public class GetOrdersByDynamicQuery : IRequest<GetListResponse<GetOrdersByDynamicQueryResponse>> ,ICachableRequest
 {
    public PageRequest PageRequest { get; set; }
    public DynamicQuery DynamicQuery { get; set; }
 
-   public string CacheKey => $"GetOrdersByDynamic-Page{PageRequest.PageIndex}-Size{PageRequest.PageSize}-{JsonSerializer.Serialize(DynamicQuery)}";
-   public bool BypassCache { get; }
-   public string CacheGroupKey => CacheGroups.Orders;
-   public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(2);
+   public string CacheKey => $"Orders-Dynamic-Page{PageRequest.PageIndex}-Size{PageRequest.PageSize}-{JsonSerializer.Serialize(DynamicQuery)}"; // Generator kullanıcı ID ekleyecek
+   public bool BypassCache => false;
+   public string? CacheGroupKey => CacheGroups.UserOrders;
+   public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(5);
    
    public class GetOrdersByDynamicQueryHandler : IRequestHandler<GetOrdersByDynamicQuery, GetListResponse<GetOrdersByDynamicQueryResponse>>
    {

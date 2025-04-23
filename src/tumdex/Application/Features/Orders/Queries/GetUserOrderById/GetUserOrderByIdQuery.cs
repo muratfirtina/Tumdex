@@ -9,13 +9,14 @@ using MediatR;
 
 namespace Application.Features.Orders.Queries.GetUserOrderById;
 
-public class GetUserOrderByIdQuery : IRequest<GetUserOrderByIdQueryResponse>
+public class GetUserOrderByIdQuery : IRequest<GetUserOrderByIdQueryResponse>, ICachableRequest
 {
     public string Id { get; set; }
-    public string CacheKey => $"GetUserOrderById-{Id}";
-    public bool BypassCache { get; }
-    public string CacheGroupKey => CacheGroups.Orders;
-    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(2);
+    // ICachableRequest implementation
+    public string CacheKey => $"UserOrder-{Id}"; // Generator kullanıcı ID ekler
+    public bool BypassCache => false;
+    public string? CacheGroupKey => CacheGroups.UserOrders; // Kullanıcıya özel
+    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(10);
 
     public class GetUserOrderByIdQueryHandler : IRequestHandler<GetUserOrderByIdQuery, GetUserOrderByIdQueryResponse>
     {

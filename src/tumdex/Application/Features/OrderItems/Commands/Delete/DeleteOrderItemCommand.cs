@@ -13,9 +13,9 @@ namespace Application.Features.OrderItems.Commands.Delete
     {
         public string Id { get; set; }  // Silinecek OrderItem ID'si
 
-        public string CacheKey => "";
+        public string CacheKey => ""; // Spesifik order item silme, grup bazlı temizleme yeterli.
         public bool BypassCache => false;
-        public string CacheGroupKey => CacheGroups.Orders;
+        public string? CacheGroupKey => CacheGroups.UserOrders;
 
         public class DeleteOrderItemCommandHandler : IRequestHandler<DeleteOrderItemCommand, bool>
         {

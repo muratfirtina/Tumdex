@@ -19,9 +19,9 @@ public class UpdateUserAddressCommand:IRequest<UpdatedUserAddressCommandResponse
     public int? CountryId { get; set; }
     public bool IsDefault { get; set; }
 
-    public string CacheKey => "";
+    public string CacheKey => $"UserAddress-{Id}";
     public bool BypassCache => false;
-    public string? CacheGroupKey => CacheGroups.UserAddress;
+    public string? CacheGroupKey => CacheGroups.UserAddresses;
     
     public class UpdateUserAddressCommandHandler : IRequestHandler<UpdateUserAddressCommand, UpdatedUserAddressCommandResponse>
     {

@@ -18,18 +18,18 @@ public class GetAllCarouselQuery : IRequest<GetListResponse<GetAllCarouselQueryR
 {
     public PageRequest PageRequest { get; set; }
     
-    public string CacheKey => $"GetAllCarouselQuery({PageRequest.PageIndex},{PageRequest.PageSize})";
-    public bool BypassCache { get; }
-    public string? CacheGroupKey => "Carousels";
-    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(5);
+    public string CacheKey => $"Carousels-Page{PageRequest.PageIndex}-Size{PageRequest.PageSize}";
+    public bool BypassCache => false;
+    public string? CacheGroupKey => CacheGroups.Carousels;
+    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(60);
 
-    public class GetCarouselQueryHandler : IRequestHandler<GetAllCarouselQuery, GetListResponse<GetAllCarouselQueryResponse>>
+    public class GetAllCarouselQueryHandler : IRequestHandler<GetAllCarouselQuery, GetListResponse<GetAllCarouselQueryResponse>>
 {
     private readonly ICarouselRepository _carouselRepository;
     private readonly IStorageService _storageService;
     private readonly IMapper _mapper;
 
-    public GetCarouselQueryHandler(ICarouselRepository carouselRepository, IStorageService storageService, IMapper mapper)
+    public GetAllCarouselQueryHandler(ICarouselRepository carouselRepository, IStorageService storageService, IMapper mapper)
     {
         _carouselRepository = carouselRepository;
         _storageService = storageService;

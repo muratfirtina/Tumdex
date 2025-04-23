@@ -18,6 +18,7 @@ public class GetMostViewedProductQueryResponse : IResponse
     public string VaryantGroupID { get; set; }
     public int Stock{ get; set; }
     public decimal? Price { get; set; }
+    public int ViewCount { get; set; }
     public ICollection<ProductFeatureValueDto>? ProductFeatureValues { get; set; }
     public ProductImageFileDto? ShowcaseImage { get; set; }
 }

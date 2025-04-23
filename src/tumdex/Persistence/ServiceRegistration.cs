@@ -2,9 +2,6 @@ using Application.Abstraction.Services;
 using Application.Abstraction.Services.Authentication;
 using Application.Repositories;
 using Application.Services;
-using Domain.Identity;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Persistence.BackgroundJob;
@@ -31,6 +28,7 @@ public static class ServiceRegistration
 
         // 4. Repository'ler
         RegisterRepositories(services);
+        
 
         return services;
     }
@@ -89,5 +87,8 @@ public static class ServiceRegistration
         services.AddScoped<ICountryRepository, CountryRepository>();
         services.AddScoped<ICityRepository, CityRepository>();
         services.AddScoped<IDistrictRepository, DistrictRepository>();
+        services.AddScoped<IVisitorAnalyticsRepository, VisitorAnalyticsRepository>();
+        services.AddScoped<IVisitorAnalyticsService, VisitorAnalyticsService>();
+        services.AddSingleton<UAParser.Parser>(sp => UAParser.Parser.GetDefault());
     }
 }

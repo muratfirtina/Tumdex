@@ -13,9 +13,9 @@ public class UpdateOrderItemsCommand : IRequest<bool>, ITransactionalRequest, IC
     public string OrderId { get; set; }
     public List<OrderItemUpdateDto> Items { get; set; }
 
-    public string CacheKey => "";
+    public string CacheKey => ""; // Spesifik order item güncelleme, grup bazlı temizleme yeterli.
     public bool BypassCache => false;
-    public string CacheGroupKey => CacheGroups.Orders;
+    public string? CacheGroupKey => CacheGroups.UserOrders;
 
     public class UpdateOrderItemsCommandHandler : IRequestHandler<UpdateOrderItemsCommand, bool>
     {

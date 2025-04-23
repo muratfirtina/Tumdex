@@ -8,10 +8,10 @@ namespace Application.Features.ProductLikes.Queries.IsProductLiked;
 public class IsProductLikedQuery : IRequest<IsProductLikedQueryResponse>, ICachableRequest
 {
     public string ProductId { get; set; }
-    public string CacheKey => $"IsProductLiked-{ProductId}";
+    public string CacheKey => $"IsProductLiked-{ProductId}"; // Generator kullanıcı ID ekler
     public bool BypassCache => false;
-    public string? CacheGroupKey => CacheGroups.GetAll;
-    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(10);
+    public string? CacheGroupKey => CacheGroups.UserFavorites; // Kullanıcının favorileri grubu.
+    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(5);
     
     public class IsProductLikedQueryHandler : IRequestHandler<IsProductLikedQuery, IsProductLikedQueryResponse>
     {

@@ -14,10 +14,10 @@ namespace Application.Features.FeatureValues.Queries.GetList;
 public class GetAllFeatureValueQuery : IRequest<GetListResponse<GetAllFeatureValueQueryResponse>>,ICachableRequest
 {
     public PageRequest PageRequest { get; set; }
-    public string CacheKey => $"GetListFeatureValueQuery({PageRequest.PageIndex},{PageRequest.PageSize})";
-    public bool BypassCache { get; }
+    public string CacheKey => $"FeatureValues-Page{PageRequest.PageIndex}-Size{PageRequest.PageSize}";
+    public bool BypassCache => false;
     public string? CacheGroupKey => CacheGroups.FeatureValues;
-    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(30);
+    public TimeSpan? SlidingExpiration => TimeSpan.FromHours(2);
     
     public class GetAllFeatureValueQueryHandler : IRequestHandler<GetAllFeatureValueQuery, GetListResponse<GetAllFeatureValueQueryResponse>>
     {

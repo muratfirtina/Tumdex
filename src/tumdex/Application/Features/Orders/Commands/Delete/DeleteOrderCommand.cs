@@ -7,12 +7,13 @@ using MediatR;
 
 namespace Application.Features.Orders.Commands.Delete;
 
-public class DeleteOrderCommand : IRequest<DeletedOrderCommandResponse>
+public class DeleteOrderCommand : IRequest<DeletedOrderCommandResponse>,ICacheRemoverRequest
 {
     public string Id { get; set; }
-    public string CacheKey => "";
+    public string CacheKey => $"Order-{Id}"; // Spesifik sipariş önbelleğini sil
     public bool BypassCache => false;
-    public string CacheGroupKey => CacheGroups.Orders;
+    // Hem ilgili kullanıcının siparişlerini hem de genel admin sipariş listesini temizle.
+    public string? CacheGroupKey => $"{CacheGroups.UserOrders},{CacheGroups.Orders}";
     public class DeleteOrderCommandHandler : IRequestHandler<DeleteOrderCommand, DeletedOrderCommandResponse>
     {
         private readonly IOrderRepository _orderRepository;

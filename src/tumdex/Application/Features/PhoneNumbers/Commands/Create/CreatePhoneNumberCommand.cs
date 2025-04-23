@@ -15,7 +15,7 @@ public class CreatePhoneNumberCommand : IRequest<CreatedPhoneNumberCommandRespon
     
     public string CacheKey => "";
     public bool BypassCache => false;
-    public string CacheGroupKey => CacheGroups.PhoneNumbers;
+    public string? CacheGroupKey => CacheGroups.UserPhoneNumbers;
 
     public class CreatePhoneNumberCommandHandler : IRequestHandler<CreatePhoneNumberCommand, CreatedPhoneNumberCommandResponse>
     {

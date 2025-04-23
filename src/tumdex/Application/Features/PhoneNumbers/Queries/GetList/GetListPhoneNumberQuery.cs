@@ -9,11 +9,10 @@ namespace Application.Features.PhoneNumbers.Queries.GetList;
 
 public class GetListPhoneNumberQuery : IRequest<GetListResponse<GetListPhoneNumberQueryResponse>>,ICachableRequest
 {
-    
-    public string CacheKey => "GetListPhoneNumberQuery()";
+    public string CacheKey => "UserPhoneNumbers"; // Generator kullanıcı ID ekler
     public bool BypassCache => false;
-    public string CacheGroupKey => CacheGroups.PhoneNumbers;
-    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(5);
+    public string? CacheGroupKey => CacheGroups.UserPhoneNumbers;
+    public TimeSpan? SlidingExpiration => TimeSpan.FromHours(1);
     public class GetListPhoneNumberQueryHandler : IRequestHandler<GetListPhoneNumberQuery, GetListResponse<GetListPhoneNumberQueryResponse>>
     {
         private readonly IPhoneNumberRepository _phoneNumberRepository;

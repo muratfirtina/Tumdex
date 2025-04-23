@@ -19,6 +19,7 @@ public class GetAllProductQueryResponse:IResponse, IHasShowcaseImage
     public string VaryantGroupID { get; set; }
     public int Stock{ get; set; }
     public decimal Price { get; set; }
+    public int LikeCount { get; set; }
     public bool IsLiked { get; set; }
     public ICollection<ProductFeatureValueDto>? ProductFeatureValues { get; set; }
     public ProductImageFileDto? ShowcaseImage { get; set; }

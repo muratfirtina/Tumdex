@@ -5,7 +5,6 @@ using Application.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Persistence.Context;
 
 namespace Infrastructure.Services.Seo;
 
@@ -27,7 +26,9 @@ public class SitemapService : ISitemapService
         IBrandRepository brandRepository,
         IImageFileRepository imageFileRepository,
         IConfiguration configuration,
-        ILogger<SitemapService> logger, IImageSeoService imageSeoService, IServiceScopeFactory serviceScopeFactory)
+        ILogger<SitemapService> logger,
+        IImageSeoService imageSeoService,
+        IServiceScopeFactory serviceScopeFactory)
     {
         _productRepository = productRepository;
         _categoryRepository = categoryRepository;
@@ -46,41 +47,37 @@ public class SitemapService : ISitemapService
         var sitemaps = new List<SitemapUrl>();
         try
         {
-            // Ürünler için kontrol ve log
-            var products = await _productRepository.GetAllAsync();
-            _logger.LogInformation($"Found {products.Count()} products");
-            if (products.Any())
+            // Tüm alt site haritalarını ekleyelim
+            // Site ölçeğine bağlı olarak bunları dinamik olarak oluşturabiliriz
+            sitemaps.Add(new SitemapUrl
             {
-                sitemaps.Add(new SitemapUrl
-                {
-                    Loc = $"{_baseUrl}/sitemaps/products.xml",
-                    LastMod = DateTime.UtcNow
-                });
-            }
-
-            // Kategoriler için kontrol ve log
-            var categories = await _categoryRepository.GetAllAsync();
-            _logger.LogInformation($"Found {categories.Count()} categories");
-            if (categories.Any())
+                Loc = $"{_baseUrl}/sitemaps/products-sitemap.xml",
+                LastMod = DateTime.UtcNow
+            });
+            
+            sitemaps.Add(new SitemapUrl
             {
-                sitemaps.Add(new SitemapUrl
-                {
-                    Loc = $"{_baseUrl}/sitemaps/categories.xml",
-                    LastMod = DateTime.UtcNow
-                });
-            }
-
-            // Markalar için kontrol ve log
-            var brands = await _brandRepository.GetAllAsync();
-            _logger.LogInformation($"Found {brands.Count()} brands");
-            if (brands.Any())
+                Loc = $"{_baseUrl}/sitemaps/categories-sitemap.xml",
+                LastMod = DateTime.UtcNow
+            });
+            
+            sitemaps.Add(new SitemapUrl
             {
-                sitemaps.Add(new SitemapUrl
-                {
-                    Loc = $"{_baseUrl}/sitemaps/brands.xml",
-                    LastMod = DateTime.UtcNow
-                });
-            }
+                Loc = $"{_baseUrl}/sitemaps/brands-sitemap.xml",
+                LastMod = DateTime.UtcNow
+            });
+            
+            sitemaps.Add(new SitemapUrl
+            {
+                Loc = $"{_baseUrl}/sitemaps/images-sitemap.xml",
+                LastMod = DateTime.UtcNow
+            });
+            
+            sitemaps.Add(new SitemapUrl
+            {
+                Loc = $"{_baseUrl}/sitemaps/static-pages-sitemap.xml",
+                LastMod = DateTime.UtcNow
+            });
 
             // XML oluşturulmadan önce kontrol
             _logger.LogInformation($"Base URL: {_baseUrl}");
@@ -92,8 +89,7 @@ public class SitemapService : ISitemapService
 
             var xmlResult = GenerateSitemapXml(sitemaps, true);
             _logger.LogInformation($"Generated XML length: {xmlResult?.Length ?? 0}");
-            _logger.LogInformation($"Generated XML content: {xmlResult}");
-
+            
             return xmlResult;
         }
         catch (Exception ex)
@@ -102,7 +98,6 @@ public class SitemapService : ISitemapService
             throw;
         }
     }
-
 
     public async Task<string> GenerateProductSitemap()
     {
@@ -202,7 +197,25 @@ public class SitemapService : ISitemapService
                 ChangeFreq = ChangeFrequency.Monthly,
                 Priority = 0.5
             },
-            // Diğer statik sayfalar...
+            new()
+            {
+                Loc = $"{_baseUrl}/products",
+                ChangeFreq = ChangeFrequency.Daily,
+                Priority = 0.9
+            },
+            new()
+            {
+                Loc = $"{_baseUrl}/categories",
+                ChangeFreq = ChangeFrequency.Weekly,
+                Priority = 0.8
+            },
+            new()
+            {
+                Loc = $"{_baseUrl}/brands",
+                ChangeFreq = ChangeFrequency.Weekly,
+                Priority = 0.7
+            }
+            // Diğer statik sayfalar eklenebilir
         };
 
         return GenerateSitemapXml(staticPages);
@@ -215,9 +228,7 @@ public class SitemapService : ISitemapService
         {
             { "Google", $"http://www.google.com/ping?sitemap={sitemapUrl}" },
             { "Bing", $"http://www.bing.com/ping?sitemap={sitemapUrl}" },
-            { "Yandex", $"http://www.yandex.com/ping?sitemap={sitemapUrl}" },
-            { "Baidu", $"http://www.baidu.com/ping?sitemap={sitemapUrl}" },
-            { "Sogou", $"http://www.sogou.com/ping?sitemap={sitemapUrl}" },
+            { "Yandex", $"http://www.yandex.com/ping?sitemap={sitemapUrl}" }
         };
 
         var response = new SitemapOperationResponse
@@ -298,15 +309,15 @@ public class SitemapService : ISitemapService
         // Doğrudan metot referansları yerine bir fabrika yaklaşımı kullanın
         sitemapTasks.Add(Task.Run(async () => await CheckSitemapHealth("sitemap.xml", 
             scope => scope.ServiceProvider.GetRequiredService<ISitemapService>().GenerateSitemapIndex())));
-        sitemapTasks.Add(Task.Run(async () => await CheckSitemapHealth("products.xml", 
+        sitemapTasks.Add(Task.Run(async () => await CheckSitemapHealth("products-sitemap.xml", 
             scope => scope.ServiceProvider.GetRequiredService<ISitemapService>().GenerateProductSitemap())));
-        sitemapTasks.Add(Task.Run(async () => await CheckSitemapHealth("categories.xml", 
+        sitemapTasks.Add(Task.Run(async () => await CheckSitemapHealth("categories-sitemap.xml", 
             scope => scope.ServiceProvider.GetRequiredService<ISitemapService>().GenerateCategorySitemap())));
-        sitemapTasks.Add(Task.Run(async () => await CheckSitemapHealth("brands.xml", 
+        sitemapTasks.Add(Task.Run(async () => await CheckSitemapHealth("brands-sitemap.xml", 
             scope => scope.ServiceProvider.GetRequiredService<ISitemapService>().GenerateBrandSitemap())));
-        sitemapTasks.Add(Task.Run(async () => await CheckSitemapHealth("images.xml", 
+        sitemapTasks.Add(Task.Run(async () => await CheckSitemapHealth("images-sitemap.xml", 
             scope => scope.ServiceProvider.GetRequiredService<ISitemapService>().GenerateImageSitemap())));
-        sitemapTasks.Add(Task.Run(async () => await CheckSitemapHealth("static-pages.xml", 
+        sitemapTasks.Add(Task.Run(async () => await CheckSitemapHealth("static-pages-sitemap.xml", 
             scope => scope.ServiceProvider.GetRequiredService<ISitemapService>().GenerateStaticPagesSitemap())));
     
         var statuses = await Task.WhenAll(sitemapTasks);
@@ -341,11 +352,23 @@ public class SitemapService : ISitemapService
                 var sitemapNs = XNamespace.Get("http://www.sitemaps.org/schemas/sitemap/0.9");
                 var urlsWithNamespace = xmlDoc.Descendants(sitemapNs + "url").Count();
                 var urlsWithoutNamespace = xmlDoc.Descendants("url").Count();
+                
+                // Sitemap index için <sitemap> elemanlarını sayma
+                var sitemapsWithNamespace = xmlDoc.Descendants(sitemapNs + "sitemap").Count();
+                var sitemapsWithoutNamespace = xmlDoc.Descendants("sitemap").Count();
             
                 status.IsAccessible = true;
                 status.ResponseTime = (long)(DateTime.UtcNow - startTime).TotalMilliseconds;
                 status.FileSize = System.Text.Encoding.UTF8.GetByteCount(content);
-                status.UrlCount = urlsWithNamespace > 0 ? urlsWithNamespace : urlsWithoutNamespace; // Birini kullan
+                
+                // URL sayısı veya sitemap sayısından birini kullan
+                status.UrlCount = urlsWithNamespace > 0 ? urlsWithNamespace : urlsWithoutNamespace; 
+                
+                // Eğer bu bir sitemap indexse, URL sayısı yerine sitemap sayısını kullan
+                if (type == "sitemap.xml" && (sitemapsWithNamespace > 0 || sitemapsWithoutNamespace > 0))
+                {
+                    status.UrlCount = sitemapsWithNamespace > 0 ? sitemapsWithNamespace : sitemapsWithoutNamespace;
+                }
             
                 // LastModified kısmı için de benzer bir yaklaşım kullanın
                 var lastmodWithNs = xmlDoc.Descendants(sitemapNs + "lastmod").FirstOrDefault()?.Value;
@@ -376,7 +399,7 @@ public class SitemapService : ISitemapService
             if (status.UrlCount == 0) score -= 15;
         }
 
-        return Math.Max(0, score);
+        return Math.Max(0, Math.Min(100, score));
     }
 
     private List<SitemapIssue> GenerateIssuesList(List<SitemapStatus> statuses)

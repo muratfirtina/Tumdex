@@ -194,6 +194,7 @@ public class CartService : ICartService
         if (cartItem != null)
         {
             await _cartItemRepository.DeleteAsync(cartItem);
+            await _stockReservationService.ReleaseReservationAsync(cartItemId);
             _logger.LogDebug("Cart item removed: {CartItemId}", cartItemId);
         }
         else

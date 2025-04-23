@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Application.Consts;
 using Application.Features.Features.Rules;
 using Application.Repositories;
@@ -18,8 +19,8 @@ public class GetListFeatureByDynamicQuery : IRequest<GetListResponse<GetListFeat
 {
     public PageRequest PageRequest { get; set; }
     public DynamicQuery DynamicQuery { get; set; }
-    public string CacheKey => $"GetListFeatureByDynamicQuery({PageRequest.PageIndex},{PageRequest.PageSize})";
-    public bool BypassCache { get; }
+    public string CacheKey => $"Features-Dynamic-Page{PageRequest.PageIndex}-Size{PageRequest.PageSize}-{JsonSerializer.Serialize(DynamicQuery)}";
+    public bool BypassCache => false;
     public string? CacheGroupKey => CacheGroups.Features;
     public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(30);
     

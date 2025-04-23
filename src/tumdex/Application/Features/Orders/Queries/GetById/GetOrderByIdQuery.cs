@@ -10,14 +10,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Application.Features.Orders.Queries.GetById;
 
-public class GetOrderByIdQuery : IRequest<GetOrderByIdQueryResponse>
+public class GetOrderByIdQuery : IRequest<GetOrderByIdQueryResponse>,ICachableRequest
 {
     public string Id { get; set; }
-
-    public string CacheKey => $"GetOrderById-{Id}";
-    public bool BypassCache { get; }
-    public string CacheGroupKey => CacheGroups.Orders;
-    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(5);
+    public string CacheKey => $"Order-{Id}"; // Generator kullanıcı ID ekleyecek
+    public bool BypassCache => false;
+    public string? CacheGroupKey => CacheGroups.UserOrders;
+    public TimeSpan? SlidingExpiration => TimeSpan.FromMinutes(10);
 
     public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, GetOrderByIdQueryResponse>
     {

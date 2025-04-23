@@ -113,16 +113,10 @@ namespace WebAPI.Controllers
         }
         
         [HttpPost("filter")]
-        public async Task<IActionResult> Filter([FromQuery] PageRequest pageRequest, [FromBody] FilterProductQuery filterQuery)
+        public async Task<IActionResult> Filter([FromBody] FilterProductQuery filterQuery)
         {
-            var request = new FilterProductWithPaginationQuery
-            {
-                SearchTerm = filterQuery.SearchTerm,
-                Filters = filterQuery.Filters,
-                PageRequest = pageRequest,
-                SortOrder = filterQuery.SortOrder ?? "default"
-            };
-            GetListResponse<FilterProductQueryResponse> response = await Mediator.Send(request);
+            // PageRequest bilgisi artık query parametrelerinden değil, body'den geliyor
+            GetListResponse<FilterProductQueryResponse> response = await Mediator.Send(filterQuery);
             return Ok(response);
         }
         

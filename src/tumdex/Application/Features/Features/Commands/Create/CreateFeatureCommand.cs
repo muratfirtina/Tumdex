@@ -21,7 +21,7 @@ public class CreateFeatureCommand : IRequest<CreatedFeatureResponse>, ICacheRemo
     
     public string CacheKey => "";
     public bool BypassCache => false;
-    public string? CacheGroupKey => $"{CacheGroups.Features},{CacheGroups.FeatureValues},{CacheGroups.GetAll}";
+    public string? CacheGroupKey => CacheGroups.ProductRelated;
 
     public class CreateFeatureCommandHandler : IRequestHandler<CreateFeatureCommand, CreatedFeatureResponse>
     {

@@ -128,21 +128,20 @@ public class CreateMultipleProductsCommand : IRequest<List<CreatedProductRespons
                         _logger.LogInformation("Uploading {Count} images for product SKU: {Sku}", productDto.ProductImages.Count, product.Sku);
                         var uploadedFiles = await _storageService.UploadAsync("products", product.Id, productDto.ProductImages);
 
+                        // Eğer ShowcaseImageIndex null ise veya geçersiz bir değerse 0 (ilk resim) olarak ayarla
+                        int showcaseIndex = productDto.ShowcaseImageIndex ?? 0;
+                        if (showcaseIndex < 0 || showcaseIndex >= uploadedFiles.Count)
+                            showcaseIndex = 0;
+
                         product.ProductImageFiles = uploadedFiles.Select((file, index) =>
                             new ProductImageFile(file.fileName, file.entityType, file.path, file.storageType)
                             {
-                                Showcase = index == productDto.ShowcaseImageIndex,
+                                Showcase = index == showcaseIndex,
                                 Format = file.format
                             }).ToList();
 
-                         // Showcase kontrolü (birden fazla olamaz)
-                         await _productBusinessRules.EnsureOnlyOneShowcaseImage(product.ProductImageFiles);
-                         // AddAsync sonrası product nesnesine resimler eklendiği için EF Core takip eder.
-                         // Explicit UpdateAsync çağırmaya gerek olmayabilir, transaction sonundaki SaveChanges halleder.
-                         // Ancak emin olmak için UpdateAsync çağrılabilir (Performansa etkisi minimal).
-                         // await _productRepository.UpdateAsync(product); // Genellikle gereksiz
-
-                         _logger.LogDebug("Associated {Count} image files with product SKU: {Sku}", product.ProductImageFiles.Count, product.Sku);
+                        // Vitrin resmi kontrolü
+                        await _productBusinessRules.EnsureOnlyOneShowcaseImage(product.ProductImageFiles);
                     }
 
                     // Response için map'leme (henüz ID final değil, ama DTO bunu handle etmeli)

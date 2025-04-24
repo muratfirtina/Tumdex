@@ -87,7 +87,7 @@ public class GetRandomProductsByProductIdQuery : IRequest<GetListResponse<GetRan
                               .Include(p => p.ProductFeatureValues)
                               .ThenInclude(pfv => pfv.FeatureValue)
                               .ThenInclude(fv => fv.Feature)
-                              .Include(x => x.ProductImageFiles.Where(pif => pif.Showcase == true)), // Resim için
+                              .Include(x => x.ProductImageFiles.Where(pif => pif.Showcase)), // Resim için
                 cancellationToken: cancellationToken);
 
             // List<Product> -> List<DTO>
@@ -99,7 +99,7 @@ public class GetRandomProductsByProductIdQuery : IRequest<GetListResponse<GetRan
                  var productEntity = randomProducts.FirstOrDefault(p => p.Id == productDto.Id);
                  if (productEntity?.ProductImageFiles != null)
                  {
-                     var showcaseImage = productEntity.ProductImageFiles.FirstOrDefault(pif=>pif.Showcase == true); // Showcase filtrelendi
+                     var showcaseImage = productEntity.ProductImageFiles.FirstOrDefault(pif=>pif.Showcase); // Showcase filtrelendi
                      if (showcaseImage != null) productDto.ShowcaseImage = showcaseImage.ToDto(_storageService);
                  }
              }

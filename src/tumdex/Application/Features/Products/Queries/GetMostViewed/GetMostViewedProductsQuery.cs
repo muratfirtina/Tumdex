@@ -50,35 +50,38 @@ public class GetMostViewedProductsQuery : IRequest<GetListResponse<GetMostViewed
         {
             _logger.LogInformation("Fetching {Count} most viewed products.", request.Count);
             
-            IPaginate<Product> products = await _productRepository.GetListAsync(
-                predicate: x => x.ProductViews.Count > 0,
-                include: x => x
-                    .Include(x => x.Category)
-                    .Include(x => x.Brand)
-                    .Include(x => x.ProductImageFiles.Where(pif => pif.Showcase))
-                    .Include(x => x.ProductFeatureValues)
-                    .ThenInclude(x => x.FeatureValue)
-                    .ThenInclude(x => x.Feature),
-                cancellationToken: cancellationToken);
-            _logger.LogInformation("Fetching {Count} most viewed products.", request.Count);
-            
-            var mostViewedProducts = products.Items
-                .OrderByDescending(x => x.ProductViews.Count)
-                .Take(request.Count)
-                .AsQueryable()
-                .AsNoTracking()
-                .ToList();
-            var response = _mapper.Map<GetListResponse<GetMostViewedProductQueryResponse>>(mostViewedProducts);
-            
-            foreach (var productResponse in response.Items)
+            var products = await _productRepository.GetMostViewedProductsAsync(request.Count);
+
+             if (products == null || !products.Any())
+             {
+                  _logger.LogInformation("No viewed products found.");
+                  return new GetListResponse<GetMostViewedProductQueryResponse> { Items = new List<GetMostViewedProductQueryResponse>() };
+             }
+
+            // List<Product> -> List<DTO>
+            var productDtos = _mapper.Map<List<GetMostViewedProductQueryResponse>>(products);
+
+            // Resim ve ViewCount ayarla
+             foreach (var productDto in productDtos)
+             {
+                 var productEntity = products.FirstOrDefault(p => p.Id == productDto.Id);
+                 if (productEntity != null)
+                 {
+                     var showcaseImage = productEntity.ProductImageFiles?.FirstOrDefault(pif=> pif.Showcase); // Showcase filtrelendi
+                     if (showcaseImage != null) productDto.ShowcaseImage = showcaseImage.ToDto(_storageService);
+                     productDto.ViewCount = productEntity.ProductViews?.Count ?? 0; // Görüntülenme sayısı
+                 }
+             }
+
+
+            // GetListResponse oluştur
+            var response = new GetListResponse<GetMostViewedProductQueryResponse>
             {
-                var product = mostViewedProducts.First(p => p.Id == productResponse.Id);
-                var showcaseImage = product.ProductImageFiles.FirstOrDefault(pif => pif.Showcase);
-                if (showcaseImage != null)
-                {
-                    productResponse.ShowcaseImage = showcaseImage.ToDto(_storageService);
-                }
-            }
+                 Items = productDtos,
+                 Count = productDtos.Count
+            };
+
+             _logger.LogInformation("Returning {Count} most viewed products.", response.Count);
             return response;
         }
     }

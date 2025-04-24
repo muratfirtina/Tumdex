@@ -61,16 +61,23 @@ public class GetMostLikedProductQuery : IRequest<GetListResponse<GetMostLikedPro
 
             // List<Product> -> List<DTO>
             var productDtos = _mapper.Map<List<GetMostLikedProductQueryResponse>>(products);
+            
 
             // Resim ve LikeCount ayarla
-             foreach (var productDto in productDtos)
+            foreach (var productDto in productDtos)
              {
                  var productEntity = products.FirstOrDefault(p => p.Id == productDto.Id);
                  if (productEntity != null)
                  {
-                     var showcaseImage = productEntity.ProductImageFiles?.FirstOrDefault(); // Showcase filtrelendi
-                     if (showcaseImage != null) productDto.ShowcaseImage = showcaseImage.ToDto(_storageService);
-                     productDto.LikeCount = productEntity.ProductLikes?.Count ?? 0; // Zaten 0'dan büyük olacak (Where filtresi)
+                     // Resim
+                     var showcaseImage = productEntity.ProductImageFiles?.FirstOrDefault(pif => pif.Showcase);
+                     if (showcaseImage != null)
+                     {
+                         productDto.ShowcaseImage = showcaseImage.ToDto(_storageService);
+                         productDto.LikeCount = productEntity.ProductLikes?.Count ?? 0; // Zaten 0'dan büyük olacak (Where filtresi)
+                     }
+                     // Satış sayısı (eğer OrderItemRepo kullanıldıysa)
+                     // if (salesDict.TryGetValue(productDto.Id, out int count)) productDto.TotalSoldCount = count;
                  }
              }
 

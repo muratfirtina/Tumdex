@@ -359,6 +359,9 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
             .Include(p => p.ProductImageFiles.Where(img => img.Showcase))
             .Include(p => p.Brand)
             .Include(p => p.Category)
+            .Include(p => p.ProductFeatureValues)
+            .ThenInclude(pfv => pfv.FeatureValue)
+            .ThenInclude(fv => fv.Feature)
             .Where(p => p.ProductLikes.Any())
             .OrderByDescending(p => p.ProductLikes.Count)
             .Take(count)
@@ -372,6 +375,9 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
             .Include(p => p.ProductImageFiles.Where(img => img.Showcase))
             .Include(p => p.Brand)
             .Include(p => p.Category)
+            .Include(p => p.ProductFeatureValues)
+            .ThenInclude(pfv => pfv.FeatureValue)
+            .ThenInclude(fv => fv.Feature)
             .Where(p => p.ProductViews.Any())
             .OrderByDescending(p => p.ProductViews.Count)
             .Take(count)
@@ -383,6 +389,11 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
         return await Context.Products
             .AsNoTracking()
             .Include(p => p.ProductImageFiles.Where(pif => pif.Showcase))
+            .Include(p => p.Brand)
+            .Include(p => p.Category)
+            .Include(p => p.ProductFeatureValues)
+            .ThenInclude(pfv => pfv.FeatureValue)
+            .ThenInclude(fv => fv.Feature)
             .OrderBy(x => Guid.NewGuid()) // Random sıralama için
             .Take(count)
             .ToListAsync();

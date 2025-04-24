@@ -73,7 +73,10 @@ public class GetRandomProductsQuery : IRequest<GetListResponse<GetRandomProducts
                 predicate: p => randomProductIds.Contains(p.Id),
                 include: x => x.Include(p => p.Brand) // DTO'da varsa
                               .Include(p => p.Category) // DTO'da varsa
-                              .Include(x => x.ProductImageFiles.Where(pif => pif.Showcase)), // Resim için
+                              .Include(x => x.ProductImageFiles.Where(pif => pif.Showcase))
+                              .Include(p => p.ProductFeatureValues)
+                              .ThenInclude(pfv => pfv.FeatureValue)
+                              .ThenInclude(fv => fv.Feature),
                 cancellationToken: cancellationToken);
 
             // List<Product> -> List<DTO>
@@ -85,7 +88,7 @@ public class GetRandomProductsQuery : IRequest<GetListResponse<GetRandomProducts
                  var productEntity = randomProducts.FirstOrDefault(p => p.Id == productDto.Id);
                  if (productEntity?.ProductImageFiles != null)
                  {
-                     var showcaseImage = productEntity.ProductImageFiles.FirstOrDefault(); // Showcase filtrelendi
+                     var showcaseImage = productEntity.ProductImageFiles.FirstOrDefault(pif=>pif.Showcase); // Showcase filtrelendi
                      if (showcaseImage != null) productDto.ShowcaseImage = showcaseImage.ToDto(_storageService);
                  }
              }

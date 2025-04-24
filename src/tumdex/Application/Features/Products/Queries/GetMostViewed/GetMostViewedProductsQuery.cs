@@ -67,7 +67,7 @@ public class GetMostViewedProductsQuery : IRequest<GetListResponse<GetMostViewed
                  var productEntity = products.FirstOrDefault(p => p.Id == productDto.Id);
                  if (productEntity != null)
                  {
-                     var showcaseImage = productEntity.ProductImageFiles?.FirstOrDefault(); // Showcase filtrelendi
+                     var showcaseImage = productEntity.ProductImageFiles?.FirstOrDefault(pif=> pif.Showcase); // Showcase filtrelendi
                      if (showcaseImage != null) productDto.ShowcaseImage = showcaseImage.ToDto(_storageService);
                      productDto.ViewCount = productEntity.ProductViews?.Count ?? 0; // Görüntülenme sayısı
                  }

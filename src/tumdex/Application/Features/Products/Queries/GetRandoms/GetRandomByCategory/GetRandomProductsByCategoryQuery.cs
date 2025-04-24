@@ -80,7 +80,10 @@ public class GetRandomProductsByCategoryQuery : IRequest<GetListResponse<GetAllP
                 include: p => p.Include(x => x.Category) // DTO için gerekli
                               .Include(x => x.Brand)    // DTO için gerekli
                               .Include(p => p.ProductLikes) // DTO için gerekli
-                              .Include(x => x.ProductImageFiles.Where(pif => pif.Showcase)), // DTO için gerekli
+                              .Include(p => p.ProductFeatureValues)
+                              .ThenInclude(pfv => pfv.FeatureValue)
+                              .ThenInclude(fv => fv.Feature)
+                              .Include(x => x.ProductImageFiles.Where(pif => pif.Showcase)),
                 cancellationToken: cancellationToken);
 
              // List<Product> -> List<DTO> (GetAllProductQueryResponse kullanılıyor)
@@ -92,7 +95,7 @@ public class GetRandomProductsByCategoryQuery : IRequest<GetListResponse<GetAllP
                  var productEntity = randomProducts.FirstOrDefault(p => p.Id == productDto.Id);
                  if (productEntity != null)
                  {
-                     var showcaseImage = productEntity.ProductImageFiles?.FirstOrDefault(); // Showcase filtrelendi
+                     var showcaseImage = productEntity.ProductImageFiles?.FirstOrDefault(pif=>pif.Showcase); // Showcase filtrelendi
                      if (showcaseImage != null) productDto.ShowcaseImage = showcaseImage.ToDto(_storageService);
                      productDto.LikeCount = productEntity.ProductLikes?.Count ?? 0;
                  }

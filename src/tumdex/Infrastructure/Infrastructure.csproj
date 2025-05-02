@@ -41,6 +41,7 @@
     <ItemGroup>
         <ProjectReference Include="..\..\corePackages\Core.CrossCuttingConcerns\Core.CrossCuttingConcerns.csproj"/>
         <ProjectReference Include="..\Persistence\Persistence.csproj"/>
+        <ProjectReference Include="..\SignalR\SignalR.csproj" />
     </ItemGroup>
 
 </Project>

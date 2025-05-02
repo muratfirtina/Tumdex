@@ -198,14 +198,14 @@ namespace WebAPI.Controllers
             
             // Attempt count check
             string rateLimitKey = $"activation_attempts_{command.UserId}";
-            var attemptCount = await cacheService.GetCounterAsync(rateLimitKey);
+            var attemptCount = await cacheService.GetCounterAsync(rateLimitKey,cancellationToken: CancellationToken.None);
             
             // Block if exceeded 5 attempts
             if (attemptCount >= 5)
             {
                 // Handle rate limiting in controller - this is application-level validation
-                await cacheService.RemoveAsync($"email_activation_code_{command.UserId}");
-                await cacheService.RemoveAsync($"activation_token_{command.UserId}");
+                await cacheService.RemoveAsync($"email_activation_code_{command.UserId}", cancellationToken: CancellationToken.None);
+                await cacheService.RemoveAsync($"activation_token_{command.UserId}",cancellationToken: CancellationToken.None);
 
                 return StatusCode(StatusCodes.Status429TooManyRequests, new
                 {
@@ -221,10 +221,10 @@ namespace WebAPI.Controllers
             if (result.Verified)
             {
                 // Clear cache data on success
-                await cacheService.RemoveAsync(rateLimitKey);
-                await cacheService.RemoveAsync($"email_activation_code_{command.UserId}");
-                await cacheService.RemoveAsync($"activation_token_{command.UserId}");
-                await cacheService.SetAsync($"activation_completed_{command.UserId}", true, TimeSpan.FromDays(90));
+                await cacheService.RemoveAsync(rateLimitKey,cancellationToken: CancellationToken.None);
+                await cacheService.RemoveAsync($"email_activation_code_{command.UserId}",cancellationToken: CancellationToken.None);
+                await cacheService.RemoveAsync($"activation_token_{command.UserId}",cancellationToken: CancellationToken.None);
+                await cacheService.SetAsync($"activation_completed_{command.UserId}", true, TimeSpan.FromDays(90),cancellationToken: CancellationToken.None);
 
                 _logger.LogInformation("Activation completed for user {UserId} and URL/code destroyed", command.UserId);
 
@@ -237,10 +237,10 @@ namespace WebAPI.Controllers
             else
             {
                 // Increment counter on failed attempt (for 30 minutes)
-                await cacheService.IncrementAsync(rateLimitKey, 1, TimeSpan.FromMinutes(30));
+                await cacheService.IncrementAsync(rateLimitKey, 1, TimeSpan.FromMinutes(30),cancellationToken: CancellationToken.None);
 
                 // Get updated counter
-                var updatedCount = await cacheService.GetCounterAsync(rateLimitKey);
+                var updatedCount = await cacheService.GetCounterAsync(rateLimitKey,cancellationToken: CancellationToken.None);
                 var remainingAttempts = Math.Max(0, 5 - updatedCount);
 
                 return BadRequest(new
@@ -270,7 +270,7 @@ namespace WebAPI.Controllers
                 string rateLimitKey = $"activation_resend_{command.Email.ToLower()}";
                 
                 // Maximum 3 resend requests (within 1 hour)
-                var resendCount = await cacheService.GetCounterAsync(rateLimitKey);
+                var resendCount = await cacheService.GetCounterAsync(rateLimitKey,cancellationToken: CancellationToken.None);
                 if (resendCount >= 3)
                 {
                     return StatusCode(StatusCodes.Status429TooManyRequests, new
@@ -284,7 +284,7 @@ namespace WebAPI.Controllers
                 var response = await Mediator.Send(command);
                 
                 // Increment rate limiter
-                await cacheService.IncrementAsync(rateLimitKey, 1, TimeSpan.FromHours(1));
+                await cacheService.IncrementAsync(rateLimitKey, 1, TimeSpan.FromHours(1),cancellationToken: CancellationToken.None);
                 
                 return Ok(response);
             }
@@ -317,7 +317,7 @@ namespace WebAPI.Controllers
                 string rateLimitKey = $"token_verify_{ipAddress}";
                 
                 // Accept at most 10 requests per minute per IP
-                int requestCount = await cacheService.GetCounterAsync(rateLimitKey);
+                int requestCount = await cacheService.GetCounterAsync(rateLimitKey,cancellationToken: CancellationToken.None);
                 if (requestCount >= 10)
                 {
                     return StatusCode(StatusCodes.Status429TooManyRequests, new
@@ -328,7 +328,7 @@ namespace WebAPI.Controllers
                 }
 
                 // Increment request counter (for 1 minute)
-                await cacheService.IncrementAsync(rateLimitKey, 1, TimeSpan.FromMinutes(1));
+                await cacheService.IncrementAsync(rateLimitKey, 1, TimeSpan.FromMinutes(1),cancellationToken: CancellationToken.None);
 
                 // Create command for token verification
                 var command = new VerifyActivationTokenCommand { Token = token };

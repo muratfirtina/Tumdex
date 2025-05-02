@@ -61,7 +61,7 @@ public class StockUpdatedEventConsumer : IConsumer<StockUpdatedEvent>
 
             // Rate limiting kontrolü
             var rateLimitKey = $"{STOCK_UPDATE_RATE_PREFIX}{stockEvent.ProductId}";
-            var updateCount = await _cacheService.GetCounterAsync(rateLimitKey);
+            var updateCount = await _cacheService.GetCounterAsync(rateLimitKey,cancellationToken: CancellationToken.None);
             if (updateCount > 1000) // Saatte maksimum 1000 stok güncelleme
             {
                 _metricsService.IncrementRateLimitHit(stockEvent.ProductId, "stock-update");
@@ -73,7 +73,7 @@ public class StockUpdatedEventConsumer : IConsumer<StockUpdatedEvent>
             var product = await _cacheService.GetOrCreateAsync(
                 productCacheKey,
                 async () => await _productRepository.GetAsync(p => p.Id == stockEvent.ProductId),
-                TimeSpan.FromMinutes(30)
+                TimeSpan.FromMinutes(30),cancellationToken: CancellationToken.None
             );
 
             if (product == null)
@@ -93,7 +93,7 @@ public class StockUpdatedEventConsumer : IConsumer<StockUpdatedEvent>
             await _cacheService.GetOrCreateAsync(
                 historyKey,
                 async () => new List<object> { stockChange },
-                TimeSpan.FromDays(1)
+                TimeSpan.FromDays(1),cancellationToken: CancellationToken.None
             );
 
             // Stok güncelleme
@@ -106,10 +106,10 @@ public class StockUpdatedEventConsumer : IConsumer<StockUpdatedEvent>
             {
                 { productCacheKey, product }
             };
-            await _cacheService.SetManyAsync(cacheUpdates, TimeSpan.FromMinutes(30));
+            await _cacheService.SetManyAsync(cacheUpdates, TimeSpan.FromMinutes(30),cancellationToken: CancellationToken.None);
 
             // Rate limit sayacını artır
-            await _cacheService.IncrementAsync(rateLimitKey, 1, TimeSpan.FromHours(1));
+            await _cacheService.IncrementAsync(rateLimitKey, 1, TimeSpan.FromHours(1),cancellationToken: CancellationToken.None);
 
             // Stok düşüş kontrolü
             if (stockEvent.NewStock < stockEvent.MinStockLevel)

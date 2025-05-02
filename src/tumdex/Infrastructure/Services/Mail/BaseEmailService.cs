@@ -206,12 +206,12 @@ public abstract class BaseEmailService : IEmailService
         foreach (var recipient in recipients)
         {
             var rateLimitKey = $"{ServiceType.ToLower()}_email_ratelimit_{recipient}_{DateTime.UtcNow:yyyyMMddHH}";
-            var count = await _cacheService.GetCounterAsync(rateLimitKey);
+            var count = await _cacheService.GetCounterAsync(rateLimitKey,cancellationToken: CancellationToken.None);
 
             if (count >= 10) // Varsayılan saat başı 10 e-posta limiti
                 throw new Exception($"Email rate limit exceeded for recipient: {recipient}");
 
-            await _cacheService.IncrementAsync(rateLimitKey, 1, TimeSpan.FromHours(1));
+            await _cacheService.IncrementAsync(rateLimitKey, 1, TimeSpan.FromHours(1),cancellationToken: CancellationToken.None);
         }
     }
 

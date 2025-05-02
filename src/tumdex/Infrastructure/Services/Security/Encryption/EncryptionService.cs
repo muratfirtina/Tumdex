@@ -294,7 +294,7 @@ public class EncryptionService : IEncryptionService
         
         // Token'ı doğrulama için önbellekte sakla (tek kullanımlık olması için)
         string cacheKey = $"activation_token_{userId}";
-        await _cacheService.SetAsync(cacheKey, tokenData.nonce, TimeSpan.FromHours(24));
+        await _cacheService.SetAsync(cacheKey, tokenData.nonce, TimeSpan.FromHours(24),cancellationToken: CancellationToken.None);
         
         return token;
     }
@@ -335,7 +335,7 @@ public class EncryptionService : IEncryptionService
             
             // Önbellekteki nonce değerini kontrol ederek tekrar saldırılarını önle
             string cacheKey = $"activation_token_{userId}";
-            var cachedNonce = await _cacheService.TryGetValueAsync<string>(cacheKey);
+            var cachedNonce = await _cacheService.TryGetValueAsync<string>(cacheKey,cancellationToken: CancellationToken.None);
             
             if (!cachedNonce.success || cachedNonce.value != nonce)
             {
@@ -344,7 +344,7 @@ public class EncryptionService : IEncryptionService
             }
             
             // Başarılı doğrulamadan sonra token'ı önbellekten kaldır (tek kullanımlık)
-            await _cacheService.RemoveAsync(cacheKey);
+            await _cacheService.RemoveAsync(cacheKey,cancellationToken: CancellationToken.None);
             
             return true;
         }

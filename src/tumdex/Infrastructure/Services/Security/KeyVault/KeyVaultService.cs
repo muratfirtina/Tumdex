@@ -63,7 +63,7 @@ public class KeyVaultService : IKeyVaultService
         try
         {
             // Redis'ten kontrol et
-            var (success, cachedValue) = await _cache.TryGetValueAsync<string>(cacheKey);
+            var (success, cachedValue) = await _cache.TryGetValueAsync<string>(cacheKey,cancellationToken: CancellationToken.None);
             if (success)
             {
                 _logger.LogDebug("Cache hit for secret: {SecretName}", secretName);
@@ -74,7 +74,7 @@ public class KeyVaultService : IKeyVaultService
             try
             {
                 // Double check
-                (success, cachedValue) = await _cache.TryGetValueAsync<string>(cacheKey);
+                (success, cachedValue) = await _cache.TryGetValueAsync<string>(cacheKey,cancellationToken: CancellationToken.None);
                 if (success)
                 {
                     return await DecryptIfNeededAsync(secretName, cachedValue);
@@ -306,13 +306,13 @@ public class KeyVaultService : IKeyVaultService
             valueToCache = await _cacheEncryption.EncryptForCache(value);
         }
 
-        await _cache.SetAsync(cacheKey, valueToCache, CacheDuration);
+        await _cache.SetAsync(cacheKey, valueToCache, CacheDuration,cancellationToken: CancellationToken.None);
     }
 
     private async Task InvalidateCacheAsync(string secretName)
     {
         var cacheKey = $"{CacheKeyPrefix}{secretName}";
-        await _cache.RemoveAsync(cacheKey);
+        await _cache.RemoveAsync(cacheKey,cancellationToken: CancellationToken.None);
     }
 
     private async Task<string> DecryptIfNeededAsync(string secretName, string value)

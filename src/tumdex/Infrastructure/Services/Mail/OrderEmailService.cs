@@ -37,12 +37,12 @@ public class OrderEmailService : BaseEmailService, IOrderEmailService
         foreach (var recipient in recipients)
         {
             var rateLimitKey = $"quote_request_email_ratelimit_{recipient}_{DateTime.UtcNow:yyyyMMddHH}";
-            var count = await _cacheService.GetCounterAsync(rateLimitKey);
+            var count = await _cacheService.GetCounterAsync(rateLimitKey,cancellationToken: CancellationToken.None);
 
             if (count >= 10) // Higher limit for quote request emails
                 throw new Exception($"Email rate limit exceeded for recipient: {recipient}");
 
-            await _cacheService.IncrementAsync(rateLimitKey, 1, TimeSpan.FromHours(1));
+            await _cacheService.IncrementAsync(rateLimitKey, 1, TimeSpan.FromHours(1),cancellationToken: CancellationToken.None);
         }
     }
 

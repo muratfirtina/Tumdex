@@ -41,8 +41,8 @@ public class ContactEmailService : BaseEmailService, IContactEmailService
         var hourlyRateLimitKey = $"contact_form_submissions_{DateTime.UtcNow:yyyyMMddHH}";
         var dailyRateLimitKey = $"contact_form_daily_{DateTime.UtcNow:yyyyMMdd}";
         
-        var hourlyCount = await _cacheService.GetCounterAsync(hourlyRateLimitKey);
-        var dailyCount = await _cacheService.GetCounterAsync(dailyRateLimitKey);
+        var hourlyCount = await _cacheService.GetCounterAsync(hourlyRateLimitKey,cancellationToken: CancellationToken.None);
+        var dailyCount = await _cacheService.GetCounterAsync(dailyRateLimitKey,cancellationToken: CancellationToken.None);
         
         // Saatlik limit kontrolü
         if (hourlyCount >= hourlyLimit)
@@ -60,8 +60,8 @@ public class ContactEmailService : BaseEmailService, IContactEmailService
         }
         
         // Sayaçları artır
-        await _cacheService.IncrementAsync(hourlyRateLimitKey, 1, TimeSpan.FromHours(1));
-        await _cacheService.IncrementAsync(dailyRateLimitKey, 1, TimeSpan.FromDays(1));
+        await _cacheService.IncrementAsync(hourlyRateLimitKey, 1, TimeSpan.FromHours(1),cancellationToken: CancellationToken.None);
+        await _cacheService.IncrementAsync(dailyRateLimitKey, 1, TimeSpan.FromDays(1),cancellationToken: CancellationToken.None);
     }
 
     protected override string GetEmailTitleColor()

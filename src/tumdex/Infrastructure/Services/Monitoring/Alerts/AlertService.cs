@@ -132,13 +132,13 @@ public class AlertService : IAlertService
 
     private async Task<bool> ShouldThrottleAlert(AlertType type, string key)
     {
-        var count = await _cacheService.GetCounterAsync(key);
+        var count = await _cacheService.GetCounterAsync(key,cancellationToken: CancellationToken.None);
         var maxAlerts = _alertConfig.MaxAlertsPerHour.GetValueOrDefault(type, 100);
 
         if (count >= maxAlerts)
             return true;
 
-        await _cacheService.IncrementAsync(key, 1, TimeSpan.FromHours(1));
+        await _cacheService.IncrementAsync(key, 1, TimeSpan.FromHours(1),cancellationToken: CancellationToken.None);
         return false;
     }
 
@@ -148,7 +148,7 @@ public class AlertService : IAlertService
         var existingAlert = await _cacheService.GetOrCreateAsync<MetricAlert>(
             key,
             async () => null,
-            _alertConfig.GroupingWindow);
+            _alertConfig.GroupingWindow,cancellationToken: CancellationToken.None);
 
         return existingAlert != null;
     }
@@ -158,7 +158,7 @@ public class AlertService : IAlertService
         var key = $"active_alert_{alert.Type}_{alert.Source}";
         await _cacheService.SetManyAsync(
             new Dictionary<string, MetricAlert> { { key, alert } },
-            _alertConfig.GroupingWindow);
+            _alertConfig.GroupingWindow,cancellationToken: CancellationToken.None);
     }
 
     private async Task SaveAlertToDatabase(MetricAlert alert)

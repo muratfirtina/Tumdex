@@ -83,6 +83,12 @@ void ConfigureServiceLayers(WebApplicationBuilder builder)
         DatabaseConfiguration.GetConnectionString(builder.Configuration, null), // Logger'ı sonra alabiliriz
         builder.Environment.IsDevelopment());
     builder.Services.AddSignalRServices(); // SignalR Core ve Hub Servisleri
+    builder.Services.Configure<VisitorStatsOptions>(options => {
+        options.UpdateIntervalSeconds = 15; // 15 saniyede bir güncelleme
+        options.MinBroadcastIntervalSeconds = 5; // En az 5 saniye aralıkla yayın
+    });
+
+    builder.Services.AddHostedService<VisitorStatsBackgroundService>();
 
     // Prometheus controller için
     builder.Services.AddControllers()

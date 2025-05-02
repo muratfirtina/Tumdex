@@ -1,6 +1,10 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using StackExchange.Redis;
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Infrastructure.Services.Cache;
 
@@ -8,8 +12,8 @@ public class SlidingWindowRateLimiter
 {
     private readonly IDatabase _redisDb;
     private readonly ILogger<SlidingWindowRateLimiter> _logger;
-    private readonly TimeSpan _windowSize;
-    private readonly int _limit;
+    private readonly TimeSpan _defaultWindowSize;
+    private readonly int _defaultLimit;
     private readonly SemaphoreSlim _throttler;
 
     public SlidingWindowRateLimiter(
@@ -24,13 +28,17 @@ public class SlidingWindowRateLimiter
         _redisDb = connectionMultiplexer.GetDatabase();
         _logger = logger;
 
-        _windowSize = TimeSpan.Parse(
-            configuration.GetValue<string>("Security:RateLimiting:WindowSize") ?? "01:00:00");
-        _limit = configuration.GetValue<int>("Security:RateLimiting:RequestsPerHour", 1000);
-        _throttler = new SemaphoreSlim(200, 200);
+        _defaultWindowSize = TimeSpan.FromMinutes(
+            configuration.GetValue<int>("Security:RateLimiting:WindowSizeInMinutes", 60));
+        _defaultLimit = configuration.GetValue<int>("Security:RateLimiting:RequestsPerHour", 3600);
+        
+        // Paralel işlemler için throttler yapılandır
+        int parallelOperations = configuration.GetValue<int>("Security:RateLimiting:ParallelOperations", 200);
+        _throttler = new SemaphoreSlim(parallelOperations, parallelOperations);
     }
 
-    public async Task<(bool IsAllowed, int CurrentCount, TimeSpan? RetryAfter)> CheckRateLimitAsync(string key)
+    public async Task<(bool IsAllowed, int CurrentCount, TimeSpan? RetryAfter)> CheckRateLimitAsync(
+        string key, int? customLimit = null, TimeSpan? customWindowSize = null)
     {
         if (!await _throttler.WaitAsync(TimeSpan.FromSeconds(2)))
         {
@@ -41,32 +49,34 @@ public class SlidingWindowRateLimiter
         try
         {
             var now = DateTime.UtcNow.Ticks;
-            var windowStart = now - _windowSize.Ticks;
+            var windowSize = customWindowSize ?? _defaultWindowSize;
+            var windowStart = now - windowSize.Ticks;
+            var limit = customLimit ?? _defaultLimit;
 
             var batch = _redisDb.CreateBatch();
 
-            // Cleanup old records
+            // Eski kayıtları temizle
             var cleanupTask = batch.SortedSetRemoveRangeByScoreAsync(
                 key,
                 0,
                 windowStart
             );
 
-            // Add new request
+            // Yeni istek ekle
             var addTask = batch.SortedSetAddAsync(
                 key,
                 now.ToString(),
                 now
             );
 
-            // Get current count
+            // Mevcut sayıyı al
             var countTask = batch.SortedSetLengthAsync(key);
 
             batch.Execute();
             await Task.WhenAll(cleanupTask, addTask);
             var currentCount = await countTask;
 
-            if (currentCount > _limit)
+            if (currentCount > limit)
             {
                 var oldestRequest = await _redisDb.SortedSetRangeByScoreAsync(
                     key,
@@ -74,21 +84,25 @@ public class SlidingWindowRateLimiter
                 );
 
                 var retryAfter = TimeSpan.FromTicks(
-                    windowStart + _windowSize.Ticks -
+                    windowStart + windowSize.Ticks -
                     long.Parse(oldestRequest.First().ToString())
                 );
 
-                _logger.LogWarning("Rate limit exceeded for key: {Key}, Count: {Count}", key, currentCount);
+                _logger.LogWarning(
+                    "Rate limit exceeded for key: {Key}, Count: {Count}, Limit: {Limit}, WindowSize: {WindowSize}", 
+                    key, currentCount, limit, windowSize);
+                
                 return (false, (int)currentCount, retryAfter);
             }
 
-            await _redisDb.KeyExpireAsync(key, _windowSize);
+            // Redis'te gereksiz verileri önlemek için keyin süresini ayarla
+            await _redisDb.KeyExpireAsync(key, windowSize);
             return (true, (int)currentCount, null);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error checking rate limit for key: {Key}", key);
-            return (true, 0, null); // Fail open in case of errors
+            return (true, 0, null); // Hata durumunda açık davran
         }
         finally
         {

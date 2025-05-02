@@ -68,13 +68,13 @@ public class AccountEmailService : BaseEmailService, IAccountEmailService
             var hourlyRateLimitKey = $"account_email_ratelimit_{recipient}_{DateTime.UtcNow:yyyyMMddHH}";
             var dailyRateLimitKey = $"account_email_daily_limit_{recipient}_{DateTime.UtcNow:yyyyMMdd}";
 
-            var hourlyCount = await _cacheService.GetCounterAsync(hourlyRateLimitKey);
-            var dailyCount = await _cacheService.GetCounterAsync(dailyRateLimitKey);
+            var hourlyCount = await _cacheService.GetCounterAsync(hourlyRateLimitKey,cancellationToken: CancellationToken.None);
+            var dailyCount = await _cacheService.GetCounterAsync(dailyRateLimitKey,cancellationToken: CancellationToken.None);
 
             // Eğer zaten aynı alıcıya e-posta göndermişsek ve bir önceki gönderimden çok kısa
             // bir süre geçmişse (örn. 10 saniye), hızlı tekrarlanan istekleri engelleyelim
             var recentEmailKey = $"recent_email_{recipient}";
-            var recentEmailSent = await _cacheService.TryGetValueAsync<bool>(recentEmailKey);
+            var recentEmailSent = await _cacheService.TryGetValueAsync<bool>(recentEmailKey,cancellationToken: CancellationToken.None);
 
             if (recentEmailSent.success)
             {
@@ -105,11 +105,11 @@ public class AccountEmailService : BaseEmailService, IAccountEmailService
             }
 
             // Sayaçları artır
-            await _cacheService.IncrementAsync(hourlyRateLimitKey, 1, TimeSpan.FromHours(1));
-            await _cacheService.IncrementAsync(dailyRateLimitKey, 1, TimeSpan.FromDays(1));
+            await _cacheService.IncrementAsync(hourlyRateLimitKey, 1, TimeSpan.FromHours(1),cancellationToken: CancellationToken.None);
+            await _cacheService.IncrementAsync(dailyRateLimitKey, 1, TimeSpan.FromDays(1),cancellationToken: CancellationToken.None);
 
             // Kısa süre için "son gönderilen" işaretini ayarla
-            await _cacheService.SetAsync(recentEmailKey, true, TimeSpan.FromSeconds(10));
+            await _cacheService.SetAsync(recentEmailKey, true, TimeSpan.FromSeconds(10),cancellationToken: CancellationToken.None);
         }
     }
 

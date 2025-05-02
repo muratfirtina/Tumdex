@@ -282,7 +282,7 @@ public class AuthService : IAuthService
         {
             // Get the known IPs for this user from cache
             var key = $"known_ips_{user.Id}";
-            var result = await _cacheService.TryGetValueAsync<HashSet<string>>(key);
+            var result = await _cacheService.TryGetValueAsync<HashSet<string>>(key,cancellationToken: CancellationToken.None);
 
             if (result.success)
             {
@@ -296,14 +296,14 @@ public class AuthService : IAuthService
 
                     // Add the new IP to the known IPs set
                     knownIps.Add(ipAddress);
-                    await _cacheService.SetAsync(key, knownIps, TimeSpan.FromDays(30));
+                    await _cacheService.SetAsync(key, knownIps, TimeSpan.FromDays(30),cancellationToken: CancellationToken.None);
                 }
             }
             else
             {
                 // First login we're tracking, initialize the known IPs set
                 var knownIps = new HashSet<string> { ipAddress };
-                await _cacheService.SetAsync(key, knownIps, TimeSpan.FromDays(30));
+                await _cacheService.SetAsync(key, knownIps, TimeSpan.FromDays(30),cancellationToken: CancellationToken.None);
             }
         }
         catch (Exception ex)
@@ -343,10 +343,10 @@ public class AuthService : IAuthService
             try
             {
                 // Increment the failed attempts counter
-                await _cacheService.IncrementAsync(failedAttemptsKey, 1, TimeSpan.FromMinutes(60));
+                await _cacheService.IncrementAsync(failedAttemptsKey, 1, TimeSpan.FromMinutes(60),cancellationToken: CancellationToken.None);
 
                 // Get the current count
-                int failedAttempts = await _cacheService.GetCounterAsync(failedAttemptsKey);
+                int failedAttempts = await _cacheService.GetCounterAsync(failedAttemptsKey,cancellationToken: CancellationToken.None);
 
                 // If we exceed a threshold, send an alert
                 if (failedAttempts >= 10)
@@ -389,7 +389,7 @@ public class AuthService : IAuthService
         if (!string.IsNullOrEmpty(ipAddress))
         {
             string failedAttemptsKey = $"failed_login_{ipAddress}";
-            await _cacheService.RemoveAsync(failedAttemptsKey);
+            await _cacheService.RemoveAsync(failedAttemptsKey,cancellationToken: CancellationToken.None);
         }
 
         // Update the last login information

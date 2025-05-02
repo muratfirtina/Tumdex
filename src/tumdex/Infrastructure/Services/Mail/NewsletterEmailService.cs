@@ -39,7 +39,7 @@ public class NewsletterEmailService : BaseEmailService, INewsletterEmailService
         {
             // Bültenler için 24 saatlik pencere kullan (günlük)
             var rateLimitKey = $"newsletter_email_ratelimit_{recipient}_{DateTime.UtcNow:yyyyMMdd}";
-            var count = await _cacheService.GetCounterAsync(rateLimitKey);
+            var count = await _cacheService.GetCounterAsync(rateLimitKey,cancellationToken: CancellationToken.None);
 
             // Alıcı başına günde 2 bülten ile sınırla
             if (count >= 2)
@@ -48,7 +48,7 @@ public class NewsletterEmailService : BaseEmailService, INewsletterEmailService
                 throw new Exception($"Newsletter rate limit exceeded for recipient: {recipient}");
             }
 
-            await _cacheService.IncrementAsync(rateLimitKey, 1, TimeSpan.FromDays(1));
+            await _cacheService.IncrementAsync(rateLimitKey, 1, TimeSpan.FromDays(1),cancellationToken: CancellationToken.None);
         }
     }
 

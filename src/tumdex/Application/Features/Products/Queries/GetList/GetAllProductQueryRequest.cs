@@ -57,8 +57,8 @@ public class GetAllProductQuery : IRequest<GetListResponse<GetAllProductQueryRes
                 .Include(p => p.Category) // CategoryName
                 .Include(p => p.Brand) // BrandName
                 .Include(p => p.ProductLikes) // LikeCount
-                //.Include(x => x.ProductFeatureValues).ThenInclude(x => x.FeatureValue).ThenInclude(x => x.Feature) // DTO'da yoksa gereksiz
-                .Include(x => x.ProductImageFiles.Where(pif => pif.Showcase == true)); // Showcase resim
+                .Include(x => x.ProductFeatureValues).ThenInclude(x => x.FeatureValue).ThenInclude(x => x.Feature) // Uncomment this
+                .Include(x => x.ProductImageFiles.Where(pif => pif.Showcase == true));
 
             GetListResponse<GetAllProductQueryResponse> response;
 

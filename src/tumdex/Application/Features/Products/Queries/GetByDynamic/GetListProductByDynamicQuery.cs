@@ -61,7 +61,7 @@ public class GetListProductByDynamicQuery : IRequest<GetListResponse<GetListProd
             Func<IQueryable<Product>, IIncludableQueryable<Product, object>> includeFunc = p => p
                 .Include(e => e.Category) // CategoryName için
                 .Include(e => e.Brand) // BrandName için
-                //.Include(x => x.ProductFeatureValues).ThenInclude(x => x.FeatureValue).ThenInclude(x => x.Feature) // DTO'da yoksa gereksiz
+                .Include(x => x.ProductFeatureValues).ThenInclude(x => x.FeatureValue).ThenInclude(x => x.Feature) // DTO'da yoksa gereksiz
                 .Include(x => x.ProductImageFiles.Where(pif => pif.Showcase == true)); // Resim için
 
              GetListResponse<GetListProductByDynamicDto> response;

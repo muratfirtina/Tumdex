@@ -63,18 +63,21 @@ public class MappingProfiles : Profile
             .ReverseMap();
         
         CreateMap<Product, GetAllProductQueryResponse>()
-            .ForMember(dest 
-                => dest.CategoryName, opt 
-                => opt.MapFrom(src => src.Category.Name))
-            .ForMember(dest 
-                => dest.BrandName, opt 
-                => opt.MapFrom(src => src.Brand.Name))
-            .ForMember(dest 
-                => dest.ShowcaseImage, opt 
-                => opt.MapFrom(src => 
+            .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name))
+            .ForMember(dest => dest.BrandName, opt => opt.MapFrom(src => src.Brand.Name))
+            .ForMember(dest => dest.ShowcaseImage, opt => opt.MapFrom(src => 
                 src.ProductImageFiles.FirstOrDefault(pif => pif.Showcase)))
-            .ForMember(dest => dest.LikeCount, opt 
-                => opt.MapFrom(src => src.ProductLikes != null ? src.ProductLikes.Count : 0))
+            .ForMember(dest => dest.LikeCount, opt => opt.MapFrom(src => src.ProductLikes != null ? src.ProductLikes.Count : 0))
+            // Add this mapping for ProductFeatureValues
+            .ForMember(dest => dest.ProductFeatureValues, opt => opt.MapFrom(src => src.ProductFeatureValues
+                .Where(pfv => pfv.FeatureValue != null && pfv.FeatureValue.Feature != null)
+                .Select(pfv => new ProductFeatureValueDto
+                {
+                    FeatureId = pfv.FeatureValue.Feature.Id,
+                    FeatureName = pfv.FeatureValue.Feature.Name,
+                    FeatureValueId = pfv.FeatureValue.Id,
+                    FeatureValueName = pfv.FeatureValue.Name
+                })))
             .ReverseMap();
         
         CreateMap<Product, GetListProductByDynamicDto>()

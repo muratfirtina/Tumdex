@@ -52,7 +52,7 @@ public class GetByIdCategoryQuery : IRequest<GetByIdCategoryResponse>, ICachable
                               .Include(c => c.CategoryImageFiles)
                               .Include(c => c.SubCategories)
                               .Include(c => c.Features)
-                                .ThenInclude(f => f.FeatureValues)
+                              .ThenInclude(f => f.FeatureValues.OrderBy(fv => fv.Name))
                               .Include(c => c.Products),
                 cancellationToken: cancellationToken);
 

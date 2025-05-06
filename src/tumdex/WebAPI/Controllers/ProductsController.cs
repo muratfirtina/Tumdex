@@ -163,6 +163,45 @@ namespace WebAPI.Controllers
             return Ok(response);
         }
         
+        [HttpPost("upload-description-video")]
+        [Consumes("multipart/form-data")]
+        [Authorize(AuthenticationSchemes = "Admin")]
+        [AuthorizeDefinition(ActionType = ActionType.Updating, Definition = "Upload Product Description Video", Menu = AuthorizeDefinitionConstants.Products)]
+        public async Task<IActionResult> UploadDescriptionVideo(IFormFile Video)
+        {
+            if (Video == null || Video.Length == 0)
+                return BadRequest("No file uploaded");
+
+            // Dosya formatı kontrolü
+            string extension = Path.GetExtension(Video.FileName).ToLower();
+            string[] allowedExtensions = { ".mp4", ".webm", ".mov" };
+    
+            if (!allowedExtensions.Contains(extension))
+                return BadRequest("Unsupported file format. Only MP4, WebM and MOV files are allowed.");
+    
+            // Dosya boyutu kontrolü (50MB)
+            if (Video.Length > 52428800) // 50MB in bytes
+                return BadRequest("File size exceeds limit of 50MB");
+
+            var uploadedFiles = await _storageService.UploadAsync(
+                "description-videos", 
+                Guid.NewGuid().ToString(), 
+                new List<IFormFile> { Video });
+
+            var result = uploadedFiles.FirstOrDefault();
+            if (!string.IsNullOrEmpty(result.url))
+            {
+                return Ok(new { 
+                    Url = result.url,
+                    MimeType = Video.ContentType,
+                    FileName = result.fileName,
+                    FileSize = Video.Length
+                });
+            }
+
+            return BadRequest("Upload failed");
+        }
+        
         [HttpGet("most-viewed")]
         public async Task<IActionResult> GetMostViewedProducts([FromQuery] int count = 10)
         {

@@ -51,6 +51,8 @@ public class TumdexDbContext : IdentityDbContext<AppUser,AppRole,string>
     public DbSet<City> Cities { get; set; }
     public DbSet<District> Districts { get; set; }
     public DbSet<VisitorTrackingEvent> VisitorTrackingEvents { get; set; }
+    public DbSet<CarouselVideoFile> CarouselVideoFiles { get; set; }
+    public DbSet<VideoFile> VideoFiles { get; set; }
     
     
     protected override void OnModelCreating(ModelBuilder builder)
@@ -86,6 +88,7 @@ public class TumdexDbContext : IdentityDbContext<AppUser,AppRole,string>
         builder.Entity<City>().HasQueryFilter(c => !c.DeletedDate.HasValue);
         builder.Entity<District>().HasQueryFilter(d => !d.DeletedDate.HasValue);
         builder.Entity<VisitorTrackingEvent>().HasQueryFilter(v => !v.DeletedDate.HasValue);
+        builder.Entity<VideoFile>().HasQueryFilter(vf => !vf.DeletedDate.HasValue);
         
         
         

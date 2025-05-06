@@ -2,6 +2,7 @@ using Application.Features.Categories.Commands.Create;
 using Application.Features.Categories.Commands.Delete;
 using Application.Features.Categories.Commands.Update;
 using Application.Features.Categories.Dtos;
+using Application.Features.Categories.Queries.GetAllSubCategoriesRecursive;
 using Application.Features.Categories.Queries.GetByDynamic;
 using Application.Features.Categories.Queries.GetById;
 using Application.Features.Categories.Queries.GetCategoriesByIds;
@@ -147,6 +148,11 @@ public class MappingProfiles : Profile
             .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src));
         CreateMap<Category, GetSubCategoriesByBrandIdQueryReponse>()
             .ForMember(dest => dest.CategoryImage, opt => opt.MapFrom(src => src.CategoryImageFiles.FirstOrDefault()));
+        
+        CreateMap<Category, GetAllSubCategoriesRecursiveResponse>()
+            .ForMember(dest => dest.CategoryImage, opt => opt.MapFrom(src => src.CategoryImageFiles.FirstOrDefault()))
+            .ForMember(dest => dest.Depth, opt => opt.Ignore()) // Derinlik bilgisi ayrıca hesaplanacak
+            .ForMember(dest => dest.DirectSubCategories, opt => opt.Ignore()); 
 
     }
 

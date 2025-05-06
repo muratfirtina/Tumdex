@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Application.Repositories;
 using Application.Services;
 using Application.Storage;
 using Application.Storage.Local;
@@ -14,66 +15,94 @@ public class StorageService : IStorageService
     private readonly IStorageProviderFactory _providerFactory;
     private readonly IFileNameService _fileNameService;
     private readonly IConfiguration _configuration;
+    private readonly IVideoFileRepository? _videoFileRepository;
 
     public StorageService(
         IStorageProviderFactory providerFactory,
         IFileNameService fileNameService,
-        IConfiguration configuration)
+        IConfiguration configuration, IVideoFileRepository? videoFileRepository)
     {
         _providerFactory = providerFactory;
         _fileNameService = fileNameService;
         _configuration = configuration;
+        _videoFileRepository = videoFileRepository;
     }
 
-    public async
-        Task<List<(string fileName, string path, string entityType, string storageType, string url, string format)>>
-        UploadAsync(
-            string entityType,
-            string path,
-            List<IFormFile> files)
+    public async Task<List<(string fileName, string path, string entityType, string storageType, string url, string format)>> 
+    UploadAsync(string entityType, string path, List<IFormFile> files)
+{
+    var results = new List<(string fileName, string path, string entityType, string storageType, string url, string format)>();
+
+    foreach (var file in files)
     {
-        var results =
-            new List<(string fileName, string path, string entityType, string storageType, string url, string format
-                )>();
+        // Dosya formatını kontrol et
+        await _fileNameService.FileMustBeInFileFormat(file);
+        
+        // Video dosyası mı kontrol et
+        bool isVideoFile = _fileNameService.IsVideoFile(file.FileName);
+        string entityTypeFolder = isVideoFile ? $"{entityType}-videos" : entityType;
 
-        foreach (var file in files)
+        // Dosya ve yol detaylarını hazırla
+        var (newPath, fileNewName) = await PrepareFileDetails(file, entityTypeFolder, path);
+        using var memoryStream = new MemoryStream();
+        await file.CopyToAsync(memoryStream);
+
+        // Tüm konfigüre edilmiş provider'lara yükle
+        var uploadTasks = _providerFactory.GetConfiguredProviders()
+            .Select(provider => UploadToProvider(provider, entityTypeFolder, newPath, fileNewName, memoryStream))
+            .ToList();
+
+        try
         {
-            var (newPath, fileNewName) = await PrepareFileDetails(file, entityType, path);
-            using var memoryStream = new MemoryStream();
-            await file.CopyToAsync(memoryStream);
+            await Task.WhenAll(uploadTasks);
 
-            // Tüm konfigüre edilmiş provider'lara yükle
-            var uploadTasks = _providerFactory.GetConfiguredProviders()
-                .Select(provider => UploadToProvider(provider, entityType, newPath, fileNewName, memoryStream))
-                .ToList();
+            // Aktif provider'dan URL'i al
+            var activeProvider = _providerFactory.GetProvider();
+            var activeProviderTask = uploadTasks
+                .FirstOrDefault(t => t.Result?.Provider.GetType() == activeProvider.GetType());
 
-            try
+            if (activeProviderTask?.Result?.Result != null)
             {
-                await Task.WhenAll(uploadTasks);
-
-                // Active provider'dan URL'i al
-                var activeProvider = _providerFactory.GetProvider();
-                var activeProviderTask = uploadTasks
-                    .FirstOrDefault(t => t.Result?.Provider.GetType() == activeProvider.GetType());
-
-                if (activeProviderTask?.Result?.Result != null)
+                foreach (var result in activeProviderTask.Result.Result)
                 {
-                    foreach (var result in activeProviderTask.Result.Result)
-                    {
-                        var format = Path.GetExtension(file.FileName).TrimStart('.').ToLower();
-                        var storageType = activeProvider.GetType().Name.Replace("Storage", "").ToLower();
-                        results.Add((result.fileName, result.path, entityType, storageType, result.url, format));
-                    }
+                    var format = Path.GetExtension(file.FileName).TrimStart('.').ToLower();
+                    var storageType = activeProvider.GetType().Name.Replace("Storage", "").ToLower();
+                    results.Add((result.fileName, result.path, entityTypeFolder, storageType, result.url, format));
                 }
             }
-            catch (Exception ex)
+
+            // Eğer video dosyası ise, VideoFile tablosuna da bir kayıt ekle
+            if (isVideoFile)
             {
-                Debug.WriteLine($"Error during file upload: {ex.Message}");
+                // MIME türünü al
+                string mimeType = GetMimeType(file.FileName);
+                
+                // VideoFile varlığı oluştur
+                var videoFile = new VideoFile(fileNewName)
+                {
+                    Path = newPath,
+                    EntityType = entityTypeFolder,
+                    Storage = activeProvider.GetType().Name.Replace("Storage", "").ToLower(),
+                    MimeType = mimeType,
+                    FileSize = file.Length
+                };
+                
+                // Veritabanına ekle
+                if (_videoFileRepository != null)
+                {
+                    await _videoFileRepository.AddAsync(videoFile);
+                }
             }
         }
-
-        return results;
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Dosya yükleme sırasında hata: {ex.Message}");
+            // Hata işleme ekleyebilirsiniz
+        }
     }
+
+    return results;
+}
 
     public async Task<List<T>?> GetFiles<T>(
         string entityId,
@@ -181,5 +210,19 @@ public class StorageService : IStorageService
         }
 
         return uploadTask;
+    }
+    
+    private string GetMimeType(string fileName)
+    {
+        var extension = Path.GetExtension(fileName).ToLower();
+        return extension switch
+        {
+            ".mp4" => "video/mp4",
+            ".webm" => "video/webm",
+            ".mov" => "video/quicktime",
+            ".avi" => "video/x-msvideo",
+            ".mkv" => "video/x-matroska",
+            _ => "application/octet-stream" // Default type if unknown
+        };
     }
 }

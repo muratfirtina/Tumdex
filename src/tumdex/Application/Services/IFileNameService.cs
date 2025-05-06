@@ -8,4 +8,5 @@ public interface IFileNameService
     Task<string> FileRenameAsync(string pathOrContainerName,string fileName, HasFile hasFileMethod);
     Task<string> PathRenameAsync(string pathOrContainerName);
     Task FileMustBeInFileFormat(IFormFile formFile);
+    bool IsVideoFile(string fileName);
 }

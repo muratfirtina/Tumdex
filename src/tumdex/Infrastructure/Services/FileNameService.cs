@@ -7,8 +7,14 @@ using SkiaSharp;
 namespace Infrastructure.Services;
 
 public class FileNameService : IFileNameService
-
 {
+    // Add video file extensions to the validation
+    private readonly List<string> _allowedImageExtensions = new() { ".jpg", ".png", ".jpeg", ".webp", ".heic", ".avif" };
+    private readonly List<string> _allowedVideoExtensions = new() { ".mp4", ".webm", ".mov", ".avi", ".mkv" };
+    
+    // Maximum file sizes
+    public const int MaxImageSize = 5 * 1024 * 1024; // 5MB
+    public const int MaxVideoSize = 50 * 1024 * 1024; // 50MB
     
     public async Task<string> FileRenameAsync(string pathOrContainerName,string fileName, IFileNameService.HasFile hasFileMethod)
     {
@@ -16,12 +22,7 @@ public class FileNameService : IFileNameService
         string oldName = Path.GetFileNameWithoutExtension(fileName);
         string regulatedFileName = NameOperation.CharacterRegulatory(oldName);
         regulatedFileName = regulatedFileName.ToLower().Trim('-', ' '); //harfleri küçültür ve baştaki ve sondaki - ve boşlukları siler
-        //oldName = oldName.Replace("ç", "c").Replace("ğ", "g").Replace("ı", "i").Replace("ö", "o").Replace("ş", "s").Replace("ü", "u").Replace(" ", "-");
-        //char[] invalidChars = { '$', ':', ';', '@', '+', '-', '_', '=', '(', ')', '{', '}', '[', ']' ,'∑','€','®','₺','¥','π','¨','~','æ','ß','∂','ƒ','^','∆','´','¬','Ω','√','∫','µ','≥','÷','|'}; //geçersiz karakterleri belirler.
-        //oldName = oldName.TrimStart(invalidChars).TrimEnd(invalidChars); //baştaki ve sondaki geçersiz karakterleri siler
-        //Regex regex = new Regex("[*'\",+._&#^@|/<>~]");
-        //string regulatedFileName = NameOperation.CharacterRegulatory(oldName);
-        //string newFileName = regex.Replace(regulatedFileName, string.Empty);//geçersiz karakterleri siler ve yeni dosya ismi oluşturur.
+        
         DateTime datetimenow = DateTime.UtcNow;
         string datetimeutcnow = datetimenow.ToString("yyyyMMddHHmmss");//dosya isminin sonuna eklenen tarih bilgisi
         string fullName = $"{regulatedFileName}-{datetimeutcnow}{extension}";//dosya ismi ve uzantısı birleştirilir ve yeni dosya ismi oluşturulur.
@@ -43,58 +44,60 @@ public class FileNameService : IFileNameService
     {
         string regulatedPath = NameOperation.CharacterRegulatory(pathOrContainerName);
         regulatedPath = regulatedPath.ToLower().Trim('-', ' '); //harfleri küçültür ve baştaki ve sondaki - ve boşlukları siler
-        //pathOrContainerName = pathOrContainerName.Replace("ç", "c").Replace("ğ", "g").Replace("ı", "i").Replace("ö", "o").Replace("ş", "s").Replace("ü", "u").Replace(" ", "-");
-        //char[] invalidChars = { '$', ':', ';', '@', '+', '-', '_', '=', '(', ')', '{', '}', '[', ']', '∑', '€', '®', '₺', '¥', 'π', '¨', '~', 'æ', 'ß', '∂', 'ƒ', '^', '∆', '´', '¬', 'Ω', '√', '∫', 'µ', '≥', '÷', '|' }; //geçersiz karakterleri belirler.
-        //pathOrContainerName = pathOrContainerName.TrimStart(invalidChars).TrimEnd(invalidChars); //baştaki ve sondaki geçersiz karakterleri siler
-        //Regex regex = new Regex("[*'\",+._&#^@|/<>~]");
-        //string newPath = regex.Replace(regulatedPath, string.Empty);//geçersiz karakterleri siler ve yeni dosya ismi oluşturur.
         return regulatedPath;
     }
+    
     public async Task FileMustBeInFileFormat(IFormFile formFile)
     {
-        List<string> extensions = new() { ".jpg", ".png", ".jpeg", ".webp", ".heic",".avif" };
-
         string extension = Path.GetExtension(formFile.FileName).ToLower();
-        if (!extensions.Contains(extension))
-            throw new BusinessException("Unsupported format");
+        
+        // Check if it's either an allowed image or video format
+        if (!_allowedImageExtensions.Contains(extension) && !_allowedVideoExtensions.Contains(extension))
+            throw new BusinessException("Unsupported file format");
+            
+        // Check file size limits
+        if (_allowedImageExtensions.Contains(extension) && formFile.Length > MaxImageSize)
+            throw new BusinessException($"Image file size exceeds limit of {MaxImageSize / (1024 * 1024)}MB");
+            
+        if (_allowedVideoExtensions.Contains(extension) && formFile.Length > MaxVideoSize)
+            throw new BusinessException($"Video file size exceeds limit of {MaxVideoSize / (1024 * 1024)}MB");
+            
         await Task.CompletedTask;
     }
     
-    //maximum yüklenebilecek dosya boyutu
-    public const int MaxFileSize = 5 * 1024 * 1024; //5MB
-    
-    private static void ResizeImage(string destinationPath, int percentage)
+    public async Task FileMustBeInImageFormat(IFormFile formFile)
     {
-        using (var originalBitmap = SKBitmap.Decode(destinationPath))
-        {
-            var newWidth = (int)Math.Round(originalBitmap.Width * percentage / 100.0);
-            var newHeight = (int)Math.Round(originalBitmap.Height * percentage / 100.0);
-        
-            // Eski:
-            // var scaledBitmap = originalBitmap.Resize(new SKImageInfo(newWidth, newHeight), SKBitmapResizeMethod.Lanczos3);
-        
-            // Yeni:
-            var scaledBitmap = originalBitmap.Resize(new SKImageInfo(newWidth, newHeight), SKFilterQuality.High);
-        
-            using (var image = SKImage.FromBitmap(scaledBitmap))
-            {
-                using (var jpegData = image.Encode(SKEncodedImageFormat.Jpeg, 70))
-                {
-                    using (var stream = File.OpenWrite(destinationPath))
-                    {
-                        jpegData.SaveTo(stream);
-                    }
-                }
-
-                using (var pngData = image.Encode(SKEncodedImageFormat.Png, 70))
-                {
-                    using (var stream = File.OpenWrite(destinationPath))
-                    {
-                        pngData.SaveTo(stream);
-                    }
-                }
-            }
-        }
+        string extension = Path.GetExtension(formFile.FileName).ToLower();
+        if (!_allowedImageExtensions.Contains(extension))
+            throw new BusinessException("Unsupported image format");
+            
+        if (formFile.Length > MaxImageSize)
+            throw new BusinessException($"Image file size exceeds limit of {MaxImageSize / (1024 * 1024)}MB");
+            
+        await Task.CompletedTask;
     }
     
+    public async Task FileMustBeInVideoFormat(IFormFile formFile)
+    {
+        string extension = Path.GetExtension(formFile.FileName).ToLower();
+        if (!_allowedVideoExtensions.Contains(extension))
+            throw new BusinessException("Unsupported video format");
+            
+        if (formFile.Length > MaxVideoSize)
+            throw new BusinessException($"Video file size exceeds limit of {MaxVideoSize / (1024 * 1024)}MB");
+            
+        await Task.CompletedTask;
+    }
+    
+    public bool IsVideoFile(string fileName)
+    {
+        string extension = Path.GetExtension(fileName).ToLower();
+        return _allowedVideoExtensions.Contains(extension);
+    }
+    
+    public bool IsImageFile(string fileName)
+    {
+        string extension = Path.GetExtension(fileName).ToLower();
+        return _allowedImageExtensions.Contains(extension);
+    }
 }

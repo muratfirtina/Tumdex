@@ -92,6 +92,20 @@ namespace WebAPI.Controllers
             return Ok(response);
         }
         
+        [HttpPost("GetSubCategoriesByMultipleIds")]
+        public async Task<IActionResult> GetSubCategoriesByMultipleIds([FromBody] List<string> categoryIds)
+        {
+            var results = new Dictionary<string, GetListResponse<GetSubCategoriesByCategoryIdQueryReponse>>();
+    
+            foreach (var categoryId in categoryIds)
+            {
+                var response = await Mediator.Send(new GetSubCategoriesByCategoryIdQuery { ParentCategoryId = categoryId });
+                results[categoryId] = response;
+            }
+    
+            return Ok(results);
+        }
+        
         [HttpGet("GetSubCategoriesByBrandId/{brandId}")]
         public async Task<IActionResult> GetSubCategoriesByBrandId([FromRoute] string brandId)
         {

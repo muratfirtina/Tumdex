@@ -89,6 +89,7 @@ public static class ServiceRegistration
         services.AddScoped<IDistrictRepository, DistrictRepository>();
         services.AddScoped<IVisitorAnalyticsRepository, VisitorAnalyticsRepository>();
         services.AddScoped<IVisitorAnalyticsService, VisitorAnalyticsService>();
+        services.AddScoped<IVideoFileRepository, VideoFileRepository>();
         services.AddSingleton<UAParser.Parser>(sp => UAParser.Parser.GetDefault());
     }
 }

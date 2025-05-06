@@ -178,6 +178,10 @@ public class RedisCacheService : ICacheService, IDisposable
 
     public async Task<(bool success, T value)> TryGetValueAsync<T>(string key, CancellationToken cancellationToken)
     {
+        // Kullanılabilirliği kontrol edin ve Redis durumunu günlüğe kaydedin
+        if (!_isAvailable) {
+            _logger.LogWarning("Redis kullanılamıyor, şu anahtar için bellek önbelleğine dönülüyor: {Key}", key);
+        }
         ArgumentNullException.ThrowIfNull(key);
         if (!CheckAvailability(nameof(TryGetValueAsync))) return (false, default(T)!);
 

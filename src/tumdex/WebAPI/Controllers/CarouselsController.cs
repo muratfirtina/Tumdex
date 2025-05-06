@@ -35,7 +35,7 @@ namespace WebAPI.Controllers
         [HttpPut]
         [Authorize(AuthenticationSchemes = "Admin")]
         [AuthorizeDefinition(ActionType = ActionType.Updating, Definition = "Update Carousel", Menu = AuthorizeDefinitionConstants.Carousels)]
-        public async Task<IActionResult> Update([FromBody] UpdateCarouselCommand updateCarouselCommand)
+        public async Task<IActionResult> Update([FromForm] UpdateCarouselCommand updateCarouselCommand)
         {
             UpdatedCarouselResponse response = await Mediator.Send(updateCarouselCommand);
             return Ok(response);

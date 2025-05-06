@@ -35,6 +35,7 @@ public class MappingProfiles : Profile
             .ReverseMap();
         
         CreateMap<Carousel, GetAllCarouselQueryResponse>()
+            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
             .ForMember(dest 
                 => dest.CarouselImageFiles, opt 
                 => opt.MapFrom(src => src.CarouselImageFiles));

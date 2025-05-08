@@ -1,6 +1,7 @@
 using Application.Features.Carousels.Commands.Create;
 using Application.Features.Carousels.Commands.Update;
 using Application.Features.Carousels.Dtos;
+using Application.Features.Carousels.Queries.GetById;
 using Application.Features.Carousels.Queries.GetCarousel;
 using AutoMapper;
 using Core.Application.Responses;
@@ -35,10 +36,14 @@ public class MappingProfiles : Profile
             .ReverseMap();
         
         CreateMap<Carousel, GetAllCarouselQueryResponse>()
+            // ID alanını açıkça map edelim
             .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
-            .ForMember(dest 
-                => dest.CarouselImageFiles, opt 
-                => opt.MapFrom(src => src.CarouselImageFiles));
+            .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.Name))
+            .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Description))
+            .ForMember(dest => dest.Order, opt => opt.MapFrom(src => src.Order))
+            .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => src.IsActive))
+            .ForMember(dest => dest.CarouselImageFiles, opt => opt.MapFrom(src => src.CarouselImageFiles));
+        
         
     }
 }

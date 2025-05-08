@@ -3,6 +3,7 @@ using Application.CustomAttributes;
 using Application.Enums;
 using Application.Features.Carousels.Commands.Create;
 using Application.Features.Carousels.Commands.Update;
+using Application.Features.Carousels.Queries.GetById;
 using Application.Features.Carousels.Queries.GetCarousel;
 using Core.Application.Requests;
 using Core.Application.Responses;
@@ -20,6 +21,12 @@ namespace WebAPI.Controllers
         public async Task<IActionResult> GetList([FromQuery] PageRequest pageRequest)
         {
             GetListResponse<GetAllCarouselQueryResponse> response = await Mediator.Send(new GetAllCarouselQuery { PageRequest = pageRequest });
+            return Ok(response);
+        }
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(string id)
+        {
+            GetCarouselByIdQueryResponse response = await Mediator.Send(new GetCarouselByIdQuery { Id = id });
             return Ok(response);
         }
         

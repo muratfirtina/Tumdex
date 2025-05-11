@@ -12,6 +12,7 @@ using Domain.Enum;
 using Microsoft.EntityFrameworkCore;
 using Persistence.Context;
 using Persistence.Extensions;
+using Persistence.Models;
 
 namespace Persistence.Repositories;
 
@@ -118,14 +119,14 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
         {
             var categoryIds = new List<string>(filters["Category"]);
             var allCategoryIds = new List<string>(categoryIds);
-    
+
             // Her seçili kategori için alt kategorileri ekle
             foreach (var categoryId in categoryIds)
             {
                 var subCategoryIds = await GetAllSubCategoryIds(categoryId);
                 allCategoryIds.AddRange(subCategoryIds);
             }
-    
+
             // Benzersiz kategori ID'lerini kullan
             filters["Category"] = allCategoryIds.Distinct().ToList();
         }
@@ -137,7 +138,7 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
         {
             // ToPaginateAsync metodu yerine ToListAsync kullanarak veriyi çek
             var allItems = await query.ToListAsync();
-        
+
             // Manuel olarak IPaginate tipine dönüştür
             return new Paginate<Product>
             {
@@ -148,7 +149,7 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
                 Pages = 1
             };
         }
-    
+
         // Normal sayfalama işlemi
         return await query.ToPaginateAsync(pageRequest.PageIndex, pageRequest.PageSize);
     }
@@ -157,166 +158,396 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
     private async Task<List<string>> GetAllSubCategoryIds(string categoryId)
     {
         var result = new List<string>();
-    
+
         // İlk seviye alt kategorileri al
         var subCategories = await Context.Categories
             .Where(c => c.ParentCategoryId == categoryId)
             .Select(c => c.Id)
             .ToListAsync();
-    
+
         result.AddRange(subCategories);
-    
+
         // Her bir alt kategori için rekursif olarak onun alt kategorilerini al
         foreach (var subCategoryId in subCategories)
         {
             var nestedSubCategories = await GetAllSubCategoryIds(subCategoryId);
             result.AddRange(nestedSubCategories);
         }
-    
+
         return result;
     }
 
-    public async Task<List<FilterGroupDto>> GetAvailableFilters(string? searchTerm = null, string[]? categoryIds = null, string[]? brandIds = null)
-{
-    var filterDefinitions = new List<FilterGroupDto>();
-    
-    // Başlangıç sorgusu oluştur
-    var query = Context.Products.AsQueryable();
-    
-    // 1. Arama terimi varsa uygula
-    if (!string.IsNullOrWhiteSpace(searchTerm))
+    public async Task<List<FilterGroupDto>> GetAvailableFilters(string? searchTerm = null, string[]? categoryIds = null,
+        string[]? brandIds = null)
     {
-        // Kategori ID kontrolü
-        if (await Context.Categories.AnyAsync(c => c.Id == searchTerm))
+        var filterDefinitions = new List<FilterGroupDto>();
+
+        // Başlangıç sorgusu oluştur - Kategori ve markayı dahil et
+        var query = Context.Products
+            .Include(p => p.Category)
+            .Include(p => p.Brand)
+            .AsQueryable();
+
+        // Kategori filtresi uygula
+        if (categoryIds != null && categoryIds.Length > 0)
         {
-            query = query.Where(p => p.CategoryId == searchTerm);
+            // Direkt kategorileri ve alt kategorileri ekle
+            var allCategoryIds = new HashSet<string>(categoryIds);
+
+            // Alt kategorileri topla
+            foreach (var categoryId in categoryIds)
+            {
+                var subCatIds = await GetAllSubCategoryIds(categoryId);
+                foreach (var id in subCatIds)
+                {
+                    allCategoryIds.Add(id);
+                }
+            }
+
+            // Kategori filtresi uygula
+            query = query.Where(p => allCategoryIds.Contains(p.CategoryId));
         }
-        // Brand ID kontrolü
-        else if (await Context.Brands.AnyAsync(b => b.Id == searchTerm))
-        {
-            query = query.Where(p => p.BrandId == searchTerm);
-        }
-        else
+
+        // Arama terimi filtresi
+        if (!string.IsNullOrWhiteSpace(searchTerm))
         {
             query = query.SearchByTerm(searchTerm);
         }
+
+        // Marka filtresi
+        if (brandIds != null && brandIds.Length > 0)
+        {
+            query = query.Where(p => brandIds.Contains(p.BrandId));
+        }
+
+        // Kategori filtresi
+        var categoryFilter = await BuildCategoryFilterHierarchy(query, categoryIds);
+        if (categoryFilter.Options.Any())
+        {
+            filterDefinitions.Add(categoryFilter);
+        }
+
+        // Marka filtresi
+        var brandFilter = await BuildBrandFilterAsync(query);
+        if (brandFilter.Options.Any())
+        {
+            filterDefinitions.Add(brandFilter);
+        }
+
+        // Özellik filtreleri
+        var featureFilters = await BuildFeatureFiltersAsync(query);
+        filterDefinitions.AddRange(featureFilters);
+
+        // Fiyat filtresi 
+        /*var priceFilter = await BuildPriceFilterAsync(query);
+        if (priceFilter.Options.Any())
+        {
+            filterDefinitions.Add(priceFilter);
+        }*/
+
+        return filterDefinitions;
     }
-    
-    // 2. Kategori ID'leri varsa, bunları filtreye ekle
+
+// Kategori filtre hiyerarşisini oluşturan yardımcı metot
+    private async Task<FilterGroupDto> BuildCategoryFilterHierarchy(IQueryable<Product> query, string[]? categoryIds)
+{
+    var filter = new FilterGroupDto
+    {
+        Key = "Category",
+        Name = "Category",
+        DisplayName = "Category",
+        Type = FilterType.Checkbox,
+        Options = new List<FilterOptionDto>()
+    };
+
+    // Kategori ve alt kategorileri toplayan liste
+    var categoryOptions = new List<FilterOptionDto>();
+
     if (categoryIds != null && categoryIds.Length > 0)
     {
-        query = query.Where(p => categoryIds.Contains(p.CategoryId));
-    }
-    
-    // 3. Marka ID'leri varsa, bunları filtreye ekle
-    if (brandIds != null && brandIds.Length > 0)
-    {
-        query = query.Where(p => brandIds.Contains(p.BrandId));
-    }
-    
-    // 1. Kategori Filtresi
-    var categories = await Context.Categories
-        .Where(c => query.Any(p => p.CategoryId == c.Id))
-        .Select(c => new FilterOptionDto
+        // Belirli kategoriler için hiyerarşi oluştur (mevcut kod aynı kalır)
+        foreach (var categoryId in categoryIds)
         {
-            Value = c.Id,
-            DisplayValue = c.Name,
-            ParentId = c.ParentCategoryId
-        })
-        .ToListAsync();
+            // Ana kategoriyi getir
+            var mainCategory = await Context.Categories
+                .Where(c => c.Id == categoryId)
+                .Select(c => new CategoryInfo
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    ParentId = c.ParentCategoryId,
+                    ProductCount = query.Count(p => p.CategoryId == c.Id)
+                })
+                .FirstOrDefaultAsync();
 
-    if (categories.Any())
+            if (mainCategory != null)
+            {
+                // Ana kategorinin kendisini ekle
+                categoryOptions.Add(new FilterOptionDto
+                {
+                    Value = mainCategory.Id,
+                    DisplayValue = mainCategory.Name,
+                    ParentId = mainCategory.ParentId,
+                    Count = mainCategory.ProductCount
+                });
+
+                // Alt kategorileri recursive olarak getir
+                var subCategories = await GetAllSubcategoriesRecursive(mainCategory.Id, query);
+
+                // Count > 0 olan alt kategorileri ekle
+                foreach (var subCategory in subCategories.Where(sc => sc.Count > 0))
+                {
+                    categoryOptions.Add(subCategory);
+                }
+            }
+        }
+    }
+    else
     {
-        filterDefinitions.Add(new FilterGroupDto
+        // Marka veya arama için: Filtrelenmiş ürünlerdeki tüm kategorileri ve hiyerarşilerini al
+        var filteredProductCategoryIds = await query
+            .Select(p => p.CategoryId)
+            .Distinct()
+            .ToListAsync();
+
+        if (filteredProductCategoryIds.Any())
         {
-            Key = "Category",
-            Name = "Category",
-            DisplayName = "Category",
-            Type = FilterType.Checkbox,
-            Options = categories
-        });
+            // Önce tüm kategori detaylarını getir
+            var allCategories = await Context.Categories
+                .Where(c => filteredProductCategoryIds.Contains(c.Id) || 
+                           filteredProductCategoryIds.Any(fcid => Context.Categories
+                               .Where(subc => subc.Id == fcid)
+                               .Select(subc => subc.ParentCategoryId)
+                               .Contains(c.Id)))
+                .Select(c => new CategoryInfo
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    ParentId = c.ParentCategoryId,
+                    ProductCount = query.Count(p => p.CategoryId == c.Id)
+                })
+                .ToListAsync();
+
+            // Kök (ana) kategorileri bul
+            var rootCategories = allCategories
+                .Where(c => c.ParentId == null || !allCategories.Any(ac => ac.Id == c.ParentId))
+                .ToList();
+
+            // Her ana kategori için hiyerarşiyi oluştur
+            foreach (var rootCategory in rootCategories)
+            {
+                // Ana kategoriyi ekle
+                if (rootCategory.ProductCount > 0 || 
+                    allCategories.Any(ac => ac.ParentId == rootCategory.Id && ac.ProductCount > 0))
+                {
+                    categoryOptions.Add(new FilterOptionDto
+                    {
+                        Value = rootCategory.Id,
+                        DisplayValue = rootCategory.Name,
+                        ParentId = rootCategory.ParentId,
+                        Count = rootCategory.ProductCount
+                    });
+
+                    // Alt kategorileri recursive bir şekilde oluştur
+                    BuildCategoryHierarchyRecursive(allCategories, rootCategory.Id, categoryOptions);
+                }
+            }
+        }
     }
 
-    // 2. Marka Filtresi
-    var brands = await Context.Brands
-        .Where(b => query.Any(p => p.BrandId == b.Id))
-        .Select(b => new FilterOptionDto
-        {
-            Value = b.Id,
-            DisplayValue = b.Name
-        })
-        .ToListAsync();
+    filter.Options = categoryOptions;
+    return filter;
+}
 
-    if (brands.Any())
+// Hiyerarşik kategori yapısını oluşturmak için yardımcı metod - CategoryInfo tipini kullan
+private void BuildCategoryHierarchyRecursive(List<CategoryInfo> allCategories, string parentId, List<FilterOptionDto> categoryOptions)
+{
+    var childCategories = allCategories
+        .Where(c => c.ParentId == parentId)
+        .ToList();
+
+    foreach (var childCategory in childCategories)
     {
-        filterDefinitions.Add(new FilterGroupDto
+        // Sadece ürünü olan kategorileri ekle veya alt kategorilerinde ürün olanları
+        if (childCategory.ProductCount > 0 || 
+            allCategories.Any(ac => ac.ParentId == childCategory.Id && ac.ProductCount > 0))
+        {
+            categoryOptions.Add(new FilterOptionDto
+            {
+                Value = childCategory.Id,
+                DisplayValue = childCategory.Name,
+                ParentId = childCategory.ParentId,
+                Count = childCategory.ProductCount
+            });
+
+            // Alt kategoriler için recursive çağrı
+            BuildCategoryHierarchyRecursive(allCategories, childCategory.Id, categoryOptions);
+        }
+    }
+}
+
+    private async Task<FilterGroupDto> BuildBrandFilterAsync(IQueryable<Product> query)
+    {
+        var filter = new FilterGroupDto
         {
             Key = "Brand",
             Name = "Brand",
             DisplayName = "Brand",
             Type = FilterType.Checkbox,
-            Options = brands
-        });
+            Options = new List<FilterOptionDto>()
+        };
+
+        // Marka filtresi - Count değerlerini ekle ve 0 sayılı markaları filtrele
+        var brands = await Context.Brands
+            .Select(b => new
+            {
+                Brand = b,
+                Count = query.Count(p => p.BrandId == b.Id)
+            })
+            .Where(x => x.Count > 0) // ÖNEMLİ: Sadece ürün sayısı > 0 olan markaları getir
+            .Select(x => new FilterOptionDto
+            {
+                Value = x.Brand.Id,
+                DisplayValue = x.Brand.Name,
+                Count = x.Count
+            })
+            .ToListAsync();
+
+        filter.Options = brands;
+        return filter;
     }
 
-    // 3. Özellik Filtreleri
-    var features = await Context.Features
-        .Where(f => query.Any(p => p.ProductFeatureValues
-            .Any(pfv => pfv.FeatureValue.FeatureId == f.Id)))
-        .Select(f => new
-        {
-            FeatureName = f.Name,
-            FeatureKey = f.Name,
-            Values = f.FeatureValues
-                .Where(fv => query.Any(p => p.ProductFeatureValues
-                    .Any(pfv => pfv.FeatureValueId == fv.Id)))
-                .Select(fv => new FilterOptionDto
-                {
-                    Value = fv.Id,
-                    DisplayValue = fv.Name
-                })
-                .ToList()
-        })
-        .ToListAsync();
-
-    foreach (var feature in features.Where(f => f.Values.Any()))
+// Özellik filtrelerini oluşturan yardımcı metot
+    private async Task<List<FilterGroupDto>> BuildFeatureFiltersAsync(IQueryable<Product> query)
     {
-        filterDefinitions.Add(new FilterGroupDto
+        var featureFilters = new List<FilterGroupDto>();
+
+        // Filtrelenen ürünlerin tüm özellik değerlerini getir
+        var productFeatureValues = await query
+            .SelectMany(p => p.ProductFeatureValues)
+            .Select(pfv => new
+            {
+                FeatureId = pfv.FeatureValue.FeatureId,
+                FeatureValueId = pfv.FeatureValueId,
+                FeatureName = pfv.FeatureValue.Feature.Name,
+                FeatureValueName = pfv.FeatureValue.Name
+            })
+            .Distinct()
+            .ToListAsync();
+
+        // Özellik değerlerini gruplama ve sayma
+        var featureGroups = productFeatureValues
+            .GroupBy(pfv => new { pfv.FeatureId, pfv.FeatureName })
+            .Select(g => new
+            {
+                FeatureId = g.Key.FeatureId,
+                FeatureName = g.Key.FeatureName,
+                Values = g.GroupBy(x => new { x.FeatureValueId, x.FeatureValueName })
+                    .Select(vg => new FilterOptionDto
+                    {
+                        Value = vg.Key.FeatureValueId,
+                        DisplayValue = vg.Key.FeatureValueName,
+                        Count = query.Count(p => p.ProductFeatureValues
+                            .Any(pfv => pfv.FeatureValueId == vg.Key.FeatureValueId))
+                    })
+                    .Where(v => v.Count > 0)
+                    .OrderBy(v => v.DisplayValue)
+                    .ToList()
+            })
+            .Where(f => f.Values.Any())
+            .ToList();
+
+        // Her özellik için filtre grubu oluştur
+        foreach (var feature in featureGroups)
         {
-            Key = feature.FeatureKey, // Özellik adını key olarak ata
-            Name = feature.FeatureName,
-            DisplayName = feature.FeatureName,
-            Type = FilterType.Checkbox,
-            Options = feature.Values
-        });
+            featureFilters.Add(new FilterGroupDto
+            {
+                Key = feature.FeatureName,
+                Name = feature.FeatureName,
+                DisplayName = feature.FeatureName,
+                Type = FilterType.Checkbox,
+                Options = feature.Values
+            });
+        }
+
+        return featureFilters;
     }
 
-    // 4. Fiyat Filtresi
-    var prices = await query
+
+    private async Task<List<FilterOptionDto>> GetAllSubcategoriesRecursive(string parentCategoryId,
+        IQueryable<Product> query)
+    {
+        var result = new List<FilterOptionDto>();
+
+        // Doğrudan alt kategorileri getir
+        var directSubcategories = await Context.Categories
+            .Where(c => c.ParentCategoryId == parentCategoryId)
+            .Select(c => new FilterOptionDto
+            {
+                Value = c.Id,
+                DisplayValue = c.Name,
+                ParentId = c.ParentCategoryId,
+                Count = query.Count(p => p.CategoryId == c.Id)
+            })
+            .ToListAsync();
+
+        // Doğrudan alt kategorileri ekle
+        result.AddRange(directSubcategories);
+
+        // Her alt kategori için recursive çağrı yap
+        foreach (var subcategory in directSubcategories)
+        {
+            var nestedSubcategories = await GetAllSubcategoriesRecursive(subcategory.Value, query);
+            result.AddRange(nestedSubcategories);
+        }
+
+        return result;
+    }
+
+    // Fiyat filtresi oluşturan yardımcı metot
+/*private async Task<FilterGroupDto> BuildPriceFilterAsync(IQueryable<Product> query)
+{
+    var filter = new FilterGroupDto
+    {
+        Key = "Price",
+        Name = "Price",
+        DisplayName = "Price",
+        Type = FilterType.Range,
+        Options = new List<FilterOptionDto>()
+    };
+
+    var productPrices = await query
         .Where(p => p.Price.HasValue)
         .Select(p => p.Price!.Value)
         .ToListAsync();
 
-    if (prices.Any())
+    if (productPrices.Any())
     {
-        var minPrice = prices.Min();
-        var maxPrice = prices.Max();
-
-        filterDefinitions.Add(new FilterGroupDto
-        {
-            Name = "Price",
-            DisplayName = "Price",
-            Type = FilterType.Range,
-            Options = GeneratePriceRanges(minPrice, maxPrice)
-        });
+        var minPrice = productPrices.Min();
+        var maxPrice = productPrices.Max();
+        filter.Options = GeneratePriceRanges(minPrice, maxPrice);
     }
 
-    return filterDefinitions;
-}
+    return filter;
+}*/
 
-    private List<FilterOptionDto> GeneratePriceRanges(decimal minPrice, decimal maxPrice)
+    /*private List<FilterOptionDto> GeneratePriceRanges(decimal minPrice, decimal maxPrice)
     {
         var options = new List<FilterOptionDto>();
+
+        // Aynı fiyat ise tek bir seçenek göster
+        if (minPrice == maxPrice)
+        {
+            options.Add(new FilterOptionDto
+            {
+                Value = $"{minPrice}-{maxPrice}",
+                DisplayValue = $"{minPrice:N0}",
+                Count = 1 // En az bir ürün var
+            });
+            return options;
+        }
+
+        // Fiyat aralıklarını oluştur - 5 aralık
         var step = (maxPrice - minPrice) / 5;
 
         for (int i = 0; i < 5; i++)
@@ -327,13 +558,14 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
             options.Add(new FilterOptionDto
             {
                 Value = $"{start}-{end}",
-                DisplayValue = $"{start:N0} - {end:N0} "
+                DisplayValue = $"{start:N0} - {end:N0} ",
+                Count = 0 // Count değeri sonradan hesaplanacak
             });
         }
 
         return options;
-    }
-    
+    }*/
+
     public async Task<List<Product>> GetBestSellingProducts(int count)
     {
         return await Context.Products
@@ -350,7 +582,7 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
             .Take(count)
             .ToListAsync();
     }
-    
+
     public async Task<List<Product>> GetMostLikedProductsAsync(int count)
     {
         return await Context.Products
@@ -367,6 +599,7 @@ public class ProductRepository : EfRepositoryBase<Product, string, TumdexDbConte
             .Take(count)
             .ToListAsync();
     }
+
     public async Task<List<Product>> GetMostViewedProductsAsync(int count)
     {
         return await Context.Products

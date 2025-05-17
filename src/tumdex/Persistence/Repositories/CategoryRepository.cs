@@ -1,7 +1,6 @@
 using Application.Repositories;
 using Core.Persistence.Paging;
 using Core.Persistence.Repositories;
-using Domain;
 using Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Persistence.Context;
@@ -75,5 +74,30 @@ public class CategoryRepository : EfRepositoryBase<Category, string, TumdexDbCon
         await CollectSubCategoriesAsync(parentCategoryId);
 
         return allCategories;
+    }
+    
+    // Yeni metot: Kategori ve alt kategorileri için toplam ürün sayısını hesaplar
+    public async Task<Dictionary<string, int>> GetTotalProductCountsForCategoriesAsync(List<string> categoryIds, CancellationToken cancellationToken = default)
+    {
+        Dictionary<string, int> result = new Dictionary<string, int>();
+        
+        foreach (string categoryId in categoryIds)
+        {
+            // Tüm alt kategorileri getir
+            var allCategories = await GetAllSubCategoriesRecursiveAsync(categoryId, cancellationToken);
+            
+            // Tüm kategori ID'lerini al
+            var allCategoryIds = allCategories.Select(c => c.Id).ToList();
+            
+            // Bu kategorilere ait ürünleri say
+            int totalCount = await Context.Products
+                .Where(p => allCategoryIds.Contains(p.CategoryId))
+                .CountAsync(cancellationToken);
+            
+            // Sonucu kaydet
+            result[categoryId] = totalCount;
+        }
+        
+        return result;
     }
 }

@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Application.Features.Categories.Queries.GetMainCategories;
-public class GetMainCategoriesQuery : IRequest<GetListResponse<GetMainCategoriesResponse>>, ICachableRequest // İsim düzeltildi
+public class GetMainCategoriesQuery : IRequest<GetListResponse<GetMainCategoriesResponse>>, ICachableRequest
 {
     public PageRequest PageRequest { get; set; }
     public string CacheKey => $"CategoriesMain-Page{PageRequest.PageIndex}-Size{PageRequest.PageSize}";
@@ -21,7 +21,7 @@ public class GetMainCategoriesQuery : IRequest<GetListResponse<GetMainCategories
     public TimeSpan? SlidingExpiration => TimeSpan.FromHours(4);
 
     // --- Handler ---
-    public class GetMainCategoriesQueryHandler : IRequestHandler<GetMainCategoriesQuery, GetListResponse<GetMainCategoriesResponse>> // İsim düzeltildi
+    public class GetMainCategoriesQueryHandler : IRequestHandler<GetMainCategoriesQuery, GetListResponse<GetMainCategoriesResponse>>
     {
         private readonly ICategoryRepository _categoryRepository;
         private readonly IMapper _mapper;
@@ -32,16 +32,16 @@ public class GetMainCategoriesQuery : IRequest<GetListResponse<GetMainCategories
             ICategoryRepository categoryRepository,
             IMapper mapper,
             IStorageService storageService,
-            ILogger<GetMainCategoriesQueryHandler> logger) // Logger eklendi
+            ILogger<GetMainCategoriesQueryHandler> logger)
         {
             _categoryRepository = categoryRepository;
             _mapper = mapper;
             _storageService = storageService;
-            _logger = logger; // Atandı
+            _logger = logger;
         }
 
         public async Task<GetListResponse<GetMainCategoriesResponse>> Handle(GetMainCategoriesQuery request,
-            CancellationToken cancellationToken) // İsim düzeltildi
+            CancellationToken cancellationToken)
         {
             _logger.LogInformation("Executing GetMainCategoriesQuery. PageIndex: {PageIndex}, PageSize: {PageSize}",
                 request.PageRequest.PageIndex, request.PageRequest.PageSize);
@@ -60,6 +60,12 @@ public class GetMainCategoriesQuery : IRequest<GetListResponse<GetMainCategories
 
                 // List<Category> -> List<DTO>
                 var categoryDtos = _mapper.Map<List<GetMainCategoriesResponse>>(categories);
+                
+                // Kategori ID'lerini alıyoruz
+                var categoryIds = categoryDtos.Select(c => c.Id).ToList();
+                
+                // Tüm kategoriler için ürün sayılarını getiriyoruz
+                var productCounts = await _categoryRepository.GetTotalProductCountsForCategoriesAsync(categoryIds, cancellationToken);
 
                 // Resim ve ek bilgi
                 foreach (var categoryDto in categoryDtos)
@@ -69,7 +75,16 @@ public class GetMainCategoriesQuery : IRequest<GetListResponse<GetMainCategories
                     {
                         var categoryImage = categoryEntity.CategoryImageFiles?.FirstOrDefault();
                         if (categoryImage != null) categoryDto.CategoryImage = categoryImage.ToDto(_storageService);
-                        categoryDto.ProductCount = categoryEntity.Products?.Count ?? 0;
+                        
+                        // Ürün sayısını güncelleştiriyoruz
+                        if (productCounts.TryGetValue(categoryDto.Id, out int count))
+                        {
+                            categoryDto.ProductCount = count;
+                        }
+                        else
+                        {
+                            categoryDto.ProductCount = 0;
+                        }
                     }
                 }
 
@@ -103,6 +118,12 @@ public class GetMainCategoriesQuery : IRequest<GetListResponse<GetMainCategories
 
                 // IPaginate -> GetListResponse
                 var response = _mapper.Map<GetListResponse<GetMainCategoriesResponse>>(categoriesPaginated);
+                
+                // Kategori ID'lerini alıyoruz
+                var categoryIds = response.Items.Select(c => c.Id).ToList();
+                
+                // Tüm kategoriler için ürün sayılarını getiriyoruz
+                var productCounts = await _categoryRepository.GetTotalProductCountsForCategoriesAsync(categoryIds, cancellationToken);
 
                 // Resim ve ek bilgi
                 if (response.Items != null && response.Items.Any()) // Null kontrolü
@@ -114,8 +135,16 @@ public class GetMainCategoriesQuery : IRequest<GetListResponse<GetMainCategories
                         {
                             var categoryImage = categoryEntity.CategoryImageFiles?.FirstOrDefault();
                             if (categoryImage != null) categoryDto.CategoryImage = categoryImage.ToDto(_storageService);
-                            categoryDto.ProductCount = categoryEntity.Products?.Count ?? 0;
-
+                            
+                            // Ürün sayısını güncelleştiriyoruz
+                            if (productCounts.TryGetValue(categoryDto.Id, out int count))
+                            {
+                                categoryDto.ProductCount = count;
+                            }
+                            else
+                            {
+                                categoryDto.ProductCount = 0;
+                            }
                         }
                     }
                 }

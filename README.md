@@ -1324,14 +1324,14 @@ Katkılarınızı memnuniyetle karşılıyoruz!
 
 ## 📄 License
 
-Bu proje özel/ticari bir projedir. Kullanım izni için lütfen iletişime geçin.
+Kullanım izni için lütfen iletişime geçin.
 
 ## 📞 İletişim
 
-- **Email**: info@tumdex.com
-- **Website**: https://www.tumdex.com
-- **LinkedIn**: https://linkedin.com/company/tumdex
-- **WhatsApp**: +90 533 803 7714
+- **Email**: muratfirtina@hotmail.com
+- **Website**: 
+- **LinkedIn**: 
+- **WhatsApp**: 
 
 ## 🙏 Teşekkürler
 

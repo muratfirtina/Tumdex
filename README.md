@@ -1,4 +1,4 @@
-# TUMDEX - E-Ticaret Platform Projesi
+# TUMDEX - E-Commerce Platform Project
 
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat&logo=dotnet)
 ![EntityFramework](https://img.shields.io/badge/-Entity_Framework-8C3D65?logo=dotnet&logoColor=white)
@@ -10,46 +10,46 @@
 ![SignalR](https://img.shields.io/badge/SignalR-512BD4?style=flat&logo=signalr&logoColor=white)
 ![Grafana](https://img.shields.io/badge/Grafana-F2F4F9?style=for-the-badge&logo=grafana&logoColor=orange&labelColor=F2F4F9)
 
-## 📋 İçindekiler
+## 📋 Table of Contents
 
-- [Proje Hakkında](#proje-hakkında)
-- [Mimari Yapı](#mimari-yapı)
-- [Kullanılan Teknolojiler](#kullanılan-teknolojiler)
-- [Proje Yapısı](#proje-yapısı)
-- [Özellikler](#özellikler)
-- [Kurulum](#kurulum)
-- [Yapılandırma](#yapılandırma)
-- [Kullanım](#kullanım)
-- [API Dokümantasyonu](#api-dokümantasyonu)
-- [Monitoring ve Logging](#monitoring-ve-logging)
-- [Güvenlik](#güvenlik)
-- [Katkıda Bulunma](#katkıda-bulunma)
+- [About The Project](#about-the-project)
+- [Architecture](#architecture)
+- [Technologies Used](#technologies-used)
+- [Project Structure](#project-structure)
+- [Features](#features)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [API Documentation](#api-documentation)
+- [Monitoring and Logging](#monitoring-and-logging)
+- [Security](#security)
+- [Contributing](#contributing)
 
-## 🎯 Proje Hakkında
+## 🎯 About The Project
 
-**TUMDEX**, modern mikroservis mimarisi ve best practice'ler kullanılarak geliştirilmiş, kurumsal seviyede bir e-ticaret platformudur. Proje, Clean Architecture prensiplerine uygun olarak tasarlanmış ve ölçeklenebilir bir yapıya sahiptir.
+**TUMDEX** is an enterprise-level e-commerce platform developed using modern microservices architecture and best practices. The project is designed according to Clean Architecture principles and has a scalable structure.
 
-### Temel Özellikler
+### Key Features
 
-- ✅ **Clean Architecture** ve **CQRS Pattern** ile geliştirilmiş modüler yapı
-- ✅ **Event-Driven Architecture** ile asenkron işlem yönetimi
-- ✅ **Real-time** bildirimler ve anlık veri güncelleme (SignalR)
-- ✅ **Mikroservis** altyapısına uygun tasarım
-- ✅ **Multi-cloud** depolama desteği (AWS S3, Google Cloud, Cloudinary)
+- ✅ Modular structure developed with **Clean Architecture** and **CQRS Pattern**
+- ✅ Asynchronous process management with **Event-Driven Architecture**
+- ✅ **Real-time** notifications and instant data updates (SignalR)
+- ✅ Design suitable for **Microservice** infrastructure
+- ✅ **Multi-cloud** storage support (AWS S3, Google Cloud, Cloudinary)
 - ✅ **Comprehensive monitoring** (Prometheus & Grafana)
 - ✅ **Advanced logging** (Serilog & Seq)
 - ✅ **High-performance caching** (Redis)
-- ✅ **Message queue** sistemi (RabbitMQ & MassTransit)
+- ✅ **Message queue** system (RabbitMQ & MassTransit)
 - ✅ **JWT Authentication & Authorization**
-- ✅ **GDPR uyumlu** veri yönetimi
-- ✅ **Rate Limiting & DDoS koruması**
-- ✅ **Health check** mekanizması
-- ✅ **SEO optimizasyonu** (Sitemap, Robots.txt)
-- ✅ **Google Analytics** entegrasyonu
+- ✅ **GDPR compliant** data management
+- ✅ **Rate Limiting & DDoS protection**
+- ✅ **Health check** mechanism
+- ✅ **SEO optimization** (Sitemap, Robots.txt)
+- ✅ **Google Analytics** integration
 
-## 🏗️ Mimari Yapı
+## 🏗️ Architecture
 
-Proje, **Clean Architecture (Onion Architecture)** prensiplerine uygun olarak 5 katmandan oluşmaktadır:
+The project consists of 5 layers according to **Clean Architecture (Onion Architecture)** principles:
 
 ```
 ┌─────────────────────────────────────────┐
@@ -73,48 +73,48 @@ Proje, **Clean Architecture (Onion Architecture)** prensiplerine uygun olarak 5 
     └───────────────┘
 ```
 
-### Katman Sorumlulukları
+### Layer Responsibilities
 
-#### 1. **Domain Layer** (Merkez Katman)
-- Entity'ler ve Domain Model'ler
-- Business kuralları ve validasyonlar
-- Enum'lar ve domain-specific tipler
-- Identity modelleri
-- **Bağımlılık**: Hiçbir katmana bağımlı değil
+#### 1. **Domain Layer** (Core Layer)
+- Entities and Domain Models
+- Business rules and validations
+- Enums and domain-specific types
+- Identity models
+- **Dependencies**: No dependencies on other layers
 
 #### 2. **Application Layer**
-- Use case'ler (CQRS: Commands & Queries)
-- Business logic ve orchestration
-- DTO'lar ve mapping profilleri
-- Repository interface'leri
-- Service interface'leri
-- Custom attributes ve exceptions
-- **Bağımlılık**: Domain, Core Packages
+- Use cases (CQRS: Commands & Queries)
+- Business logic and orchestration
+- DTOs and mapping profiles
+- Repository interfaces
+- Service interfaces
+- Custom attributes and exceptions
+- **Dependencies**: Domain, Core Packages
 
 #### 3. **Persistence Layer**
 - Entity Framework Core DbContext
-- Repository implementasyonları
+- Repository implementations
 - Database migrations
 - Entity configurations
-- Identity implementasyonu
-- **Bağımlılık**: Application, Domain
+- Identity implementation
+- **Dependencies**: Application, Domain
 
 #### 4. **Infrastructure Layer**
-- External service implementasyonları
+- External service implementations
 - Message broker (RabbitMQ) consumers
 - Background jobs (Quartz.NET)
 - File storage services (AWS, GCP, Cloudinary)
 - Email services
 - Caching (Redis)
 - Monitoring (Prometheus)
-- Middleware'ler
-- **Bağımlılık**: Application, Persistence
+- Middlewares
+- **Dependencies**: Application, Persistence
 
 #### 5. **SignalR Layer**
-- Real-time hub'lar
-- SignalR service implementasyonları
-- Client-server iletişimi
-- **Bağımlılık**: Application
+- Real-time hubs
+- SignalR service implementations
+- Client-server communication
+- **Dependencies**: Application
 
 #### 6. **WebAPI Layer** (Presentation)
 - REST API Controllers
@@ -122,23 +122,23 @@ Proje, **Clean Architecture (Onion Architecture)** prensiplerine uygun olarak 5 
 - Swagger/OpenAPI
 - Health checks
 - CORS configuration
-- **Bağımlılık**: Application, Infrastructure, SignalR
+- **Dependencies**: Application, Infrastructure, SignalR
 
 ### Core Packages
 
-Projenin yeniden kullanılabilir bileşenlerini içeren core paketler:
+Core packages containing reusable components of the project:
 
 - **Core.Application**: MediatR pipelines, base requests/responses
 - **Core.Persistence**: Generic repository pattern, dynamic LINQ, pagination
 - **Core.CrossCuttingConcerns**: Exception handling, logging aspects
 
-## 🛠️ Kullanılan Teknolojiler
+## 🛠️ Technologies Used
 
 ### Backend Framework
-- **.NET 8.0** - Modern, performanslı ve cross-platform
-- **ASP.NET Core Web API** - RESTful API geliştirme
+- **.NET 8.0** - Modern, performant and cross-platform
+- **ASP.NET Core Web API** - RESTful API development
 
-### Veritabanı & ORM
+### Database & ORM
 - **PostgreSQL** - Relational database
 - **Entity Framework Core 8.0** - ORM
 - **Entity Framework Core Dynamic LINQ** - Dynamic query building
@@ -206,25 +206,25 @@ Projenin yeniden kullanılabilir bileşenlerini içeren core paketler:
 - **UAParser** - User agent parsing
 - **Sprache** - Parser combinator library
 
-## 📁 Proje Yapısı
+## 📁 Project Structure
 
 ```
 Tumdex/
 │
 ├── src/
-│   ├── corePackages/                    # Yeniden kullanılabilir core bileşenler
+│   ├── corePackages/                    # Reusable core components
 │   │   ├── Core.Application/            # MediatR pipelines, base classes
 │   │   ├── Core.Persistence/            # Generic repository, dynamic LINQ
 │   │   └── Core.CrossCuttingConcerns/   # Exception handling, logging
 │   │
-│   ├── tumdex/                          # Ana uygulama
-│   │   ├── Domain/                      # Domain katmanı
-│   │   │   ├── Entities/                # Domain entity'ler
-│   │   │   ├── Enum/                    # Domain enum'lar
-│   │   │   ├── Identity/                # Identity modelleri
-│   │   │   └── Model/                   # Domain modeller
+│   ├── tumdex/                          # Main application
+│   │   ├── Domain/                      # Domain layer
+│   │   │   ├── Entities/                # Domain entities
+│   │   │   ├── Enum/                    # Domain enums
+│   │   │   ├── Identity/                # Identity models
+│   │   │   └── Model/                   # Domain models
 │   │   │
-│   │   ├── Application/                 # Application katmanı
+│   │   ├── Application/                 # Application layer
 │   │   │   ├── Features/                # CQRS features
 │   │   │   │   ├── Products/
 │   │   │   │   │   ├── Commands/        # Create, Update, Delete
@@ -244,14 +244,14 @@ Tumdex/
 │   │   │   ├── Exceptions/              # Custom exceptions
 │   │   │   └── Extensions/              # Extension methods
 │   │   │
-│   │   ├── Persistence/                 # Persistence katmanı
+│   │   ├── Persistence/                 # Persistence layer
 │   │   │   ├── Context/                 # DbContext
 │   │   │   ├── Repositories/            # Repository implementations
 │   │   │   ├── Services/                # Service implementations
 │   │   │   ├── Migrations/              # EF Core migrations
 │   │   │   └── DbConfiguration/         # Database configurations
 │   │   │
-│   │   ├── Infrastructure/              # Infrastructure katmanı
+│   │   ├── Infrastructure/              # Infrastructure layer
 │   │   │   ├── Services/                # External service implementations
 │   │   │   │   ├── Storage/             # AWS, GCP, Cloudinary
 │   │   │   │   ├── Email/               # Email services
@@ -263,11 +263,11 @@ Tumdex/
 │   │   │   ├── Middleware/              # Custom middlewares
 │   │   │   └── Adapters/                # Third-party adapters
 │   │   │
-│   │   ├── SignalR/                     # SignalR katmanı
+│   │   ├── SignalR/                     # SignalR layer
 │   │   │   ├── Hubs/                    # SignalR hubs
 │   │   │   └── HubService/              # Hub services
 │   │   │
-│   │   └── WebAPI/                      # Presentation katmanı
+│   │   └── WebAPI/                      # Presentation layer
 │   │       ├── Controllers/             # API controllers
 │   │       ├── Extensions/              # Extension methods
 │   │       ├── Attributes/              # Custom attributes
@@ -289,76 +289,76 @@ Tumdex/
 └── Tumdex.sln                           # Solution file
 ```
 
-## ✨ Özellikler
+## ✨ Features
 
-### E-Ticaret Özellikleri
+### E-Commerce Features
 
-#### Ürün Yönetimi
-- Ürün CRUD operasyonları
-- Çoklu görsel yükleme ve yönetimi
-- Ürün varyantları (renk, beden, vb.)
-- Stok yönetimi (sınırsız stok desteği)
-- Dinamik özellik değerleri
-- Ürün beğenme ve görüntüleme istatistikleri
-- Ürün filtreleme ve arama
-- En çok satan, en çok beğenilen, en çok görüntülenen ürünler
-- SEO dostu URL yapısı
+#### Product Management
+- Product CRUD operations
+- Multiple image upload and management
+- Product variants (color, size, etc.)
+- Stock management (unlimited stock support)
+- Dynamic attribute values
+- Product like and view statistics
+- Product filtering and search
+- Best-selling, most-liked, most-viewed products
+- SEO-friendly URL structure
 
-#### Kategori & Marka Yönetimi
-- Hiyerarşik kategori yapısı
-- Kategori özellik tanımlama
-- Marka yönetimi
-- Görsel yönetimi
+#### Category & Brand Management
+- Hierarchical category structure
+- Category attribute definition
+- Brand management
+- Image management
 
-#### Sepet & Sipariş Yönetimi
-- Sepete ürün ekleme/çıkarma
-- Misafir kullanıcı için sepet
-- Stok rezervasyon sistemi
-- Sipariş oluşturma
-- Sipariş durumu takibi
-- Sipariş bildirimleri (email)
-- Sipariş geçmişi
+#### Cart & Order Management
+- Add/remove products to cart
+- Guest user cart
+- Stock reservation system
+- Order creation
+- Order status tracking
+- Order notifications (email)
+- Order history
 
-#### Kullanıcı Yönetimi
-- JWT tabanlı authentication
+#### User Management
+- JWT-based authentication
 - Role-based authorization (RBAC)
-- Kullanıcı profili yönetimi
-- Adres yönetimi
-- Kullanıcı beğenileri
-- Email doğrulama
-- Şifre sıfırlama
-- Çoklu oturum yönetimi
-- IP ve User-Agent kontrolü
+- User profile management
+- Address management
+- User favorites
+- Email verification
+- Password reset
+- Multi-session management
+- IP and User-Agent verification
 
-#### İletişim & Haber Bülteni
-- İletişim formu
-- Haber bülteni aboneliği
-- Otomatik email gönderimi
+#### Contact & Newsletter
+- Contact form
+- Newsletter subscription
+- Automatic email sending
 - Email throttling
-- Newsletter programlama (aylık otomatik gönderim)
+- Newsletter scheduling (monthly automatic sending)
 
-#### GDPR & Veri Gizliliği
-- Kullanıcı onay yönetimi
-- Veri sahibi talepleri (Data Subject Requests)
-- Veri silme/indirme istekleri
-- Privacy policy yönetimi
-- Cookie onayı
+#### GDPR & Data Privacy
+- User consent management
+- Data subject requests (DSR)
+- Data deletion/download requests
+- Privacy policy management
+- Cookie consent
 
 #### SEO & Analytics
-- Dinamik sitemap oluşturma
-- Robots.txt yönetimi
-- Google Analytics entegrasyonu
+- Dynamic sitemap generation
+- Robots.txt management
+- Google Analytics integration
 - Visitor tracking
-- Meta tag yönetimi
+- Meta tag management
 
-#### Carousel & Banner Yönetimi
-- Ana sayfa carousel'ları
-- Video/görsel carousel desteği
-- Dinamik içerik yönetimi
+#### Carousel & Banner Management
+- Homepage carousels
+- Video/image carousel support
+- Dynamic content management
 
-### Teknik Özellikler
+### Technical Features
 
-#### Performans & Caching
+#### Performance & Caching
 - **Redis distributed caching**
 - Response caching
 - Memory caching
@@ -366,7 +366,7 @@ Tumdex/
 - Sliding expiration
 
 #### Message Queue & Event-Driven
-- **RabbitMQ** ile asenkron işlem yönetimi
+- **RabbitMQ** for asynchronous process management
 - Order created/updated events
 - Cart updated events
 - Stock updated events
@@ -376,30 +376,30 @@ Tumdex/
 - Dead letter queue
 
 #### Real-time Features
-- **SignalR** ile real-time bildirimler
-- Anlık ziyaretçi istatistikleri
-- Sipariş durumu güncelleme bildirimleri
-- Stok güncellemeleri
-- Admin dashboard real-time metrikleri
+- **SignalR** for real-time notifications
+- Real-time visitor statistics
+- Order status update notifications
+- Stock updates
+- Admin dashboard real-time metrics
 
 #### Background Jobs
-- **Quartz.NET** ile zamanlanmış görevler
-- Stok rezervasyon temizleme
+- **Quartz.NET** for scheduled tasks
+- Stock reservation cleanup
 - Outbox message processing
-- Newsletter gönderimi
+- Newsletter sending
 - Log cleanup
 - Analytics data collection
 
 #### File Storage
-- **Multi-provider** depolama sistemi
+- **Multi-provider** storage system
   - Local storage
   - AWS S3
   - Google Cloud Storage
   - Cloudinary
-- Otomatik image optimization
+- Automatic image optimization
 - Thumbnail generation (SkiaSharp)
-- Çoklu dosya yükleme
-- Görsel versiyonlama
+- Multiple file upload
+- Image versioning
 
 #### Logging & Monitoring
 
@@ -505,18 +505,18 @@ Tumdex/
 - Business rule validation
 - Custom validators
 
-## 🚀 Kurulum
+## 🚀 Installation
 
-### Gereksinimler
+### Prerequisites
 
-- **.NET 8 SDK** veya üzeri
+- **.NET 8 SDK** or higher
 - **Docker & Docker Compose**
-- **PostgreSQL 15+** (Docker ile kurulacak)
-- **Redis 7+** (Docker ile kurulacak)
-- **RabbitMQ 3+** (Docker ile kurulacak)
-- **Visual Studio 2022** veya **Rider** veya **VS Code**
+- **PostgreSQL 15+** (will be installed via Docker)
+- **Redis 7+** (will be installed via Docker)
+- **RabbitMQ 3+** (will be installed via Docker)
+- **Visual Studio 2022** or **Rider** or **VS Code**
 
-### 1. Projeyi Klonlayın
+### 1. Clone the Project
 
 ```bash
 git clone https://github.com/yourusername/Tumdex.git
@@ -525,7 +525,7 @@ cd Tumdex
 
 ### 2. Environment Variables
 
-`.env` dosyasını `src` klasörü altında oluşturun ve aşağıdaki değişkenleri doldurun:
+Create a `.env` file under the `src` folder and fill in the following variables:
 
 ```env
 # PostgreSQL
@@ -609,14 +609,14 @@ MONITORING_SLACK_WEBHOOK=your_slack_webhook_url
 
 ### 3. Docker Services
 
-Docker Compose ile gerekli servisleri başlatın:
+Start the required services with Docker Compose:
 
 ```bash
 cd src
 docker-compose up -d
 ```
 
-Bu komut aşağıdaki servisleri başlatacak:
+This command will start the following services:
 - PostgreSQL (Port: 5433)
 - Redis (Port: 6379)
 - RabbitMQ (Port: 5672, Management: 15672)
@@ -631,38 +631,38 @@ cd src/tumdex/WebAPI
 dotnet ef database update --project ../Persistence/Persistence.csproj
 ```
 
-### 5. Projeyi Çalıştırın
+### 5. Run the Project
 
-**Visual Studio ile:**
-- Solution'ı açın
-- WebAPI projesini startup project olarak ayarlayın
-- F5 ile çalıştırın
+**With Visual Studio:**
+- Open the Solution
+- Set WebAPI project as startup project
+- Run with F5
 
-**Komut satırından:**
+**From Command Line:**
 ```bash
 cd src/tumdex/WebAPI
 dotnet run
 ```
 
-API varsayılan olarak şu adreslerde çalışacaktır:
+The API will run at the following addresses by default:
 - HTTP: http://localhost:5000
 - HTTPS: https://localhost:5001
 - Swagger: https://localhost:5001/swagger
 
 ### 6. Health Check
 
-Servislerinizin durumunu kontrol edin:
+Check the status of your services:
 ```
 GET https://localhost:5001/health
 ```
 
-## ⚙️ Yapılandırma
+## ⚙️ Configuration
 
 ### appsettings.json
 
-Uygulama yapılandırması `src/tumdex/WebAPI/appsettings.json` dosyasında bulunur.
+Application configuration is located in the `src/tumdex/WebAPI/appsettings.json` file.
 
-#### Ana Konfigürasyon Bölümleri:
+#### Main Configuration Sections:
 
 **ConnectionStrings**
 ```json
@@ -727,18 +727,18 @@ Uygulama yapılandırması `src/tumdex/WebAPI/appsettings.json` dosyasında bulu
 - Credentials path
 - Application name
 
-### Storage Provider Değiştirme
+### Changing Storage Provider
 
-`appsettings.json` içinde:
+In `appsettings.json`:
 ```json
 {
   "Storage": {
-    "ActiveProvider": "localstorage" // veya "google", "cloudinary", "aws"
+    "ActiveProvider": "localstorage" // or "google", "cloudinary", "aws"
   }
 }
 ```
 
-### Rate Limiting Ayarları
+### Rate Limiting Settings
 
 ```json
 {
@@ -753,106 +753,106 @@ Uygulama yapılandırması `src/tumdex/WebAPI/appsettings.json` dosyasında bulu
 }
 ```
 
-## 📚 Kullanım
+## 📚 Usage
 
-### API Endpoint Kategorileri
+### API Endpoint Categories
 
 #### Authentication & Authorization
 ```
-POST   /api/auth/login                    # Kullanıcı girişi
-POST   /api/auth/register                 # Kullanıcı kaydı
-POST   /api/auth/refresh-token            # Token yenileme
-POST   /api/auth/logout                   # Çıkış
-POST   /api/auth/forgot-password          # Şifre sıfırlama
-POST   /api/auth/reset-password           # Şifre güncelleme
-GET    /api/auth/confirm-email            # Email doğrulama
+POST   /api/auth/login                    # User login
+POST   /api/auth/register                 # User registration
+POST   /api/auth/refresh-token            # Refresh token
+POST   /api/auth/logout                   # Logout
+POST   /api/auth/forgot-password          # Password reset
+POST   /api/auth/reset-password           # Password update
+GET    /api/auth/confirm-email            # Email verification
 ```
 
 #### Products
 ```
-GET    /api/products                      # Ürün listesi (filtreleme, pagination)
-GET    /api/products/{id}                 # Ürün detayı
-POST   /api/products                      # Ürün oluştur
-PUT    /api/products/{id}                 # Ürün güncelle
-DELETE /api/products/{id}                 # Ürün sil
-GET    /api/products/best-selling         # En çok satanlar
-GET    /api/products/most-liked           # En çok beğenilenler
-GET    /api/products/most-viewed          # En çok görüntülenenler
-POST   /api/products/{id}/like            # Ürün beğen/beğeniyi kaldır
-POST   /api/products/{id}/view            # Ürün görüntüleme kaydı
+GET    /api/products                      # Product list (filtering, pagination)
+GET    /api/products/{id}                 # Product detail
+POST   /api/products                      # Create product
+PUT    /api/products/{id}                 # Update product
+DELETE /api/products/{id}                 # Delete product
+GET    /api/products/best-selling         # Best selling products
+GET    /api/products/most-liked           # Most liked products
+GET    /api/products/most-viewed          # Most viewed products
+POST   /api/products/{id}/like            # Like/Unlike product
+POST   /api/products/{id}/view            # Record product view
 ```
 
 #### Categories
 ```
-GET    /api/categories                    # Kategori listesi
-GET    /api/categories/{id}               # Kategori detayı
-POST   /api/categories                    # Kategori oluştur
-PUT    /api/categories/{id}               # Kategori güncelle
-DELETE /api/categories/{id}               # Kategori sil
+GET    /api/categories                    # Category list
+GET    /api/categories/{id}               # Category detail
+POST   /api/categories                    # Create category
+PUT    /api/categories/{id}               # Update category
+DELETE /api/categories/{id}               # Delete category
 ```
 
 #### Brands
 ```
-GET    /api/brands                        # Marka listesi
-GET    /api/brands/{id}                   # Marka detayı
-POST   /api/brands                        # Marka oluştur
-PUT    /api/brands/{id}                   # Marka güncelle
-DELETE /api/brands/{id}                   # Marka sil
+GET    /api/brands                        # Brand list
+GET    /api/brands/{id}                   # Brand detail
+POST   /api/brands                        # Create brand
+PUT    /api/brands/{id}                   # Update brand
+DELETE /api/brands/{id}                   # Delete brand
 ```
 
 #### Cart
 ```
-GET    /api/carts                         # Sepet getir
-POST   /api/carts/items                   # Sepete ürün ekle
-PUT    /api/carts/items/{id}              # Sepet ürünü güncelle
-DELETE /api/carts/items/{id}              # Sepetten ürün çıkar
-DELETE /api/carts                         # Sepeti temizle
+GET    /api/carts                         # Get cart
+POST   /api/carts/items                   # Add item to cart
+PUT    /api/carts/items/{id}              # Update cart item
+DELETE /api/carts/items/{id}              # Remove item from cart
+DELETE /api/carts                         # Clear cart
 ```
 
 #### Orders
 ```
-GET    /api/orders                        # Sipariş listesi
-GET    /api/orders/{id}                   # Sipariş detayı
-POST   /api/orders                        # Sipariş oluştur
-PUT    /api/orders/{id}                   # Sipariş güncelle
-GET    /api/orders/user                   # Kullanıcının siparişleri
+GET    /api/orders                        # Order list
+GET    /api/orders/{id}                   # Order detail
+POST   /api/orders                        # Create order
+PUT    /api/orders/{id}                   # Update order
+GET    /api/orders/user                   # User's orders
 ```
 
 #### Users
 ```
-GET    /api/users                         # Kullanıcı listesi (Admin)
-GET    /api/users/{id}                    # Kullanıcı detayı
-PUT    /api/users/{id}                    # Kullanıcı güncelle
-DELETE /api/users/{id}                    # Kullanıcı sil
-GET    /api/users/profile                 # Profil bilgisi
-PUT    /api/users/profile                 # Profil güncelle
+GET    /api/users                         # User list (Admin)
+GET    /api/users/{id}                    # User detail
+PUT    /api/users/{id}                    # Update user
+DELETE /api/users/{id}                    # Delete user
+GET    /api/users/profile                 # Profile information
+PUT    /api/users/profile                 # Update profile
 ```
 
 #### User Addresses
 ```
-GET    /api/user-addresses                # Adres listesi
-GET    /api/user-addresses/{id}           # Adres detayı
-POST   /api/user-addresses                # Adres ekle
-PUT    /api/user-addresses/{id}           # Adres güncelle
-DELETE /api/user-addresses/{id}           # Adres sil
+GET    /api/user-addresses                # Address list
+GET    /api/user-addresses/{id}           # Address detail
+POST   /api/user-addresses                # Add address
+PUT    /api/user-addresses/{id}           # Update address
+DELETE /api/user-addresses/{id}           # Delete address
 ```
 
 #### Newsletter
 ```
-POST   /api/newsletter/subscribe          # Abone ol
-DELETE /api/newsletter/unsubscribe        # Abonelikten çık
+POST   /api/newsletter/subscribe          # Subscribe
+DELETE /api/newsletter/unsubscribe        # Unsubscribe
 ```
 
 #### Contact
 ```
-POST   /api/contacts                      # İletişim formu gönder
+POST   /api/contacts                      # Send contact form
 ```
 
 #### Dashboard (Admin)
 ```
-GET    /api/dashboard/statistics          # Dashboard istatistikleri
-GET    /api/dashboard/sales               # Satış raporları
-GET    /api/dashboard/visitors            # Ziyaretçi istatistikleri
+GET    /api/dashboard/statistics          # Dashboard statistics
+GET    /api/dashboard/sales               # Sales reports
+GET    /api/dashboard/visitors            # Visitor statistics
 ```
 
 #### SEO
@@ -867,9 +867,9 @@ GET    /health                            # Health check
 GET    /api/metrics                       # Prometheus metrics
 ```
 
-### Örnek API Kullanımları
+### Sample API Usages
 
-#### Ürün Listesi (Filtreleme ve Pagination)
+#### Product List (Filtering and Pagination)
 
 ```bash
 curl -X GET "https://localhost:5001/api/products?PageIndex=0&PageSize=10&CategoryId=cat-1" \
@@ -882,7 +882,7 @@ Response:
   "items": [
     {
       "id": "prod-1",
-      "name": "Ürün Adı",
+      "name": "Product Name",
       "price": 99.99,
       "stock": 50,
       "categoryId": "cat-1",
@@ -899,7 +899,7 @@ Response:
 }
 ```
 
-#### Sepete Ürün Ekleme
+#### Add Item to Cart
 
 ```bash
 curl -X POST "https://localhost:5001/api/carts/items" \
@@ -911,7 +911,7 @@ curl -X POST "https://localhost:5001/api/carts/items" \
   }'
 ```
 
-#### Sipariş Oluşturma
+#### Create Order
 
 ```bash
 curl -X POST "https://localhost:5001/api/orders" \
@@ -919,13 +919,13 @@ curl -X POST "https://localhost:5001/api/orders" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{
     "userAddressId": "addr-1",
-    "note": "Lütfen kapıyı çalın"
+    "note": "Please ring the doorbell"
   }'
 ```
 
-### SignalR Hub Kullanımı
+### SignalR Hub Usage
 
-#### JavaScript Client Örneği
+#### JavaScript Client Example
 
 ```javascript
 const connection = new signalR.HubConnectionBuilder()
@@ -935,19 +935,19 @@ const connection = new signalR.HubConnectionBuilder()
     .withAutomaticReconnect()
     .build();
 
-// Ziyaretçi istatistiklerini dinle
+// Listen to visitor statistics
 connection.on("ReceiveVisitorStats", (stats) => {
     console.log("Current visitors:", stats.currentVisitors);
     console.log("Today's visitors:", stats.todayVisitors);
 });
 
-// Bağlantıyı başlat
+// Start connection
 connection.start()
     .then(() => console.log("SignalR Connected"))
     .catch(err => console.error(err));
 ```
 
-#### .NET Client Örneği
+#### .NET Client Example
 
 ```csharp
 var connection = new HubConnectionBuilder()
@@ -962,26 +962,26 @@ connection.On<VisitorStats>("ReceiveVisitorStats", (stats) =>
 await connection.StartAsync();
 ```
 
-## 📊 Monitoring ve Logging
+## 📊 Monitoring and Logging
 
 ### Prometheus Metrics
 
-Prometheus metriklerine erişim:
+Access Prometheus metrics:
 ```
 http://localhost:9090
 ```
 
-**Özel Metriks:**
-- `http_requests_total` - Toplam HTTP istekleri
-- `http_request_duration_seconds` - İstek süreleri
-- `cache_hits_total` - Cache hit sayısı
-- `cache_misses_total` - Cache miss sayısı
-- `order_created_total` - Oluşturulan sipariş sayısı
-- `product_views_total` - Ürün görüntüleme sayısı
+**Custom Metrics:**
+- `http_requests_total` - Total HTTP requests
+- `http_request_duration_seconds` - Request durations
+- `cache_hits_total` - Cache hit count
+- `cache_misses_total` - Cache miss count
+- `order_created_total` - Created order count
+- `product_views_total` - Product view count
 
 ### Grafana Dashboards
 
-Grafana'ya erişim:
+Access Grafana:
 ```
 http://localhost:3000
 Username: admin
@@ -1002,28 +1002,28 @@ http://localhost:5341
 ```
 
 **Log Levels:**
-- Verbose: Detaylı debug bilgileri
-- Debug: Geliştirme aşaması bilgileri
-- Information: Genel uygulama akış bilgileri
-- Warning: Uyarılar
-- Error: Hatalar
-- Fatal: Kritik hatalar
+- Verbose: Detailed debug information
+- Debug: Development phase information
+- Information: General application flow information
+- Warning: Warnings
+- Error: Errors
+- Fatal: Critical errors
 
-**Query Örnekleri:**
+**Query Examples:**
 ```
-# Hatalı login denemeleri
+# Failed login attempts
 @Level = 'Error' AND @MessageTemplate LIKE '%login%'
 
-# Yavaş sorgular
+# Slow queries
 @Properties.RequestDuration > 1000
 
-# Belirli bir kullanıcının logları
+# Logs for a specific user
 UserId = 'user-123'
 ```
 
 ### Health Checks
 
-Health check endpoint'i sürekli olarak sistemin durumunu kontrol eder:
+The health check endpoint continuously monitors the system status:
 
 ```bash
 curl https://localhost:5001/health
@@ -1042,39 +1042,39 @@ Response:
 }
 ```
 
-## 🔒 Güvenlik
+## 🔒 Security
 
 ### Authentication Flow
 
-1. Kullanıcı `/api/auth/login` endpoint'ine credentials gönderir
-2. Sistem credentials'ı doğrular
-3. Başarılı ise Access Token ve Refresh Token döner
-4. Client, her istekte Authorization header'da Access Token gönderir
-5. Token expire olduğunda Refresh Token ile yeni token alınır
+1. User sends credentials to `/api/auth/login` endpoint
+2. System validates credentials
+3. If successful, returns Access Token and Refresh Token
+4. Client sends Access Token in Authorization header with each request
+5. When token expires, new token is obtained with Refresh Token
 
-### Token Yapısı
+### Token Structure
 
 **Access Token:**
-- Ömür: 30 dakika
+- Lifetime: 30 minutes
 - Claims: UserId, Email, Roles
 - IP validation
 - User-Agent validation
 
 **Refresh Token:**
-- Ömür: 14 gün
+- Lifetime: 14 days
 - Token family tracking
 - Automatic rotation
-- Maximum 5 active token per user
+- Maximum 5 active tokens per user
 
 ### Rate Limiting
 
 **IP-based Rate Limiting:**
-- Anonymous users: 40,000 request/hour
-- Authenticated users: 40,000 request/hour
-- Whitelisted IPs: 1000 request/minute
+- Anonymous users: 40,000 requests/hour
+- Authenticated users: 40,000 requests/hour
+- Whitelisted IPs: 1000 requests/minute
 
 **Endpoint-specific limits:**
-- `/api/auth/login`: 5 request/minute
+- `/api/auth/login`: 5 requests/minute
 - Public endpoints: Normal limits
 - Admin endpoints: Increased limits
 
@@ -1172,7 +1172,7 @@ Swagger UI: `https://localhost:5001/swagger`
 
 ## 🔄 CI/CD
 
-### GitHub Actions (Örnek)
+### GitHub Actions (Example)
 
 ```yaml
 name: .NET Build and Test
@@ -1207,7 +1207,7 @@ jobs:
 
 ## 📝 Database Schema
 
-### Temel Tablolar
+### Main Tables
 
 **Products**
 - Id (PK)
@@ -1256,7 +1256,7 @@ jobs:
 - PhoneNumber
 - PhoneNumberConfirmed
 
-### İlişkiler
+### Relationships
 
 ```
 Users 1--* Orders
@@ -1302,9 +1302,9 @@ docker run -d \
 - [ ] Security audit
 - [ ] Load testing
 
-## 🤝 Katkıda Bulunma
+## 🤝 Contributing
 
-Katkılarınızı memnuniyetle karşılıyoruz!
+Contributions are welcome!
 
 ### Contribution Guidelines
 
@@ -1316,26 +1316,26 @@ Katkılarınızı memnuniyetle karşılıyoruz!
 
 ### Code Standards
 
-- **Clean Code**: SOLID prensipleri
-- **Naming**: Anlamlı ve açıklayıcı isimler
-- **Comments**: Sadece gerekli yerlerde
-- **Tests**: Yeni feature'lar için test yazın
-- **Documentation**: README güncellemesi
+- **Clean Code**: SOLID principles
+- **Naming**: Meaningful and descriptive names
+- **Comments**: Only where necessary
+- **Tests**: Write tests for new features
+- **Documentation**: Update README
 
 ## 📄 License
 
-Kullanım izni için lütfen iletişime geçin.
+Please contact for usage permission.
 
-## 📞 İletişim
+## 📞 Contact
 
 - **Email**: muratfirtina@hotmail.com
 - **Website**: 
 - **LinkedIn**: 
 - **WhatsApp**: 
 
-## 🙏 Teşekkürler
+## 🙏 Acknowledgments
 
-Bu proje aşağıdaki açık kaynak projeleri kullanmaktadır:
+This project uses the following open source projects:
 
 - ASP.NET Core
 - Entity Framework Core
@@ -1347,8 +1347,8 @@ Bu proje aşağıdaki açık kaynak projeleri kullanmaktadır:
 - RabbitMQ
 - Redis
 - SignalR
-- ve daha fazlası...
+- and more...
 
 ---
 
-**© 2024 Tüm Trading Dış Ticaret Ltd. Şti. Tüm hakları saklıdır.**
+**This project is written as open source by me.**
